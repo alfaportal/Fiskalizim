@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Biznes — Test ATK / SEF</title>
+  <style>
+    :root {
+      --bg: #1a2332;
+      --panel: #243044;
+      --line: #3a4a63;
+      --text: #eef2f7;
+      --muted: #9aabbe;
+      --a: #6b7280;
+      --c: #0d9488;
+      --d: #2563eb;
+      --e: #dc2626;
+      --ok: #16a34a;
+      --warn: #d97706;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #152031;
+    }
+    header h1 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; }
+    header .badge {
+      font-size: 0.75rem;
+      color: #fde68a;
+      border: 1px solid #92400e;
+      background: #78350f55;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tabs button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tabs button.active { outline: 2px solid #93c5fd; }
+    main { display: grid; grid-template-columns: 1.4fr 1fr; min-height: 0; }
+    .panel { padding: 12px; overflow: auto; min-height: 0; }
+    .panel + .panel { border-left: 1px solid var(--line); }
+    .letter-bar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .letter-bar button {
+      flex: 1;
+      min-width: 70px;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+    }
+    .letter-bar .A { background: var(--a); }
+    .letter-bar .C { background: var(--c); }
+    .letter-bar .D { background: var(--d); }
+    .letter-bar .E { background: var(--e); }
+    .letter-bar button.on { box-shadow: 0 0 0 3px #fff3; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .card:hover { border-color: #93c5fd; }
+    .card .name { font-weight: 600; font-size: 0.92rem; margin-bottom: 6px; }
+    .card .meta { color: var(--muted); font-size: 0.8rem; display: flex; justify-content: space-between; }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fff;
+    }
+    .tag.A { background: var(--a); }
+    .tag.C { background: var(--c); }
+    .tag.D { background: var(--d); }
+    .tag.E { background: var(--e); }
+    h2 { margin: 0 0 10px; font-size: 1rem; }
+    .cart-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .cart-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 8px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 0.9rem;
+    }
+    .cart-row button {
+      border: 1px solid var(--line);
+      background: #111827;
+      color: var(--text);
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+    }
+    .totals { background: #111827; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .totals .row { display: flex; justify-content: space-between; margin: 4px 0; }
+    .totals .big { font-size: 1.35rem; font-weight: 800; }
+    .pay-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .pay-row label {
+      flex: 1;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+    }
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+    .btn-primary { background: var(--ok); color: #fff; }
+    .btn-warn { background: var(--warn); color: #111; }
+    .btn-danger { background: var(--e); color: #fff; }
+    .btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .hidden { display: none !important; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    input, select, textarea {
+      width: 100%;
+      background: #111827;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .msg {
+      white-space: pre-wrap;
+      background: #111827;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.85rem;
+      min-height: 60px;
+      margin-top: 8px;
+    }
+    .msg.err { border-color: #ef4444; color: #fecaca; }
+    .msg.ok { border-color: #22c55e; color: #bbf7d0; }
+    .login-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: #0b1220ee;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .login-overlay.hidden { display: none; }
+    .login-box {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .login-box h2 { margin: 0 0 8px; font-size: 1.1rem; }
+    .login-box p { color: var(--muted); font-size: 0.85rem; margin: 0 0 14px; }
+    .preview-overlay {
+      position: fixed; inset: 0; z-index: 900;
+      background: #0b1220cc;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .preview-overlay.hidden { display: none; }
+    .preview-box {
+      width: min(560px, 100%);
+      max-height: 90vh;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .preview-box pre {
+      margin: 0; overflow: auto; flex: 1;
+      background: #0f172a; color: #e2e8f0;
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 12px; font-size: 0.78rem; white-space: pre-wrap;
+      font-family: Consolas, "Courier New", monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-box">
+      <h2>Kyçu si operator</h2>
+      <p>Regjistrohet në audit log (emri, ora, IP) para përdorimit të SEF.</p>
+      <label>Emri i operatorit</label>
+      <input id="login-name" placeholder="p.sh. Operator" value="Operator" />
+      <label>ID operatori</label>
+      <input id="login-id" placeholder="POS" value="POS" />
+      <button type="button" class="btn btn-primary" id="btn-login" style="margin-top:12px">Kyçu</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+  </div>
+
+  <div id="preview-overlay" class="preview-overlay hidden">
+    <div class="preview-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h2 style="margin:0;font-size:1.05rem">Print Preview</h2>
+        <button type="button" class="btn btn-ghost" id="btn-preview-close" style="width:auto">Mbyll</button>
+      </div>
+      <pre id="preview-text">—</pre>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" id="btn-preview-print" style="width:auto">Printo tani</button>
+        <button type="button" class="btn btn-ghost" id="btn-preview-close-2" style="width:auto">Vetëm shiko</button>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div>
+      <h1>Biznes — Test ATK / SEF</h1>
+      <div class="badge">Desktop ATK/SEF · si KAFENE · printer termik</div>
+      <div class="badge" id="operator-badge" style="margin-top:6px;display:inline-block">Operator: —</div>
+    </div>
+    <div class="tabs">
+      <button type="button" class="active" data-tab="pos">Arka</button>
+      <button type="button" data-tab="receipts">Kuponët</button>
+      <button type="button" data-tab="x">Raporti X</button>
+      <button type="button" data-tab="z">Raporti Z</button>
+      <button type="button" data-tab="periodic">Periodik</button>
+      <button type="button" data-tab="audit">Audit</button>
+      <button type="button" data-tab="printer">Printeri</button>
+      <button type="button" data-tab="settings">Cilësimet SEF</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- POS -->
+    <section class="panel" id="tab-pos-left">
+      <div class="letter-bar">
+        <button type="button" class="A on" data-letter="A">A · 0%</button>
+        <button type="button" class="C" data-letter="C">C · tjetër</button>
+        <button type="button" class="D" data-letter="D">D · 8%</button>
+        <button type="button" class="E" data-letter="E">E · 18%</button>
+      </div>
+      <div class="grid" id="product-grid"></div>
+    </section>
+    <section class="panel" id="tab-pos-right">
+      <h2>Shporta / Checkout</h2>
+      <div class="cart-list" id="cart"></div>
+      <div class="totals">
+        <div class="row"><span>Artikuj</span><span id="cart-count">0</span></div>
+        <div class="row"><span>Nën-total</span><span id="cart-sub">0.00 €</span></div>
+        <div class="row big"><span>TOTALI</span><span id="cart-total">0.00 €</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
+        <div>
+          <label style="font-size:0.8rem">Zbritje në total</label>
+          <select id="cart-disc-type"><option value="none">Asnjë</option><option value="value">€</option><option value="percent">%</option></select>
+          <input id="cart-disc-val" type="number" min="0" step="0.01" value="0" style="margin-top:4px" />
+        </div>
+        <div>
+          <label style="font-size:0.8rem">Rritje në total</label>
+          <select id="cart-sur-type"><option value="none">Asnjë</option><option value="value">€</option><option value="percent">%</option></select>
+          <input id="cart-sur-val" type="number" min="0" step="0.01" value="0" style="margin-top:4px" />
+        </div>
+      </div>
+      <div class="pay-row" style="flex-wrap:wrap">
+        <label><input type="radio" name="pay" value="cash" checked /> Cash</label>
+        <label><input type="radio" name="pay" value="card" /> Kartë/POS</label>
+        <label><input type="radio" name="pay" value="voucher" /> Voucher</label>
+        <label><input type="radio" name="pay" value="check" /> Çek</label>
+        <label><input type="checkbox" id="pay-mixed" /> Pagesë e përzier</label>
+      </div>
+      <div id="pay-mixed-box" class="hidden" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:6px 0">
+        <div><label style="font-size:0.75rem">Cash €</label><input id="pay-cash-amt" type="number" min="0" step="0.01" value="0" /></div>
+        <div><label style="font-size:0.75rem">POS €</label><input id="pay-card-amt" type="number" min="0" step="0.01" value="0" /></div>
+        <div><label style="font-size:0.75rem">Voucher €</label><input id="pay-voucher-amt" type="number" min="0" step="0.01" value="0" /></div>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-checkout">Paguaj + Kupon fiskal</button>
+      <button type="button" class="btn btn-ghost" id="btn-clear">Pastro shportën</button>
+      <div class="msg" id="pos-msg"></div>
+    </section>
+
+    <!-- Receipts -->
+    <section class="panel hidden" id="tab-receipts" style="grid-column: 1 / -1">
+      <h2>Kuponët fiskalë</h2>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="btn btn-ghost" id="btn-refresh-receipts" style="width:auto">Rifresko</button>
+        <input id="storno-nuikf" placeholder="NUIKF për storno/anullim/ndërrim" style="max-width:280px;margin:0" />
+        <input id="storno-reason" placeholder="Arsyeja (obligative për anullim)" style="max-width:260px;margin:0" />
+        <button type="button" class="btn btn-danger" id="btn-storno" style="width:auto">Storno</button>
+        <button type="button" class="btn btn-warn" id="btn-cancel" style="width:auto">Anulo (cancel)</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <input id="ex-old-index" type="number" min="0" value="0" title="Indeksi i artikullit të vjetër (0=i pari)" style="max-width:80px;margin:0" />
+        <select id="ex-new-product" style="max-width:220px;margin:0"></select>
+        <button type="button" class="btn btn-primary" id="btn-exchange" style="width:auto">Ndërrim artikulli</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>NUIKF</th><th>Tipi</th><th>Ditor</th><th>Total</th>
+            <th>Data</th><th>Pagesa</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="receipts-body"></tbody>
+      </table>
+      <div class="msg" id="receipts-msg"></div>
+    </section>
+
+    <!-- X (Modi X) -->
+    <section class="panel hidden" id="tab-x" style="grid-column: 1 / -1">
+      <h2>Raporti X (Modi X)</h2>
+      <p style="color:var(--muted)">
+        Gjendja aktuale e ditës (kuponë, total, TVSH) — mund të printohet shumë herë.
+        Nuk reseton numrin ditor dhe nuk është mbyllje zyrtare (Neni 10 / 3.1).
+      </p>
+      <button type="button" class="btn btn-primary" id="btn-x" style="max-width:320px">Printo / shiko Raportin X</button>
+      <div class="msg" id="x-msg"></div>
+    </section>
+
+    <!-- Z -->
+    <section class="panel hidden" id="tab-z" style="grid-column: 1 / -1">
+      <h2>Raporti Fiskal Ditor (Z-report)</h2>
+      <p style="color:var(--muted)">Mbyll ditën fiskale: logon Z, reset numrin ditor (1× në ditë), printon përmbledhjen.</p>
+      <button type="button" class="btn btn-warn" id="btn-z" style="max-width:320px">Printo Raportin Z</button>
+      <div class="msg" id="z-msg"></div>
+    </section>
+
+    <!-- Periodik -->
+    <section class="panel hidden" id="tab-periodic" style="grid-column: 1 / -1">
+      <h2>Raportet periodike</h2>
+      <p style="color:var(--muted)">
+        Zgjidh periudhën (Nga–Deri). Tre opsione të veçanta: Periodik (detajuar),
+        i shkurtër (përmbledhur — Neni 13/7), mujor i memories ATK (Neni 11/9).
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
+        <div><label>Nga</label><input type="date" id="per-from" /></div>
+        <div><label>Deri</label><input type="date" id="per-to" /></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <button type="button" class="btn btn-primary" id="btn-periodic" style="width:auto">Raporti Periodik</button>
+        <button type="button" class="btn btn-warn" id="btn-short-periodic" style="width:auto">Raport i shkurtër periodik</button>
+        <button type="button" class="btn btn-ghost" id="btn-monthly-memory" style="width:auto">Raporti mujor (memoria ATK)</button>
+      </div>
+      <div class="msg" id="periodic-msg"></div>
+    </section>
+
+    <!-- Audit -->
+    <section class="panel hidden" id="tab-audit" style="grid-column: 1 / -1">
+      <h2>Eksporti i log-eve (ATK Neni 26)</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
+        <div><label>Nga</label><input type="date" id="audit-from" /></div>
+        <div><label>Deri</label><input type="date" id="audit-to" /></div>
+        <button type="button" class="btn btn-primary" id="btn-audit-csv" style="width:auto">Eksporto CSV</button>
+        <button type="button" class="btn btn-ghost" id="btn-audit-pdf" style="width:auto">Eksporto PDF</button>
+      </div>
+      <div class="msg" id="audit-msg"></div>
+    </section>
+
+    <!-- Printer -->
+    <section class="panel hidden" id="tab-printer" style="grid-column: 1 / -1">
+      <h2>Printeri termik (Tysso / ESC-POS)</h2>
+      <p style="color:var(--muted);max-width:640px">
+        Në Windows, Tysso duhet të jetë i instaluar si printer (si te KAFENE) —
+        app-i e njeh nga emri/driveri <strong>Tysso</strong>, jo si “printer Windows” i zakonshëm.
+        Zgjidh <strong>Tysso Thermal Receipt Printer</strong> (USB), jo Copy 1/2 në COM.
+      </p>
+      <label>Printeri</label>
+      <select id="printer-select" style="max-width:520px"></select>
+      <label>Gjerësia e letrës</label>
+      <select id="printer-paper" style="max-width:220px">
+        <option value="80mm">80mm</option>
+        <option value="58mm">58mm</option>
+        <option value="100mm">100mm</option>
+      </select>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="btn btn-ghost" id="btn-printer-refresh" style="width:auto">Rifresko listën</button>
+        <button type="button" class="btn btn-primary" id="btn-printer-save" style="width:auto">Ruaj printerin</button>
+        <button type="button" class="btn btn-warn" id="btn-printer-test" style="width:auto">Test print</button>
+      </div>
+      <div class="msg" id="printer-msg"></div>
+    </section>
+
+    <!-- Settings -->
+    <section class="panel hidden" id="tab-settings" style="grid-column: 1 / -1">
+      <h2>Ku i shkruan të dhënat e fiskalizimit (ATK / SEF)</h2>
+      <p style="color:var(--muted);max-width:720px;line-height:1.45">
+        <strong>Këtu në këtë faqe</strong> — tab-i «Cilësimet SEF».
+        Të dhënat ruhen lokalisht në kompjuterin tënd
+        (<code>%APPDATA%\biznes-sef\</code>).
+        Çelësat / certifikata ATK i vendos në folderin e çelësave (butoni më poshtë).
+      </p>
+      <div id="atk-status-box" class="msg" style="margin-bottom:14px"></div>
+
+      <h2 style="margin-top:8px">1) Biznesi (nga EDI / ATK)</h2>
+      <div class="form-grid">
+        <div>
+          <label>Emri ligjor i biznesit *</label>
+          <input id="s-legal" placeholder="p.sh. FIRMA SH.P.K." />
+          <label>NUI — 9 shifra *</label>
+          <input id="s-nui" maxlength="9" placeholder="810000000" />
+          <label>NF (numri fiskal)</label>
+          <input id="s-nf" />
+          <label>Nr. TVSH</label>
+          <input id="s-vat" />
+          <label>Adresa e njësisë *</label>
+          <input id="s-address" placeholder="Prishtinë, …" />
+        </div>
+        <div>
+          <label>Emri i Njësisë (degë) *</label>
+          <input id="s-unit-name" placeholder="Njësia 1" />
+          <label>Telefoni i Njësisë *</label>
+          <input id="s-unit-phone" placeholder="044 …" />
+          <label>Numri i Njësisë ARBK *</label>
+          <input id="s-unit-number" placeholder="p.sh. 1 ose 5130484" />
+          <label>POS ID *</label>
+          <input id="s-pos" placeholder="01" />
+          <label>SEF ID (llogaritet automatikisht)</label>
+          <input id="s-sef" readonly />
+        </div>
+      </div>
+
+      <h2>2) Lidhja me ATK (Faza e Testimit)</h2>
+      <div class="form-grid">
+        <div>
+          <label>URL e ATK (TEST ose PROD)</label>
+          <select id="s-atk-url">
+            <option value="https://fiskalizimi-test.atk-ks.org">TEST — fiskalizimi-test.atk-ks.org</option>
+            <option value="https://fiskalizimi.atk-ks.org">PROD — fiskalizimi.atk-ks.org</option>
+          </select>
+          <label>Kodi unik i fiskalizimit (nga EDI ATK)</label>
+          <input id="s-fisc-no" placeholder="fiscalization_no nga EDI" />
+          <label>Application ID (pas certifikimit të SEF nga ATK)</label>
+          <input id="s-app-id" placeholder="p.sh. 12345" />
+          <label>Gjuha e kuponit (sq / sr)</label>
+          <select id="s-language">
+            <option value="sq">Shqip</option>
+            <option value="sr">Serbisht</option>
+          </select>
+        </div>
+        <div>
+          <label>Folderi i çelësave / certifikatës</label>
+          <input id="s-keys-dir" readonly />
+          <button type="button" class="btn btn-ghost" id="btn-open-keys" style="width:auto;margin-bottom:10px">Hap folderin e çelësave</button>
+          <p style="color:var(--muted);font-size:0.85rem;margin:0;line-height:1.4">
+            ATK të jep: <code>private-key.pem</code> + <code>signed-certificate.pem</code>.
+            Kopjoji në këtë folder (zëvendëso placeholder-in).
+            Pa certifikatë të nënshkruar nga ATK, dërgimi te serveri TEST/PROD dështon.
+          </p>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="btn btn-primary" id="btn-save-settings" style="width:auto;min-width:200px">Ruaj cilësimet</button>
+        <button type="button" class="btn btn-warn" id="btn-send-pending" style="width:auto;min-width:200px">Dërgo kuponët në pritje te ATK</button>
+      </div>
+      <div class="msg" id="settings-msg"></div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      byLetter: { A: [], C: [], D: [], E: [] },
+      letter: "A",
+      cart: [],
+      operator_name: "",
+      operator_id: "POS",
+      previewReceiptId: null,
+    };
+
+    function currentOperator() {
+      return state.operator_name || "Operator";
+    }
+
+    function currentOperatorId() {
+      return state.operator_id || "POS";
+    }
+
+    function openPrintPreview(text, receiptId) {
+      state.previewReceiptId = receiptId != null ? Number(receiptId) : null;
+      document.getElementById("preview-text").textContent = String(text || "—");
+      document.getElementById("preview-overlay").classList.remove("hidden");
+    }
+
+    function closePrintPreview() {
+      document.getElementById("preview-overlay").classList.add("hidden");
+      state.previewReceiptId = null;
+    }
+
+    async function api(url, opts) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data.needs_confirm_over_1000) return data;
+      if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
+      return data;
+    }
+
+    function adjTypeVal(typeEl, valEl) {
+      const type = (typeEl && typeEl.value) || "none";
+      const value = Number(valEl && valEl.value) || 0;
+      return type === "none" || value <= 0 ? null : { type, value };
+    }
+
+    function cartPreview() {
+      const sub = state.cart.reduce((s, c) => {
+        const base = (Number(c.base_price ?? c.price) || 0) * c.quantity;
+        let net = base;
+        const ld = c.line_discount;
+        const ls = c.line_surcharge;
+        if (ld && ld.type === "percent") net -= (base * ld.value) / 100;
+        else if (ld && ld.type === "value") net -= ld.value;
+        if (ls && ls.type === "percent") net += (base * ls.value) / 100;
+        else if (ls && ls.type === "value") net += ls.value;
+        return s + Math.max(0, net);
+      }, 0);
+      const cd = adjTypeVal(document.getElementById("cart-disc-type"), document.getElementById("cart-disc-val"));
+      const cs = adjTypeVal(document.getElementById("cart-sur-type"), document.getElementById("cart-sur-val"));
+      let total = sub;
+      if (cd) total -= cd.type === "percent" ? (sub * cd.value) / 100 : cd.value;
+      if (cs) total += cs.type === "percent" ? (sub * cs.value) / 100 : cs.value;
+      return { sub: Math.round(sub * 100) / 100, total: Math.round(Math.max(0, total) * 100) / 100 };
+    }
+
+    function euro(n) {
+      return (Number(n) || 0).toFixed(2) + " €";
+    }
+
+    function setMsg(el, text, ok) {
+      el.textContent = text || "";
+      el.classList.toggle("err", ok === false);
+      el.classList.toggle("ok", ok === true);
+    }
+
+    function renderProducts() {
+      const grid = document.getElementById("product-grid");
+      const list = state.byLetter[state.letter] || [];
+      grid.innerHTML = list
+        .map(
+          (p) => `<button type="button" class="card" data-id="${p.id}">
+            <div class="name">${esc(p.name)}</div>
+            <div class="meta">
+              <span class="tag ${esc(p.vat_letter)}">${esc(p.vat_letter)}</span>
+              <strong>${euro(p.price)}</strong>
+            </div>
+          </button>`
+        )
+        .join("");
+      grid.querySelectorAll(".card").forEach((btn) => {
+        btn.addEventListener("click", () => addProduct(Number(btn.dataset.id)));
+      });
+    }
+
+    function esc(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function findProduct(id) {
+      for (const L of ["A", "C", "D", "E"]) {
+        const p = (state.byLetter[L] || []).find((x) => Number(x.id) === id);
+        if (p) return p;
+      }
+      return null;
+    }
+
+    function addProduct(id) {
+      const p = findProduct(id);
+      if (!p) return;
+      const existing = state.cart.find((c) => c.product_id === p.id);
+      if (existing) existing.quantity += 1;
+      else {
+        state.cart.push({
+          product_id: p.id,
+          name: p.name,
+          price: Number(p.price),
+          base_price: Number(p.price),
+          quantity: 1,
+          vat_norm: p.vat_letter,
+          vat_letter: p.vat_letter,
+          line_discount: null,
+          line_surcharge: null,
+        });
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      const box = document.getElementById("cart");
+      if (!state.cart.length) {
+        box.innerHTML = '<div style="color:var(--muted)">Shto produkte nga norma A / C / D / E</div>';
+      } else {
+        box.innerHTML = state.cart
+          .map(
+            (c, i) => `<div class="cart-row" style="flex-wrap:wrap;gap:4px">
+              <div style="flex:1 1 120px"><span class="tag ${esc(c.vat_letter)}">${esc(c.vat_letter)}</span> ${esc(c.name)}</div>
+              <div>
+                <button type="button" data-act="minus" data-i="${i}">−</button>
+                <strong style="margin:0 6px">${c.quantity}</strong>
+                <button type="button" data-act="plus" data-i="${i}">+</button>
+              </div>
+              <div>${euro((c.base_price ?? c.price) * c.quantity)}</div>
+              <button type="button" data-act="del" data-i="${i}">×</button>
+              <div style="flex:1 1 100%;display:flex;gap:4px;font-size:0.75rem">
+                <select data-act="ldt" data-i="${i}" title="Zbritje artikulli">
+                  <option value="none" ${!c.line_discount ? "selected" : ""}>Zbritje—</option>
+                  <option value="value" ${c.line_discount?.type === "value" ? "selected" : ""}>Zbr €</option>
+                  <option value="percent" ${c.line_discount?.type === "percent" ? "selected" : ""}>Zbr %</option>
+                </select>
+                <input data-act="ldv" data-i="${i}" type="number" min="0" step="0.01" value="${c.line_discount?.value || 0}" style="width:64px;margin:0" />
+                <select data-act="lst" data-i="${i}" title="Rritje artikulli">
+                  <option value="none" ${!c.line_surcharge ? "selected" : ""}>Rritje—</option>
+                  <option value="value" ${c.line_surcharge?.type === "value" ? "selected" : ""}>Rri €</option>
+                  <option value="percent" ${c.line_surcharge?.type === "percent" ? "selected" : ""}>Rri %</option>
+                </select>
+                <input data-act="lsv" data-i="${i}" type="number" min="0" step="0.01" value="${c.line_surcharge?.value || 0}" style="width:64px;margin:0" />
+              </div>
+            </div>`
+          )
+          .join("");
+        box.querySelectorAll("button,select,input").forEach((b) => {
+          const handler = () => {
+            const i = Number(b.dataset.i);
+            const act = b.dataset.act;
+            if (act === "plus") state.cart[i].quantity += 1;
+            if (act === "minus") state.cart[i].quantity = Math.max(1, state.cart[i].quantity - 1);
+            if (act === "del") state.cart.splice(i, 1);
+            if (act === "ldt" || act === "ldv") {
+              const t = box.querySelector(`select[data-act="ldt"][data-i="${i}"]`).value;
+              const v = Number(box.querySelector(`input[data-act="ldv"][data-i="${i}"]`).value) || 0;
+              state.cart[i].line_discount = t === "none" || v <= 0 ? null : { type: t, value: v };
+            }
+            if (act === "lst" || act === "lsv") {
+              const t = box.querySelector(`select[data-act="lst"][data-i="${i}"]`).value;
+              const v = Number(box.querySelector(`input[data-act="lsv"][data-i="${i}"]`).value) || 0;
+              state.cart[i].line_surcharge = t === "none" || v <= 0 ? null : { type: t, value: v };
+            }
+            renderCart();
+          };
+          if (b.tagName === "BUTTON") b.addEventListener("click", handler);
+          else b.addEventListener("change", handler);
+        });
+      }
+      const prev = cartPreview();
+      const count = state.cart.reduce((s, c) => s + c.quantity, 0);
+      document.getElementById("cart-sub").textContent = euro(prev.sub);
+      document.getElementById("cart-total").textContent = euro(prev.total);
+      document.getElementById("cart-count").textContent = String(count);
+    }
+
+    async function loadProducts() {
+      const data = await api("/api/products");
+      state.byLetter = data.byLetter || { A: [], C: [], D: [], E: [] };
+      renderProducts();
+      const ex = document.getElementById("ex-new-product");
+      if (ex) {
+        const all = data.products || [];
+        ex.innerHTML =
+          '<option value="">— produkti i ri —</option>' +
+          all
+            .map(
+              (p) =>
+                `<option value="${p.id}">${esc(p.vat_letter)} · ${esc(p.name)} · ${euro(p.price)}</option>`
+            )
+            .join("");
+      }
+    }
+
+    function buildCheckoutBody(confirmedOver1000) {
+      const pay = document.querySelector('input[name="pay"]:checked')?.value || "cash";
+      const mixed = document.getElementById("pay-mixed").checked;
+      const body = {
+        items: state.cart.map((c) => ({
+          product_id: c.product_id,
+          name: c.name,
+          price: c.base_price ?? c.price,
+          base_price: c.base_price ?? c.price,
+          quantity: c.quantity,
+          vat_norm: c.vat_norm,
+          vat_letter: c.vat_letter,
+          line_discount: c.line_discount,
+          line_surcharge: c.line_surcharge,
+        })),
+        payment_method: pay,
+        operator_name: currentOperator(),
+        cart_discount: adjTypeVal(
+          document.getElementById("cart-disc-type"),
+          document.getElementById("cart-disc-val")
+        ),
+        cart_surcharge: adjTypeVal(
+          document.getElementById("cart-sur-type"),
+          document.getElementById("cart-sur-val")
+        ),
+        confirmed_over_1000: !!confirmedOver1000,
+      };
+      if (mixed) {
+        body.payment_splits = [
+          { method: "cash", amount: Number(document.getElementById("pay-cash-amt").value) || 0 },
+          { method: "card", amount: Number(document.getElementById("pay-card-amt").value) || 0 },
+          { method: "voucher", amount: Number(document.getElementById("pay-voucher-amt").value) || 0 },
+        ].filter((p) => p.amount > 0);
+        body.payment_method = "mixed";
+      }
+      return body;
+    }
+
+    async function checkout() {
+      const msg = document.getElementById("pos-msg");
+      const btn = document.getElementById("btn-checkout");
+      if (!state.cart.length) {
+        setMsg(msg, "Shporta është bosh", false);
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const body0 = buildCheckoutBody(false);
+        body0.skip_print = true; // Print Preview para printimit real
+        let data = await api("/api/checkout", {
+          method: "POST",
+          body: JSON.stringify(body0),
+        });
+        if (data.needs_confirm_over_1000) {
+          const ok = window.confirm(
+            `Neni 11 / 25: Totali është ${euro(data.total)} (> 1000 €).\nKonfirmoni finalizimin e transaksionit?`
+          );
+          if (!ok) {
+            setMsg(msg, "Anuluar — mbi 1000€ pa konfirmim", false);
+            return;
+          }
+          const body1 = buildCheckoutBody(true);
+          body1.skip_print = true;
+          data = await api("/api/checkout", {
+            method: "POST",
+            body: JSON.stringify(body1),
+          });
+        }
+        const f = data.fiscal || {};
+        setMsg(
+          msg,
+          `OK · Porosia #${data.order_id}\nNUIKF: ${f.nuikf || "—"}\nSEF: ${f.sef_id || "—"}\nKupon ditor: ${f.daily_number ?? "—"}\nPrint Preview — zgjidh printimin`,
+          true
+        );
+        state.cart = [];
+        renderCart();
+        openPrintPreview(
+          f.print_text || "(pa tekst kupon)",
+          f.fiscal_receipt_id
+        );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadReceipts() {
+      const data = await api("/api/fiscal/receipts");
+      const body = document.getElementById("receipts-body");
+      body.innerHTML = (data.receipts || [])
+        .map(
+          (r) => `<tr>
+            <td>${r.id}</td>
+            <td><code>${esc(r.nuikf)}</code></td>
+            <td>${esc(r.receipt_type)}</td>
+            <td>${r.daily_number} / ${r.total_number}</td>
+            <td>${euro(r.total_amount)}</td>
+            <td>${esc(r.fiscal_date)} ${esc(r.fiscal_time)}</td>
+            <td>${esc(r.payment_method)}</td>
+            <td style="white-space:nowrap">
+              <button type="button" class="btn btn-ghost" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-preview-id="${r.id}">Preview</button>
+              <button type="button" class="btn btn-primary" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-copy-id="${r.id}">Printo Kopje</button>
+              <button type="button" class="btn btn-ghost" style="width:auto;padding:4px 8px;margin:0" data-nuikf="${esc(r.nuikf)}">Storno</button>
+            </td>
+          </tr>`
+        )
+        .join("") || '<tr><td colspan="8">Nuk ka kuponë</td></tr>';
+      body.querySelectorAll("button[data-nuikf]").forEach((b) => {
+        b.addEventListener("click", () => {
+          document.getElementById("storno-nuikf").value = b.dataset.nuikf;
+        });
+      });
+      body.querySelectorAll("button[data-copy-id]").forEach((b) => {
+        b.addEventListener("click", () => printReceiptCopy(Number(b.dataset.copyId)));
+      });
+      body.querySelectorAll("button[data-preview-id]").forEach((b) => {
+        b.addEventListener("click", () => openReceiptPreview(Number(b.dataset.previewId)));
+      });
+    }
+
+    async function openReceiptPreview(id) {
+      const msg = document.getElementById("receipts-msg");
+      try {
+        const data = await api("/api/fiscal/receipts/" + id + "/preview");
+        openPrintPreview(data.text, data.receipt_id);
+        setMsg(msg, `Preview · NUIKF ${data.nuikf}`, true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function printReceiptCopy(id) {
+      const msg = document.getElementById("receipts-msg");
+      if (!id) {
+        setMsg(msg, "ID kuponit mungon", false);
+        return;
+      }
+      try {
+        const data = await api("/api/fiscal/receipts/" + id + "/print-copy", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        setMsg(
+          msg,
+          `Kopje e kuponit · ID ${data.receipt_id}\nNUIKF: ${data.nuikf}\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}\n(Nuk u krijua kupon i ri fiskal)`,
+          !!data.printed || !data.printMessage
+        );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function doCorrection(type) {
+      const msg = document.getElementById("receipts-msg");
+      const nuikf = document.getElementById("storno-nuikf").value.trim();
+      const reason = document.getElementById("storno-reason").value.trim();
+      if (!nuikf) {
+        setMsg(msg, "Vendos NUIKF", false);
+        return;
+      }
+      if (type === "cancel" && !reason) {
+        setMsg(msg, "Arsyeja e anulimit është e detyrueshme", false);
+        return;
+      }
+      try {
+        const data = await api("/api/fiscal/storno", {
+          method: "POST",
+          body: JSON.stringify({
+            nuikf,
+            type,
+            reason: reason || type + " ATK",
+          }),
+        });
+        setMsg(
+          msg,
+          `OK · ${type}\nOrigjinal: ${data.correction.original_nuikf}\nI ri: ${data.correction.nuikf}\nPrint: ${data.printed ? "PO" : "JO"}`,
+          true
+        );
+        await loadReceipts();
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function doExchange() {
+      const msg = document.getElementById("receipts-msg");
+      const nuikf = document.getElementById("storno-nuikf").value.trim();
+      const newId = Number(document.getElementById("ex-new-product").value);
+      const oldIndex = Number(document.getElementById("ex-old-index").value) || 0;
+      const reason = document.getElementById("storno-reason").value.trim() || "Ndërrim artikulli ATK";
+      if (!nuikf || !newId) {
+        setMsg(msg, "NUIKF + produkti i ri janë të detyrueshëm", false);
+        return;
+      }
+      try {
+        const data = await api("/api/fiscal/exchange", {
+          method: "POST",
+          body: JSON.stringify({
+            nuikf,
+            new_product_id: newId,
+            old_index: oldIndex,
+            reason,
+            operator_name: currentOperator(),
+          }),
+        });
+        setMsg(
+          msg,
+          `Ndërrim OK\nKthim: ${data.return_coupon.nuikf}\nShitje e re: ${data.new_sale.fiscal?.nuikf || data.new_sale.order_id}`,
+          true
+        );
+        await loadReceipts();
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function runX() {
+      const msg = document.getElementById("x-msg");
+      try {
+        const data = await api("/api/fiscal/x-report", {
+          method: "POST",
+          body: JSON.stringify({ operator_name: currentOperator() }),
+        });
+        setMsg(
+          msg,
+          (data.text || "") +
+            `\n\n---\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}`,
+          true
+        );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function runZ() {
+      const msg = document.getElementById("z-msg");
+      try {
+        const data = await api("/api/fiscal/z-report", {
+          method: "POST",
+          body: JSON.stringify({ operator_name: currentOperator() }),
+        });
+        setMsg(
+          msg,
+          (data.text || "") +
+            `\n\n---\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}`,
+          true
+        );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    function renderAtkStatus(atk) {
+      const box = document.getElementById("atk-status-box");
+      if (!atk) {
+        box.textContent = "";
+        return;
+      }
+      const lines = [
+        `Mjedisi: ${atk.environment} → ${atk.atk_pos_coupon_url}`,
+        `NUI: ${atk.taxpayer_nui || "—"} · SEF ID: ${atk.sef_identifier || "—"}`,
+        `Çelësi privat: ${atk.has_private_key ? "PO" : "JO"}`,
+        `Certifikata: ${atk.certificate_path ? (atk.certificate_is_placeholder ? "PLACEHOLDER (vendos signed-certificate.pem nga ATK)" : "OK (nga ATK)") : "MUNGON"}`,
+        `Application ID: ${atk.application_id || "— (plotëso nga ATK)"}`,
+        `Gati për dërgim te ATK: ${atk.ready_for_atk ? "PO" : "JO — plotëso fushat + certifikatën"}`,
+      ];
+      setMsg(box, lines.join("\n"), !!atk.ready_for_atk);
+    }
+
+    async function loadSettings() {
+      const data = await api("/api/fiscal/settings");
+      const s = data.settings || {};
+      const atk = data.atk || {};
+      document.getElementById("s-legal").value = s.taxpayer_legal_name || "";
+      document.getElementById("s-nui").value = s.taxpayer_nui || "";
+      document.getElementById("s-nf").value = s.taxpayer_nf || "";
+      document.getElementById("s-vat").value = s.taxpayer_vat_number || "";
+      document.getElementById("s-address").value = s.taxpayer_address || "";
+      document.getElementById("s-unit-name").value = s.unit_name || "";
+      document.getElementById("s-unit-phone").value = s.unit_phone || "";
+      document.getElementById("s-unit-number").value = s.unit_number || "";
+      document.getElementById("s-language").value = s.language === "sr" ? "sr" : "sq";
+      document.getElementById("s-pos").value = s.pos_id || "";
+      document.getElementById("s-sef").value = s.sef_identifier_computed || s.sef_identifier || "";
+      document.getElementById("s-fisc-no").value = s.fiscalization_number || "";
+      document.getElementById("s-app-id").value = s.application_id || "";
+      const url = s.atk_api_url || "https://fiskalizimi-test.atk-ks.org";
+      const sel = document.getElementById("s-atk-url");
+      if (![...sel.options].some((o) => o.value === url)) {
+        const opt = document.createElement("option");
+        opt.value = url;
+        opt.textContent = url;
+        sel.appendChild(opt);
+      }
+      sel.value = url;
+      document.getElementById("s-keys-dir").value = atk.keys_dir || "";
+      renderAtkStatus(atk);
+    }
+
+    async function saveSettings() {
+      const msg = document.getElementById("settings-msg");
+      try {
+        const data = await api("/api/fiscal/settings", {
+          method: "PUT",
+          body: JSON.stringify({
+            fiscal_enabled: true,
+            taxpayer_legal_name: document.getElementById("s-legal").value,
+            taxpayer_nui: document.getElementById("s-nui").value,
+            taxpayer_nf: document.getElementById("s-nf").value,
+            taxpayer_vat_number: document.getElementById("s-vat").value,
+            taxpayer_address: document.getElementById("s-address").value,
+            unit_name: document.getElementById("s-unit-name").value,
+            unit_phone: document.getElementById("s-unit-phone").value,
+            unit_number: document.getElementById("s-unit-number").value,
+            pos_id: document.getElementById("s-pos").value,
+            business_unit_number: document.getElementById("s-unit-number").value,
+            atk_api_url: document.getElementById("s-atk-url").value,
+            fiscalization_number: document.getElementById("s-fisc-no").value,
+            application_id: document.getElementById("s-app-id").value,
+            language: document.getElementById("s-language").value === "sr" ? "sr" : "sq",
+          }),
+        });
+        setMsg(
+          msg,
+          "U ruajt.\nSEF ID: " +
+            (data.settings?.sef_identifier || "") +
+            "\nATK: " +
+            (data.atk?.atk_pos_coupon_url || ""),
+          true
+        );
+        await loadSettings();
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function loadPrinters() {
+      const data = await api("/api/printers");
+      const sel = document.getElementById("printer-select");
+      const list = data.printers || [];
+      const cur = data.current?.name || "";
+      sel.innerHTML =
+        '<option value="">— zgjidh printerin —</option>' +
+        list
+          .map((p) => {
+            const tag = p.typeLabel || p.type || "";
+            const port = p.port ? ` · ${p.port}` : "";
+            const label = `${p.name}${tag ? " — " + tag : ""}${port}`;
+            return `<option value="${esc(p.name)}" ${p.name === cur ? "selected" : ""}>${esc(label)}</option>`;
+          })
+          .join("");
+      if (cur) sel.value = cur;
+      if (data.current?.paper) {
+        document.getElementById("printer-paper").value = data.current.paper;
+      }
+      const tysso = list.filter((p) => /tysso/i.test(p.name || ""));
+      setMsg(
+        document.getElementById("printer-msg"),
+        list.length
+          ? `U gjetën ${list.length} printerë` +
+              (tysso.length ? ` · Tysso: ${tysso.length}` : " · (Tysso nuk u gjet në listë)") +
+              `\nAktual: ${cur || "—"}`
+          : "Lista bosh. Kontrollo që Tysso është i instaluar në Windows (Settings → Printers), pastaj Rifresko.",
+        !!tysso.length || !!list.length
+      );
+    }
+
+    function showTab(name) {
+      document.querySelectorAll(".tabs button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tab === name);
+      });
+      const pos = name === "pos";
+      document.getElementById("tab-pos-left").classList.toggle("hidden", !pos);
+      document.getElementById("tab-pos-right").classList.toggle("hidden", !pos);
+      document.getElementById("tab-receipts").classList.toggle("hidden", name !== "receipts");
+      document.getElementById("tab-x").classList.toggle("hidden", name !== "x");
+      document.getElementById("tab-z").classList.toggle("hidden", name !== "z");
+      document.getElementById("tab-periodic").classList.toggle("hidden", name !== "periodic");
+      document.getElementById("tab-audit").classList.toggle("hidden", name !== "audit");
+      document.getElementById("tab-printer").classList.toggle("hidden", name !== "printer");
+      document.getElementById("tab-settings").classList.toggle("hidden", name !== "settings");
+      if (name === "receipts") loadReceipts().catch(console.error);
+      if (name === "printer") loadPrinters().catch(console.error);
+      if (name === "settings") loadSettings().catch(console.error);
+    }
+
+    document.querySelectorAll(".tabs button").forEach((b) => {
+      b.addEventListener("click", () => showTab(b.dataset.tab));
+    });
+    document.querySelectorAll(".letter-bar button").forEach((b) => {
+      b.addEventListener("click", () => {
+        state.letter = b.dataset.letter;
+        document.querySelectorAll(".letter-bar button").forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        renderProducts();
+      });
+    });
+    document.getElementById("btn-checkout").addEventListener("click", checkout);
+    document.getElementById("btn-clear").addEventListener("click", () => {
+      state.cart = [];
+      renderCart();
+    });
+    document.getElementById("btn-refresh-receipts").addEventListener("click", () => loadReceipts());
+    document.getElementById("btn-storno").addEventListener("click", () => doCorrection("storno"));
+    document.getElementById("btn-cancel").addEventListener("click", () => doCorrection("cancel"));
+    document.getElementById("btn-x").addEventListener("click", runX);
+    document.getElementById("btn-z").addEventListener("click", runZ);
+    document.getElementById("btn-exchange").addEventListener("click", doExchange);
+    document.getElementById("pay-mixed").addEventListener("change", (e) => {
+      document.getElementById("pay-mixed-box").classList.toggle("hidden", !e.target.checked);
+    });
+    ["cart-disc-type", "cart-disc-val", "cart-sur-type", "cart-sur-val"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("change", renderCart);
+      if (el) el.addEventListener("input", renderCart);
+    });
+    async function runPeriodicReport(endpoint) {
+      const msg = document.getElementById("periodic-msg");
+      try {
+        const data = await api(endpoint, {
+          method: "POST",
+          body: JSON.stringify({
+            from: document.getElementById("per-from").value,
+            to: document.getElementById("per-to").value,
+            operator_name: currentOperator(),
+          }),
+        });
+        setMsg(
+          msg,
+          (data.text || "") +
+            `\n\n---\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}`,
+          true
+        );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+    document.getElementById("btn-periodic").addEventListener("click", () =>
+      runPeriodicReport("/api/fiscal/periodic-report")
+    );
+    document.getElementById("btn-short-periodic").addEventListener("click", () =>
+      runPeriodicReport("/api/fiscal/short-periodic-report")
+    );
+    document.getElementById("btn-monthly-memory").addEventListener("click", () =>
+      runPeriodicReport("/api/fiscal/monthly-memory-report")
+    );
+    async function exportAudit(format) {
+      const msg = document.getElementById("audit-msg");
+      try {
+        const data = await api("/api/fiscal/audit/export", {
+          method: "POST",
+          body: JSON.stringify({
+            from: document.getElementById("audit-from").value,
+            to: document.getElementById("audit-to").value,
+            format,
+          }),
+        });
+        setMsg(msg, `U eksportua (${format}):\n${data.filePath}`, true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+    document.getElementById("btn-audit-csv").addEventListener("click", () => exportAudit("csv"));
+    document.getElementById("btn-audit-pdf").addEventListener("click", () => exportAudit("pdf"));
+    const today = new Date().toISOString().slice(0, 10);
+    ["per-from", "per-to", "audit-from", "audit-to"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && !el.value) el.value = today;
+    });
+    document.getElementById("btn-save-settings").addEventListener("click", saveSettings);
+    document.getElementById("btn-open-keys").addEventListener("click", async () => {
+      const msg = document.getElementById("settings-msg");
+      try {
+        const data = await api("/api/fiscal/open-keys-folder", { method: "POST", body: "{}" });
+        setMsg(msg, "Folderi u hap:\n" + data.keys_dir, true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    });
+    document.getElementById("btn-send-pending").addEventListener("click", async () => {
+      const msg = document.getElementById("settings-msg");
+      try {
+        const data = await api("/api/fiscal/send-pending", { method: "POST", body: "{}" });
+        setMsg(
+          msg,
+          `Dërgim: processed=${data.result?.processed ?? 0}, pending=${data.result?.pending ?? 0}`,
+          true
+        );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    });
+    document.getElementById("btn-printer-refresh").addEventListener("click", () => {
+      loadPrinters().catch((e) =>
+        setMsg(document.getElementById("printer-msg"), e.message, false)
+      );
+    });
+    document.getElementById("btn-printer-save").addEventListener("click", async () => {
+      const msg = document.getElementById("printer-msg");
+      try {
+        await api("/api/printers", {
+          method: "PUT",
+          body: JSON.stringify({
+            name: document.getElementById("printer-select").value,
+            paper: document.getElementById("printer-paper").value,
+          }),
+        });
+        setMsg(msg, "Printeri u ruajt.", true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    });
+    document.getElementById("btn-printer-test").addEventListener("click", async () => {
+      const msg = document.getElementById("printer-msg");
+      try {
+        await api("/api/printers", {
+          method: "PUT",
+          body: JSON.stringify({
+            name: document.getElementById("printer-select").value,
+            paper: document.getElementById("printer-paper").value,
+          }),
+        });
+        const data = await api("/api/printers/test", { method: "POST", body: "{}" });
+        setMsg(msg, data.message || "U printua", true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    });
+
+    document.getElementById("btn-preview-close").addEventListener("click", closePrintPreview);
+    document.getElementById("btn-preview-close-2").addEventListener("click", closePrintPreview);
+    document.getElementById("btn-preview-print").addEventListener("click", async () => {
+      const id = state.previewReceiptId;
+      const msg = document.getElementById("pos-msg");
+      if (!id) {
+        setMsg(msg, "Nuk ka kupon për printim nga Preview", false);
+        return;
+      }
+      try {
+        const data = await api("/api/fiscal/receipts/" + id + "/print", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        setMsg(
+          msg,
+          `Print nga Preview · ID ${data.receipt_id}\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}`,
+          !!data.printed || !data.printMessage
+        );
+        closePrintPreview();
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    });
+
+    async function doLogin() {
+      const msg = document.getElementById("login-msg");
+      const name = document.getElementById("login-name").value.trim();
+      const id = document.getElementById("login-id").value.trim() || "POS";
+      try {
+        const data = await api("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ operator_name: name, operator_id: id }),
+        });
+        state.operator_name = data.operator_name;
+        state.operator_id = data.operator_id;
+        document.getElementById("operator-badge").textContent =
+          `Operator: ${data.operator_name} (${data.operator_id})` +
+          (data.ip ? ` · IP ${data.ip}` : "");
+        document.getElementById("login-overlay").classList.add("hidden");
+        await loadProducts();
+        renderCart();
+        setMsg(msg, `Kyçur · audit #${data.audit_id || "—"} · IP ${data.ip || "—"}`, true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+    document.getElementById("btn-login").addEventListener("click", doLogin);
+    document.getElementById("login-name").addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") doLogin();
+    });
+  </script>
+</body>
+</html>

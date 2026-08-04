@@ -1,0 +1,16 @@
+{
+  "name": "biznes",
+  "version": "1.0.0",
+  "description": "POS desktop për testim ATK / SEF (Faza e Testimit) — pa lidhje me KAFENE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "protobufjs": "^8.7.1",
+    "qrcode": "^1.5.4",
+    "sql.js": "^1.14.1"
+  }
+}

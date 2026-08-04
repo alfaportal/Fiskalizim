@@ -1,0 +1,78 @@
+// ATK / SEF — modele zyrtare PosCoupon & CitizenCoupon
+// Field numbers = specifikimi zyrtar (fiskalizimi/pos-golang models.proto).
+syntax = "proto3";
+package atk;
+
+enum CouponType {
+  UNKNOWN_TYPE = 0;
+  SALE = 1;
+  CANCEL = 2;
+  RETURN = 3;
+}
+
+enum PaymentType {
+  UNKNOWN_PAYMENT = 0;
+  CASH = 1;
+  CREDIT_CARD = 2;
+  VOUCHER = 3;
+  CHEQUE = 4;
+  CRYPTOCURRENCY = 5;
+  OTHER = 6;
+}
+
+message CouponItem {
+  string name = 1;
+  int64 price = 2;
+  string unit = 3;
+  float quantity = 4;
+  int64 total = 5;
+  string taxRate = 6;
+  string type = 7;
+}
+
+message Payment {
+  PaymentType type = 1;
+  int64 amount = 2;
+}
+
+message TaxGroup {
+  string taxRate = 1;
+  int64 totalForTax = 2;
+  int64 totalTax = 3;
+}
+
+message PosCoupon {
+  uint64 businessId = 1;
+  uint64 couponId = 2;
+  uint64 branchId = 3;
+  string location = 4;
+  string operatorId = 5;
+  uint64 posId = 6;
+  uint64 applicationId = 7;
+  string verificationNo = 8;
+  CouponType type = 9;
+  int64 time = 10;
+  repeated CouponItem items = 11;
+  repeated Payment payments = 12;
+  int64 total = 13;
+  repeated TaxGroup taxGroups = 14;
+  int64 totalTax = 15;
+  int64 totalNoTax = 16;
+  uint64 referenceNo = 17;
+  uint64 transactionNo = 18;
+  int64 totalDiscount = 19;
+}
+
+message CitizenCoupon {
+  uint64 businessId = 1;
+  uint64 couponId = 2;
+  uint64 branchId = 3;
+  uint64 posId = 4;
+  string verificationNo = 5;
+  CouponType type = 6;
+  int64 time = 7;
+  int64 total = 8;
+  repeated TaxGroup taxGroups = 9;
+  int64 totalTax = 10;
+  int64 totalNoTax = 11;
+}
