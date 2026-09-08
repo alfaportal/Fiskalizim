@@ -8,6 +8,7 @@ const {
   registerClientWithLicense,
   setLicenseStatus,
   deleteLicense,
+  deleteClient,
 } = require("../adminService");
 
 const router = express.Router();
@@ -85,6 +86,15 @@ router.post("/licenses/:id/revoke", async (req, res) => {
 router.delete("/licenses/:id", async (req, res) => {
   try {
     const data = await deleteLicense(req.params.id);
+    res.json({ ok: true, ...data });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.delete("/clients/:id", async (req, res) => {
+  try {
+    const data = await deleteClient(req.params.id);
     res.json({ ok: true, ...data });
   } catch (e) {
     res.status(400).json({ ok: false, gabim: e.message });

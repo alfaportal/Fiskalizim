@@ -231,6 +231,35 @@ async function deleteLicense(id) {
   return { ok: true, id, license_key: existing.license_key, client_id: existing.client_id || null };
 }
 
+async function deleteClient(id) {
+  const db = getSupabase();
+  const cid = String(id || "").trim();
+  if (!cid) throw new Error("Mungon ID e klientit.");
+
+  const { data: existing, error: findErr } = await db
+    .from("clients")
+    .select("id, emri")
+    .eq("id", cid)
+    .maybeSingle();
+  if (findErr) throw findErr;
+  if (!existing) throw new Error("Klienti nuk u gjet.");
+
+  const { data: licenses, error: licListErr } = await db
+    .from("licenses")
+    .select("id")
+    .eq("client_id", cid)
+    .eq("app_type", APP_TYPE);
+  if (licListErr) throw licListErr;
+
+  for (const lic of licenses || []) {
+    await deleteLicense(lic.id);
+  }
+
+  const { error } = await db.from("clients").delete().eq("id", cid);
+  if (error) throw error;
+  return { ok: true, id: cid, emri: existing.emri };
+}
+
 module.exports = {
   genLicenseKey,
   genUniqueLicenseKey,
@@ -241,4 +270,5 @@ module.exports = {
   registerClientWithLicense,
   setLicenseStatus,
   deleteLicense,
+  deleteClient,
 };
