@@ -196,6 +196,107 @@ async function registerClientWithLicense({
   };
 }
 
+async function updateClient(id, patch = {}) {
+  const db = getSupabase();
+  const cid = String(id || "").trim();
+  if (!cid) throw new Error("Mungon ID e klientit.");
+  const row = {};
+  if (patch.emri != null) row.emri = String(patch.emri || "").trim();
+  if (patch.email != null) row.email = String(patch.email || "").trim().toLowerCase() || null;
+  if (patch.telefon != null || patch.telefoni != null) {
+    row.telefon = String(patch.telefon || patch.telefoni || "").trim() || null;
+  }
+  if (patch.adresa != null) row.adresa = String(patch.adresa || "").trim() || null;
+  if (!Object.keys(row).length) throw new Error("Nuk ka fusha për përditësim klienti.");
+  if (!row.emri) throw new Error("Emri i biznesit është i detyrueshëm.");
+  const { data, error } = await db.from("clients").update(row).eq("id", cid).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
+function mapAdminLicenseStatus(statusi) {
+  const s = String(statusi || "").toLowerCase();
+  if (["aktive", "active", "aktiv"].includes(s)) return "active";
+  if (["revokuar", "revoked"].includes(s)) return "revoked";
+  if (["pezulluar", "suspended"].includes(s)) return "suspended";
+  if (["skaduar", "expired"].includes(s)) return "expired";
+  return s || "active";
+}
+
+async function updateLicense(id, patch = {}) {
+  const db = getSupabase();
+  const row = {};
+  if (patch.status != null || patch.statusi != null) row.status = mapAdminLicenseStatus(patch.statusi || patch.status);
+  if (patch.license_key != null || patch.celesi != null) {
+    const key = normalizeKey(patch.license_key || patch.celesi);
+    if (!key) throw new Error("Çelësi i licencës është i pavlefshëm.");
+    const dup = await findLicenseByKey(key);
+    if (dup && dup.id !== id) throw new Error("Ky kod licencë përdoret tashmë.");
+    row.license_key = key;
+  }
+  if (patch.hardware_id != null) {
+    const hw = formatHardwareId(patch.hardware_id);
+    row.hardware_id = compactHardwareId(hw).length >= 16 ? hw : null;
+  }
+  if (patch.expires_at != null || patch.data_skadimit != null) {
+    const raw = patch.expires_at || patch.data_skadimit;
+    row.expires_at = raw ? String(raw).slice(0, 10) : null;
+  }
+  if (!Object.keys(row).length) throw new Error("Nuk ka fusha për përditësim.");
+  let { data, error } = await db
+    .from("licenses")
+    .update(row)
+    .eq("id", id)
+    .eq("app_type", APP_TYPE)
+    .select("*, clients(id, emri, email, telefon, adresa)")
+    .single();
+  if (error && /hardware_id/i.test(error.message || "")) {
+    delete row.hardware_id;
+    ({ data, error } = await db
+      .from("licenses")
+      .update(row)
+      .eq("id", id)
+      .eq("app_type", APP_TYPE)
+      .select("*, clients(id, emri, email, telefon, adresa)")
+      .single());
+  }
+  if (error) throw error;
+  return data;
+}
+
+async function rotateLicenseKey(id) {
+  const db = getSupabase();
+  const { data: existing, error: findErr } = await db
+    .from("licenses")
+    .select("id, license_key")
+    .eq("id", id)
+    .eq("app_type", APP_TYPE)
+    .maybeSingle();
+  if (findErr) throw findErr;
+  if (!existing) throw new Error("Licenca nuk u gjet.");
+  const key = await genUniqueLicenseKey(db);
+  return updateLicense(id, { license_key: key });
+}
+
+async function extendLicense(id, months = 12) {
+  const db = getSupabase();
+  const { data: lic, error } = await db
+    .from("licenses")
+    .select("id, expires_at, status")
+    .eq("id", id)
+    .eq("app_type", APP_TYPE)
+    .maybeSingle();
+  if (error || !lic) throw new Error("Licenca nuk u gjet.");
+  const base =
+    lic.expires_at && String(lic.expires_at).slice(0, 10) > new Date().toISOString().slice(0, 10)
+      ? String(lic.expires_at).slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+  const d = new Date(base);
+  d.setMonth(d.getMonth() + Math.max(1, Math.min(36, Number(months) || 12)));
+  const expires_at = d.toISOString().slice(0, 10);
+  return updateLicense(id, { expires_at, statusi: "active" });
+}
+
 async function setLicenseStatus(id, status) {
   const db = getSupabase();
   const allowed = ["active", "revoked", "suspended", "expired"];
@@ -268,6 +369,10 @@ module.exports = {
   dedupeLicensesByHardware,
   issueLicense,
   registerClientWithLicense,
+  updateClient,
+  updateLicense,
+  rotateLicenseKey,
+  extendLicense,
   setLicenseStatus,
   deleteLicense,
   deleteClient,

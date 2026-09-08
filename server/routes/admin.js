@@ -6,6 +6,10 @@ const express = require("express");
 const {
   listLicenses,
   registerClientWithLicense,
+  updateClient,
+  updateLicense,
+  rotateLicenseKey,
+  extendLicense,
   setLicenseStatus,
   deleteLicense,
   deleteClient,
@@ -61,6 +65,63 @@ router.post("/clients/register-license", async (req, res) => {
     });
   } catch (e) {
     console.error("[admin/clients/register-license]", e.message || e);
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.patch("/clients/:id", async (req, res) => {
+  try {
+    const client = await updateClient(req.params.id, req.body || {});
+    res.json({ ok: true, client });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.patch("/licenses/:id", async (req, res) => {
+  try {
+    const license = await updateLicense(req.params.id, req.body || {});
+    res.json({ ok: true, license, license_key: license.license_key, celesi: license.license_key });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.post("/licenses/:id/reactivate", async (req, res) => {
+  try {
+    const license = await setLicenseStatus(req.params.id, "active");
+    res.json({ ok: true, license, reactivated: true });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.post("/licenses/:id/extend", async (req, res) => {
+  try {
+    const months = Math.max(1, Math.min(36, Number(req.body?.months) || 12));
+    const license = await extendLicense(req.params.id, months);
+    res.json({
+      ok: true,
+      license,
+      data_skadimit: license.expires_at ? String(license.expires_at).slice(0, 10) : null,
+      months,
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.post("/licenses/:id/rotate-key", async (req, res) => {
+  try {
+    const license = await rotateLicenseKey(req.params.id);
+    res.json({
+      ok: true,
+      license,
+      license_key: license.license_key,
+      celesi: license.license_key,
+      rotated: true,
+    });
+  } catch (e) {
     res.status(400).json({ ok: false, gabim: e.message });
   }
 });
