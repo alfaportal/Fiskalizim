@@ -4,10 +4,19 @@ const SUPABASE_URL =
   process.env.SUPABASE_URL || "https://oqquiuisreztzcyehpiq.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
+/** Supabase Realtime kërkon WebSocket — Node 20 nuk e ka native; përdor `ws`. */
 function supabaseClientOptions() {
-  return {
+  const opts = {
     auth: { persistSession: false, autoRefreshToken: false },
   };
+  if (typeof globalThis.WebSocket === "undefined") {
+    try {
+      opts.global = { WebSocket: require("ws") };
+    } catch {
+      /* ws mungon — Realtime vetëm; REST punon pa të */
+    }
+  }
+  return opts;
 }
 
 let _client = null;

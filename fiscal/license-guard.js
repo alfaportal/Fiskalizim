@@ -10,7 +10,8 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 
-const LICENSE_STORAGE_REL = path.join("RevolutionInvest", "KafeneLicense");
+const LICENSE_STORAGE_REL = path.join("RevolutionInvest", "FiskalizimLicense");
+const PROTECTION_DIR = path.join(__dirname, "..", "protection");
 const HW_LIC_BASENAME = ".hw-lic";
 const INSTALL_SALT_BASENAME = ".install-salt";
 const TRIAL_USED_BASENAME = ".hw-trial-used";
@@ -40,12 +41,9 @@ function _xorDecode(bytes) {
   return Buffer.from(bytes.map((x, i) => x ^ ((i * 11 + 37) & 0xff))).toString("utf8");
 }
 
-/** SECRET_SALT — i obfuskuar (i njëjti vlerë si tools/generate-license.js). */
+/** SECRET_SALT — i ndarë nga SECURITY/Kafene (generate-license.js Fiskalizim). */
 function getSecretSalt() {
-  return _xorDecode([
-    110, 113, 125, 3, 31, 25, 74, 58, 42, 196, 220, 221, 226, 153, 141, 250, 231, 214, 198, 184, 64, 95,
-    82, 112, 0, 1, 37, 122, 58, 86, 14, 77, 231,
-  ]);
+  return Buffer.from("RklTS0FMSVpJTS1IV0xPQ0stMjAyNi1OQVNFUi1hN2MzZTkxZg==", "base64").toString("utf8");
 }
 
 function appDataRoot(app) {
@@ -57,6 +55,16 @@ function appDataRoot(app) {
     }
   }
   return process.env.APPDATA || path.join(require("os").homedir(), "AppData", "Roaming");
+}
+
+function isPackagedApp(app) {
+  if (app && typeof app.isPackaged === "boolean") return app.isPackaged;
+  try {
+    const { app: electronApp } = require("electron");
+    return !!electronApp?.isPackaged;
+  } catch {
+    return process.env.ELECTRON_FORCE_PROD === "1";
+  }
 }
 
 function licenseStorageRoot(app) {
@@ -572,10 +580,27 @@ function verifyLicenseKey(key, app, hardwareId) {
   return matchLicenseKey(key, app, hardwareId).ok;
 }
 
+function clearHardwareLicense(app) {
+  try {
+    const p = hwLicensePath(app);
+    if (p && fs.existsSync(p)) fs.unlinkSync(p);
+  } catch {
+    /* ignore */
+  }
+  clearGrace(app);
+}
+
 /** Çelësi hardware përputhet me rekordin e ruajtur (pa kontroll skadimi). */
 function verifyStoredHardwareKey(rec, app, hardwareId) {
   if (!rec || !rec.key) return false;
-  if (rec.source === "cloud") return true;
+  if (rec.source === "cloud") {
+    try {
+      const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+      return !!cloud.readStoredLicense(app);
+    } catch {
+      return false;
+    }
+  }
   const hwRaw = hardwareId || getHardwareId(app);
   const id = normalizeHardwareId(formatHardwareId(hwRaw));
   const got = normalizeLicenseKey(rec.key);
@@ -600,7 +625,14 @@ function verifyStoredHardwareKey(rec, app, hardwareId) {
 function isHardwareUnlocked(app, hardwareId) {
   const rec = readStoredLicenseRecord(app);
   if (!rec || !rec.key) return false;
-  if (rec.source === "cloud") return true;
+  if (rec.source === "cloud") {
+    try {
+      const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+      return !!cloud.readStoredLicense(app);
+    } catch {
+      return false;
+    }
+  }
   if (!verifyStoredHardwareKey(rec, app, hardwareId)) return false;
   if (isLicenseExpired(rec)) return false;
   return true;
@@ -611,13 +643,16 @@ function promptHardwareActivation(app, opts = {}) {
     const { BrowserWindow, ipcMain } = require("electron");
     const hwFormatted = formatHardwareId(getHardwareId(app));
     const reason = String(opts.reason || "");
-    let subText = "Programi hapet vetëm pasi të aktivizohet për këtë kompjuter.";
+    let subText = "Programi hapet vetëm pasi të aktivizohet për këtë kompjuter. Nëse admini e regjistron nga telefoni, ky ekran mbyllet vetë.";
     if (reason === "trial_expired") {
       subText = "Prova 7-ditore ka përfunduar. Futni License Key vjetor.";
     } else if (reason === "annual_expired") {
       subText = MSG_LICENSE_EXPIRED;
     } else if (reason === "trial_used") {
       subText = `Trial është përdorur në këtë kompjuter. Futni License Key vjetor. Kontaktoni ${CONTACT_PHONE}.`;
+    } else if (reason === "revoked" || reason === "no_license") {
+      subText =
+        "Licenca u hoq ose nuk është aktive. Dërgoni ID-në (16 shifra) te admini dhe futni çelësin që ju jepet.";
     }
     let settled = false;
 
@@ -628,6 +663,7 @@ function promptHardwareActivation(app, opts = {}) {
         ipcMain.removeHandler("hw-lic-try");
         ipcMain.removeHandler("hw-lic-close");
         ipcMain.removeHandler("hw-lic-whatsapp");
+        ipcMain.removeHandler("hw-lic-poll-cloud");
       } catch {
         /* ignore */
       }
@@ -650,7 +686,7 @@ function promptHardwareActivation(app, opts = {}) {
       maximizable: false,
       closable: true,
       alwaysOnTop: true,
-      title: "Aktivizo KAFENE",
+      title: "Aktivizo Revolution Fiskalizim",
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
@@ -688,7 +724,7 @@ function promptHardwareActivation(app, opts = {}) {
       .phone b{color:#25D366}
     </style></head><body><div class="wrap"><div class="card">
       <button type="button" class="btn-close" id="x" title="Mbyll" aria-label="Mbyll">×</button>
-      <h1>Aktivizo KAFENE</h1>
+      <h1>Aktivizo Revolution Fiskalizim</h1>
       <p class="sub">${subText.replace(/</g, "&lt;")}</p>
       <p class="label">ID i pajisjes — dërgoni foto në WhatsApp</p>
       <div class="id" id="hw">${hwFormatted}</div>
@@ -700,7 +736,7 @@ function promptHardwareActivation(app, opts = {}) {
       <div class="err" id="e"></div>
       <button type="button" class="primary" id="b">Aktivizo</button>
       <button type="button" class="ghost" id="c">Mbyll</button>
-      <p class="phone">WhatsApp / tel: <b>${CONTACT_PHONE}</b><br>Dërgoni foto të ID-së (këto numra) për aktivizim.</p>
+      <p class="phone">WhatsApp / tel: <b>${CONTACT_PHONE}</b><br>Dërgoni foto të ID-së (këto numra) për aktivizim.<br>Duke pritur regjistrimin nga admini…</p>
     </div></div>
     <script>
       const { ipcRenderer } = require('electron');
@@ -743,6 +779,12 @@ function promptHardwareActivation(app, opts = {}) {
         if (e.key === 'Enter' && !btn.disabled) submit();
         if (e.key === 'Escape') quitApp();
       });
+      const poll = setInterval(async () => {
+        try {
+          const r = await ipcRenderer.invoke('hw-lic-poll-cloud');
+          if (r && r.ok) clearInterval(poll);
+        } catch (_e) {}
+      }, 3000);
       setTimeout(() => { try { emailEl.focus(); } catch (_e) {} }, 80);
     </script></body></html>`;
 
@@ -756,6 +798,23 @@ function promptHardwareActivation(app, opts = {}) {
         return { ok: true };
       } catch (err) {
         return { ok: false, message: err.message || String(err) };
+      }
+    });
+
+    ipcMain.handle("hw-lic-poll-cloud", async () => {
+      try {
+        const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+        const claimed = await cloud.claimByHardwareId(app);
+        if (claimed && claimed.valid && (claimed.celesi || claimed.license_key)) {
+          const ck = claimed.celesi || claimed.license_key;
+          writeStoredLicenseKey(app, ck, { source: "cloud" });
+          cloud.writeStoredLicense(app, ck);
+          finish(true);
+          return { ok: true };
+        }
+        return { ok: false };
+      } catch {
+        return { ok: false };
       }
     });
 
@@ -790,20 +849,31 @@ function promptHardwareActivation(app, opts = {}) {
             }
           }
           writeStoredLicenseKey(app, raw, { source: "hardware", match, email });
+          try {
+            const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+            const claimed = await cloud.claimByHardwareId(app);
+            if (claimed && claimed.valid && (claimed.celesi || claimed.license_key)) {
+              const ck = claimed.celesi || claimed.license_key;
+              writeStoredLicenseKey(app, ck, { source: "cloud", email });
+              cloud.writeStoredLicense(app, ck);
+            }
+          } catch {
+            /* HMAC lokale mjafton këtu; boot pret cloud */
+          }
           finish(true);
           return { ok: true };
         }
 
         // 2) Çelës cloud — validim online
         try {
-          const license = require(path.join(__dirname, "..", "license"));
+          const license = require(path.join(PROTECTION_DIR, "license"));
           await license.activateWithKey(app, raw, { contact_email: email });
           writeStoredLicenseKey(app, raw, { source: "cloud", email });
           finish(true);
           return { ok: true };
         } catch (cloudErr) {
           try {
-            const sec = require(path.join(__dirname, "..", "security-alert"));
+            const sec = require(path.join(PROTECTION_DIR, "security-alert"));
             sec.reportLicenseActivationFailed(app, {
               hardwareId: hwFormattedNow,
               rawKey: raw,
@@ -915,6 +985,26 @@ async function ensureHardwareLicense(app) {
     return allowWithGraceOrBlock(app, "hardware_id_error", "????-????-????-????");
   }
 
+  async function tryClaimCloudByHardware() {
+    try {
+      const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+      const claimed = await cloud.claimByHardwareId(app);
+      if (claimed && claimed.valid && (claimed.celesi || claimed.license_key)) {
+        writeStoredLicenseKey(app, claimed.celesi || claimed.license_key, { source: "cloud" });
+        clearGrace(app);
+        logHwLicenseAudit(app, "cloud_claim_by_hardware", { hardware_id: formatted });
+        return true;
+      }
+    } catch (e) {
+      logHwLicenseAudit(app, "cloud_claim_error", { error: e.message || String(e), hardware_id: formatted });
+    }
+    return false;
+  }
+
+  if (await tryClaimCloudByHardware()) {
+    return { ok: true, grace: null };
+  }
+
   let stored;
   try {
     stored = readStoredLicenseKey(app);
@@ -942,6 +1032,25 @@ async function ensureHardwareLicense(app) {
         return { ok: !!activated, grace: null };
       }
       if (keyOk && isHardwareUnlocked(app, hwId)) {
+        if (await tryClaimCloudByHardware()) return { ok: true, grace: null };
+        try {
+          const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+          if (cloud.readStoredLicense(app)) {
+            clearGrace(app);
+            return { ok: true, grace: null };
+          }
+          if (rec?.key && rec.source === "cloud") {
+            cloud.writeStoredLicense(app, rec.key);
+            clearGrace(app);
+            return { ok: true, grace: null };
+          }
+        } catch {
+          /* vazhdo */
+        }
+        if (isPackagedApp(app)) {
+          const activated = await promptHardwareActivation(app);
+          return { ok: !!activated, grace: null };
+        }
         clearGrace(app);
         return { ok: true, grace: null };
       }
@@ -956,9 +1065,8 @@ async function ensureHardwareLicense(app) {
     return allowWithGraceOrBlock(app, "license_mismatch", formatted);
   }
 
-  // Pa licencë të ruajtur — nëse ka grace aktive (p.sh. pas update), lejo
   const grace = getGraceStatus(app);
-  if (grace.active) {
+  if (grace.active && !isPackagedApp(app)) {
     logHwLicenseAudit(app, "grace_no_stored_key", {
       hoursLeft: grace.hoursLeft,
       hardware_id: formatted,
@@ -969,7 +1077,6 @@ async function ensureHardwareLicense(app) {
     return allowWithGraceOrBlock(app, "grace_expired_no_key", formatted);
   }
 
-  // Instalim i parë — kërko aktivizim (pa grace automatike për kopjim)
   const activated = await promptHardwareActivation(app);
   return { ok: !!activated, grace: null };
 }
@@ -987,8 +1094,11 @@ module.exports = {
   isHardwareUnlocked,
   isLicenseExpired,
   writeStoredLicenseKey,
+  readStoredLicenseKey,
   readStoredLicenseRecord,
+  clearHardwareLicense,
   ensureHardwareLicense,
+  promptHardwareActivation,
   getGraceStatus,
   getGraceBannerInfo,
   logHwLicenseAudit,
