@@ -1,0 +1,19 @@
+{
+  "name": "revolution-fiskalizim-license-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Revolution Fiskalizim — license API (Supabase + Railway)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2"
+  }
+}
