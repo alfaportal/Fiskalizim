@@ -11,6 +11,16 @@
  */
 const fs = require("fs");
 const path = require("path");
+const {
+  isFiscalMemoryOnly,
+  memInsertReceipt,
+  memUpdateReceipt,
+  memGetReceipt,
+} = require("./fiscal-test-mode-store");
+const {
+  applyHashChainToReceipt,
+  recordChainHashAfterInsert,
+} = require("./fiscal-hash-chain");
 
 /** Fushat e vetme që lejohen me UPDATE në fiscal_receipts. */
 const RECEIPT_UPDATE_ALLOWED_MAP = {
@@ -79,6 +89,9 @@ function logWriteOnceViolation(details) {
  * UPDATE i mbrojtur për fiscal_receipts — VETËM sent_to_atk, sent_at, atk_response_json.
  */
 function fiscalReceiptUpdate(id, data) {
+  if (isFiscalMemoryOnly()) {
+    return memUpdateReceipt(id, data);
+  }
   const rid = Number(id);
   if (!Number.isFinite(rid) || rid < 1) {
     throw new Error("fiscalReceiptUpdate: id i pavlefshëm");
@@ -195,70 +208,109 @@ function insertFiscalReceipt(row) {
     throw new Error("fiscal INSERT invalid: " + check.error);
   }
 
-  const sqlite = getSqlite();
-  const nuikf = check.nuikf;
-  const exists = sqlite
-    .prepare("SELECT 1 AS ok FROM fiscal_receipts WHERE nuikf = ? LIMIT 1")
-    .get(nuikf);
-  if (exists) {
-    throw new Error("fiscal INSERT: NUIKF nuk është unik: " + nuikf);
+  if (isFiscalMemoryOnly()) {
+    const chained = applyHashChainToReceipt(row);
+    const id = memInsertReceipt(chained);
+    recordChainHashAfterInsert(chained.chain_current_hash);
+    return id;
   }
 
-  const result = sqlite
-    .prepare(
-      `INSERT INTO fiscal_receipts (
+  const sqlite = getSqlite();
+  const nuikf = check.nuikf;
+  sqlite.exec("BEGIN IMMEDIATE");
+  try {
+    const exists = sqlite
+      .prepare("SELECT 1 AS ok FROM fiscal_receipts WHERE nuikf = ? LIMIT 1")
+      .get(nuikf);
+    if (exists) {
+      throw new Error("fiscal INSERT: NUIKF nuk është unik: " + nuikf);
+    }
+
+    const chained = applyHashChainToReceipt(row, sqlite);
+
+    const result = sqlite
+      .prepare(
+        `INSERT INTO fiscal_receipts (
         sale_id, nuikf, sef_id, receipt_type, original_nuikf,
         daily_number, total_number, fiscal_date, fiscal_time,
         operator_name, operator_id,
         taxpayer_nui, taxpayer_vat, taxpayer_name, taxpayer_address,
         items_json, subtotal, discount_amount, total_amount, total_without_tax,
-        vat_breakdown_json, payment_method, currency,
+        vat_breakdown_json, payment_method, payment_splits_json, currency,
         qr_code_data, digital_signature,
-        is_offline, sent_to_atk
+        is_offline, sent_to_atk,
+        chain_payload_json, chain_current_hash, chain_previous_hash, chain_integrity_ok
       ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
-        ?, ?, ?,
+        ?, ?, ?, ?,
         ?, ?,
-        ?, ?
+        ?, ?,
+        ?, ?, ?, ?
       )`
-    )
-    .run(
-      Number(row.sale_id) || 0,
-      nuikf,
-      String(row.sef_id || ""),
-      String(row.receipt_type || "regular"),
-      row.original_nuikf != null ? String(row.original_nuikf) : null,
-      Number(row.daily_number) || 0,
-      Number(row.total_number) || 0,
-      String(row.fiscal_date),
-      String(row.fiscal_time),
-      String(row.operator_name),
-      String(row.operator_id),
-      String(row.taxpayer_nui),
-      row.taxpayer_vat != null ? String(row.taxpayer_vat) : null,
-      String(row.taxpayer_name),
-      String(row.taxpayer_address),
-      typeof row.items_json === "string" ? row.items_json : JSON.stringify(row.items_json || []),
-      Number(row.subtotal) || 0,
-      Number(row.discount_amount) || 0,
-      Number(row.total_amount),
-      Number(row.total_without_tax) || 0,
-      typeof row.vat_breakdown_json === "string"
-        ? row.vat_breakdown_json
-        : JSON.stringify(row.vat_breakdown_json || {}),
-      String(row.payment_method || "cash"),
-      String(row.currency || "EUR"),
-      String(row.qr_code_data || ""),
-      row.digital_signature != null ? String(row.digital_signature) : null,
-      row.is_offline ? 1 : 0,
-      row.sent_to_atk ? 1 : 0
-    );
+      )
+      .run(
+        Number(chained.sale_id) || 0,
+        nuikf,
+        String(chained.sef_id || ""),
+        String(chained.receipt_type || "regular"),
+        chained.original_nuikf != null ? String(chained.original_nuikf) : null,
+        Number(chained.daily_number) || 0,
+        Number(chained.total_number) || 0,
+        String(chained.fiscal_date),
+        String(chained.fiscal_time),
+        String(chained.operator_name),
+        String(chained.operator_id),
+        String(chained.taxpayer_nui),
+        chained.taxpayer_vat != null ? String(chained.taxpayer_vat) : null,
+        String(chained.taxpayer_name),
+        String(chained.taxpayer_address),
+        typeof chained.items_json === "string"
+          ? chained.items_json
+          : JSON.stringify(chained.items_json || []),
+        Number(chained.subtotal) || 0,
+        Number(chained.discount_amount) || 0,
+        Number(chained.total_amount),
+        Number(chained.total_without_tax) || 0,
+        typeof chained.vat_breakdown_json === "string"
+          ? chained.vat_breakdown_json
+          : JSON.stringify(chained.vat_breakdown_json || {}),
+        String(chained.payment_method || "cash"),
+        chained.payment_splits_json != null
+          ? String(chained.payment_splits_json)
+          : null,
+        String(chained.currency || "EUR"),
+        String(chained.qr_code_data || ""),
+        chained.digital_signature != null ? String(chained.digital_signature) : null,
+        chained.is_offline ? 1 : 0,
+        chained.sent_to_atk ? 1 : 0,
+        chained.chain_payload_json,
+        chained.chain_current_hash,
+        chained.chain_previous_hash,
+        chained.chain_integrity_ok ? 1 : 0
+      );
 
-  return result.lastInsertRowid;
+    sqlite.exec("COMMIT");
+    return result.lastInsertRowid;
+  } catch (e) {
+    try {
+      sqlite.exec("ROLLBACK");
+    } catch {
+      /* */
+    }
+    throw e;
+  }
+}
+
+function getFiscalReceiptById(id) {
+  if (isFiscalMemoryOnly()) {
+    return memGetReceipt(id);
+  }
+  const sqlite = getSqlite();
+  return sqlite.prepare(`SELECT * FROM fiscal_receipts WHERE id = ?`).get(Number(id)) || null;
 }
 
 /**
@@ -279,6 +331,102 @@ function deleteTestFiscalReceipts() {
     )
     .run();
   return Number(result.changes) || 0;
+}
+
+/**
+ * Reset i plotë për fillim të pastër ATK test:
+ * fshin fiscal_receipts / fiscal_audit_log / pending_txn,
+ * rivendos daily/total counter = 0 (kuponi i radhës = 1).
+ * NUK prek certifikatën, NUI, URL ATK, çelësat.
+ */
+function resetFiscalTestData() {
+  const sqlite = getSqlite();
+  const before = {
+    receipts: Number(
+      sqlite.prepare(`SELECT COUNT(*) AS c FROM fiscal_receipts`).get()?.c || 0
+    ),
+    audit: Number(
+      sqlite.prepare(`SELECT COUNT(*) AS c FROM fiscal_audit_log`).get()?.c || 0
+    ),
+    pending: Number(
+      sqlite.prepare(`SELECT COUNT(*) AS c FROM pending_txn`).get()?.c || 0
+    ),
+  };
+
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_receipts_block_delete`);
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_audit_block_delete`);
+
+  const delReceipts = sqlite.prepare(`DELETE FROM fiscal_receipts`).run();
+  const delAudit = sqlite.prepare(`DELETE FROM fiscal_audit_log`).run();
+  const delPending = sqlite.prepare(`DELETE FROM pending_txn`).run();
+
+  try {
+    sqlite
+      .prepare(
+        `DELETE FROM sqlite_sequence
+         WHERE name IN ('fiscal_receipts', 'fiscal_audit_log', 'pending_txn')`
+      )
+      .run();
+  } catch {
+    /* sql.js / pa sqlite_sequence */
+  }
+
+  // Vetëm numëruesit — lidhja ATK / cert mbeten
+  sqlite
+    .prepare(
+      `UPDATE fiscal_settings
+       SET daily_receipt_counter = 0,
+           total_receipt_counter = 0,
+           updated_at = datetime('now','localtime')
+       WHERE id = 1`
+    )
+    .run();
+
+  installWriteOnceTriggers({
+    exec: (sql) => sqlite.exec(sql),
+    run: (sql) => sqlite.exec(sql),
+  });
+
+  try {
+    const database = require("../database");
+    database.setSetting("atk_auto_send", "1");
+  } catch (e) {
+    console.warn("[fiscal-db] atk_auto_send:", e.message);
+  }
+
+  const after = {
+    receipts: Number(
+      sqlite.prepare(`SELECT COUNT(*) AS c FROM fiscal_receipts`).get()?.c || 0
+    ),
+    audit: Number(
+      sqlite.prepare(`SELECT COUNT(*) AS c FROM fiscal_audit_log`).get()?.c || 0
+    ),
+    pending: Number(
+      sqlite.prepare(`SELECT COUNT(*) AS c FROM pending_txn`).get()?.c || 0
+    ),
+    daily: Number(
+      sqlite
+        .prepare(`SELECT daily_receipt_counter AS c FROM fiscal_settings WHERE id = 1`)
+        .get()?.c || 0
+    ),
+    total: Number(
+      sqlite
+        .prepare(`SELECT total_receipt_counter AS c FROM fiscal_settings WHERE id = 1`)
+        .get()?.c || 0
+    ),
+  };
+
+  return {
+    ok: true,
+    deleted: {
+      receipts: Number(delReceipts.changes) || before.receipts,
+      audit: Number(delAudit.changes) || before.audit,
+      pending: Number(delPending.changes) || before.pending,
+    },
+    before,
+    after,
+    atk_auto_send: "0",
+  };
 }
 
 function createExecutors(dbApi) {
@@ -336,6 +484,7 @@ const FISCAL_RECEIPTS_DDL = `
     total_without_tax REAL NOT NULL,
     vat_breakdown_json TEXT NOT NULL,
     payment_method TEXT NOT NULL,
+    payment_splits_json TEXT,
     currency TEXT NOT NULL DEFAULT 'EUR',
     qr_code_data TEXT NOT NULL,
     digital_signature TEXT,
@@ -343,6 +492,10 @@ const FISCAL_RECEIPTS_DDL = `
     sent_to_atk INTEGER DEFAULT 0,
     atk_response_json TEXT,
     sent_at TEXT,
+    chain_payload_json TEXT,
+    chain_current_hash TEXT,
+    chain_previous_hash TEXT,
+    chain_integrity_ok INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now','localtime'))
   );
 `;
@@ -420,7 +573,9 @@ function installWriteOnceTriggers(executors) {
       taxpayer_nui, taxpayer_vat, taxpayer_name, taxpayer_address,
       items_json, subtotal, discount_amount, total_amount, total_without_tax,
       vat_breakdown_json, payment_method, currency, qr_code_data,
-      digital_signature, is_offline, created_at
+      digital_signature, is_offline, created_at,
+      chain_payload_json, chain_current_hash, chain_previous_hash, chain_integrity_ok,
+      payment_splits_json
     ON fiscal_receipts
     FOR EACH ROW
     BEGIN
@@ -487,6 +642,7 @@ function applyFiscalSchema(executors) {
       daily_receipt_counter INTEGER DEFAULT 0,
       total_receipt_counter INTEGER DEFAULT 0,
       last_z_report_date TEXT,
+      last_daily_number_date TEXT,
       language TEXT DEFAULT 'sq',
       unit_name TEXT,
       unit_phone TEXT,
@@ -525,6 +681,55 @@ function applyFiscalSchema(executors) {
     );
   `);
 
+  // Neni 45 — bllok letër kur SEF ndalon plotësisht
+  exec(`
+    CREATE TABLE IF NOT EXISTS paper_block_receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      serial_no TEXT NOT NULL UNIQUE,
+      block_batch TEXT,
+      fiscal_date TEXT NOT NULL,
+      fiscal_time TEXT NOT NULL,
+      operator_name TEXT NOT NULL,
+      operator_id TEXT NOT NULL,
+      items_json TEXT NOT NULL,
+      subtotal REAL NOT NULL,
+      discount_amount REAL DEFAULT 0,
+      total_amount REAL NOT NULL,
+      total_without_tax REAL NOT NULL,
+      vat_breakdown_json TEXT NOT NULL,
+      payment_method TEXT NOT NULL,
+      notes TEXT,
+      registered_fiscal_receipt_id INTEGER,
+      registered_at TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+  `);
+
+  exec(`DROP TRIGGER IF EXISTS trg_paper_block_block_update`);
+  exec(`
+    CREATE TRIGGER trg_paper_block_block_update
+    BEFORE UPDATE OF
+      serial_no, block_batch, fiscal_date, fiscal_time,
+      operator_name, operator_id, items_json, subtotal, discount_amount,
+      total_amount, total_without_tax, vat_breakdown_json, payment_method,
+      notes, created_at
+    ON paper_block_receipts
+    FOR EACH ROW
+    BEGIN
+      SELECT RAISE(ABORT, 'WRITE-ONCE: UPDATE i ndaluar në paper_block_receipts');
+    END;
+  `);
+
+  exec(`DROP TRIGGER IF EXISTS trg_paper_block_block_delete`);
+  exec(`
+    CREATE TRIGGER trg_paper_block_block_delete
+    BEFORE DELETE ON paper_block_receipts
+    FOR EACH ROW
+    BEGIN
+      SELECT RAISE(ABORT, 'WRITE-ONCE: DELETE i ndaluar në paper_block_receipts');
+    END;
+  `);
+
   migrateBrokenSalesOrdersFk(executors);
 
   try {
@@ -544,6 +749,20 @@ function applyFiscalSchema(executors) {
     "ALTER TABLE fiscal_settings ADD COLUMN unit_number TEXT",
     "ALTER TABLE fiscal_settings ADD COLUMN total_receipt_counter INTEGER DEFAULT 0",
     "ALTER TABLE fiscal_receipts ADD COLUMN total_number INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_last_sync_utc INTEGER",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_sync_mono_ns TEXT",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_sync_wall_ms INTEGER",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_offset_ms INTEGER",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_hmac TEXT",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_source TEXT",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_offline_anchor_utc INTEGER",
+    "ALTER TABLE fiscal_settings ADD COLUMN fiscal_clock_updated_at TEXT",
+    "ALTER TABLE fiscal_receipts ADD COLUMN chain_payload_json TEXT",
+    "ALTER TABLE fiscal_receipts ADD COLUMN chain_current_hash TEXT",
+    "ALTER TABLE fiscal_receipts ADD COLUMN chain_previous_hash TEXT",
+    "ALTER TABLE fiscal_receipts ADD COLUMN chain_integrity_ok INTEGER DEFAULT 1",
+    "ALTER TABLE fiscal_receipts ADD COLUMN payment_splits_json TEXT",
+    "ALTER TABLE fiscal_settings ADD COLUMN last_daily_number_date TEXT",
   ];
   for (const sql of alterColumns) {
     try {
@@ -581,6 +800,45 @@ function applyFiscalSchema(executors) {
   } catch (e) {
     /* ignore */
   }
+
+  // Backfill last_daily_number_date për instalime ekzistuese
+  try {
+    run(
+      `UPDATE fiscal_settings
+       SET last_daily_number_date = COALESCE(
+         (SELECT substr(created_at, 1, 10) FROM fiscal_receipts ORDER BY id DESC LIMIT 1),
+         CASE
+           WHEN daily_receipt_counter > 0
+                AND last_z_report_date IS NOT NULL
+                AND trim(last_z_report_date) != ''
+           THEN substr(last_z_report_date, 1, 10)
+           ELSE NULL
+         END
+       )
+       WHERE id = 1
+         AND (last_daily_number_date IS NULL OR trim(last_daily_number_date) = '')`
+    );
+  } catch (e) {
+    /* ignore */
+  }
+
+  // Riparo last_z_report_date që u vendos gabimisht nga emetimi i kuponit (pa Z audit)
+  try {
+    run(
+      `UPDATE fiscal_settings
+       SET last_z_report_date = NULL
+       WHERE id = 1
+         AND last_z_report_date IS NOT NULL
+         AND trim(last_z_report_date) != ''
+         AND NOT EXISTS (
+           SELECT 1 FROM fiscal_audit_log
+           WHERE action = 'z_report'
+             AND date(created_at) = date(substr(fiscal_settings.last_z_report_date, 1, 10))
+         )`
+    );
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 /**
@@ -590,6 +848,12 @@ function initFiscalDB(dbApi) {
   const executors = createExecutors(dbApi);
   if (executors) {
     applyFiscalSchema(executors);
+    try {
+      const { startFiscalTimeSyncMonitor } = require("./fiscal-time-sync");
+      startFiscalTimeSyncMonitor();
+    } catch (e) {
+      console.warn("[fiscal-db] time-sync start:", e.message);
+    }
     return;
   }
 
@@ -629,8 +893,10 @@ module.exports = {
   getFiscalDbPath,
   fiscalReceiptUpdate,
   deleteTestFiscalReceipts,
+  resetFiscalTestData,
   validateFiscalReceiptInsert,
   insertFiscalReceipt,
+  getFiscalReceiptById,
   RECEIPT_UPDATE_ALLOWED,
   isAllowedReceiptUpdateField,
   REQUIRED_RECEIPT_FIELDS,

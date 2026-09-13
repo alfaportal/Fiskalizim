@@ -8,9 +8,11 @@
 const QRCode = require("qrcode");
 const { isFiscalEnabled } = require("./fiscal-config");
 const { signReceipt } = require("./fiscal-crypto");
+const { money4 } = require("./fiscal-vat");
 const {
   buildCitizenCoupon,
   getCitizenCouponType,
+  resolveAtkCouponBuildOpts,
 } = require("./atk-model-builder");
 
 const SIATK_VERIFY_BASE = "https://efiskalizimi.atk-ks.org/verify";
@@ -38,6 +40,21 @@ function isAtkQrFormat() {
 const QR_PAYLOAD_MAX_ATK = 2048;
 const QR_PAYLOAD_MAX_LEGACY = 700;
 
+/** PNG i mprehtë (400px); printim ~25 mm (200 dots) — raster i qendruar. */
+const FISCAL_QR_PNG_WIDTH = 400;
+const FISCAL_QR_MAX_WIDTH_DOTS = 160;
+const FISCAL_QR_MAX_HEIGHT_DOTS = 160;
+const FISCAL_QR_MODULE_SIZE = 3;
+
+function getFiscalQrPrintOpts(extra = {}) {
+  return {
+    moduleSize: FISCAL_QR_MODULE_SIZE,
+    maxWidthDots: FISCAL_QR_MAX_WIDTH_DOTS,
+    maxHeightDots: FISCAL_QR_MAX_HEIGHT_DOTS,
+    ...extra,
+  };
+}
+
 /**
  * Siguron string valid për librarinë qrcode (pa objekte/Buffer të papritur).
  */
@@ -55,8 +72,7 @@ function toQrSafeString(value, maxLen = 2048) {
 function buildQrPayload(receiptData, signatureBase64) {
   const d = receiptData && typeof receiptData === "object" ? receiptData : {};
   const nuikf = toQrSafeString(d.nuikf || "").trim();
-  const totalNum = Number(d.total_amount ?? d.total ?? 0);
-  const total = Number.isFinite(totalNum) ? totalNum.toFixed(2) : "0.00";
+  const total = money4(d.total_amount ?? d.total ?? 0);
   const date = toQrSafeString(d.fiscal_date || d.date || "");
   const nui = toQrSafeString(d.taxpayer_nui || d.nui || "");
   // SIG në QR: mbaj base64 të pastër, kufizo gjatësinë (ESC/POS QR max ~708 bytes)
@@ -82,7 +98,8 @@ function buildQrPayload(receiptData, signatureBase64) {
  */
 function buildAtkQrPayload(receiptData) {
   const d = receiptData && typeof receiptData === "object" ? receiptData : {};
-  const citizen = buildCitizenCoupon(d);
+  const atkOpts = resolveAtkCouponBuildOpts(d);
+  const citizen = buildCitizenCoupon(d, atkOpts);
   const Type = getCitizenCouponType();
   const message = Type.fromObject(citizen);
   const errMsg = Type.verify(message);
@@ -96,7 +113,116 @@ function buildAtkQrPayload(receiptData) {
     throw new Error("Nënshkrimi digjital ATK dështoi");
   }
   const qrString = `${base64EncodedProto}|${base64Signature}`;
+  console.log('[QR-DEBUG] payload length:', qrString.length, 'chars');
+  console.log('[QR-DEBUG] payload preview:', qrString.substring(0, 50) + '...');
   return toQrSafeString(qrString, QR_PAYLOAD_MAX_ATK);
+}
+
+/**
+ * Gjerësia e printuar e QR (dots) — vlerësim nga module size + gjatësia e payload.
+ */
+function estimateQrPrintWidthDots(moduleSize, dataByteLength) {
+  const size = Math.min(16, Math.max(1, Number(moduleSize) || 4));
+  const bytes = Math.max(1, Number(dataByteLength) || 1);
+  let modules = 21;
+  if (bytes > 80) modules = 25;
+  if (bytes > 150) modules = 29;
+  if (bytes > 250) modules = 33;
+  if (bytes > 400) modules = 37;
+  if (bytes > 600) modules = 41;
+  if (bytes > 900) modules = 45;
+  if (bytes > 1200) modules = 49;
+  return modules * size;
+}
+
+function buildQrCenterPrefix(moduleSize, dataByteLength) {
+  let paperDots = 504;
+  try {
+    const { resolvePaperDotsForPrint } = require("./fiscal-logo");
+    paperDots = resolvePaperDotsForPrint();
+  } catch {
+    /* */
+  }
+  const qrW = estimateQrPrintWidthDots(moduleSize, dataByteLength);
+  const margin = Math.max(0, Math.floor((paperDots - qrW) / 2));
+  const marginChars = Math.max(0, Math.min(255, Math.floor(margin / 12)));
+  return Buffer.concat([
+    Buffer.from([0x1b, 0x61, 0x01]), // center (printerë që e respektojnë)
+    Buffer.from([0x1d, 0x4c, 0x00, 0x00]), // GS L reset
+    Buffer.from([0x1b, 0x6c, marginChars]), // ESC l — Tysso
+    Buffer.from([0x1d, 0x4c, margin & 0xff, (margin >> 8) & 0xff]),
+  ]);
+}
+
+/** PNG i QR nga generateFiscalQR ose reprint. */
+function resolveQrPngBuffer(qrResult) {
+  if (!qrResult || typeof qrResult !== "object") return null;
+  if (Buffer.isBuffer(qrResult.png_buffer) && qrResult.png_buffer.length) {
+    return qrResult.png_buffer;
+  }
+  if (qrResult.png_base64) {
+    try {
+      const b = Buffer.from(String(qrResult.png_base64), "base64");
+      if (b.length) return b;
+    } catch (e) {
+      console.error('[QR-DEBUG] resolveQrPngBuffer FAILED:', e.message);
+    }
+  }
+  return null;
+}
+
+/**
+ * Buffer ESC/POS për QR fiskal — raster i qendruar (preferuar), pastaj native GS ( k.
+ * E njëjta rrugë për Tysso, Epson, Star, etj. (mos nda fazat pas printimit).
+ * @param {object} qrResult
+ * @param {{ moduleSize?: number, maxWidthDots?: number }} [opts]
+ * @returns {Buffer|null}
+ */
+function buildFiscalQrEscPosBuffer(qrResult, opts = {}) {
+  if (!qrResult) return null;
+  const printOpts = getFiscalQrPrintOpts(opts);
+  const moduleSize = Number(printOpts.moduleSize) || FISCAL_QR_MODULE_SIZE;
+
+  const png = resolveQrPngBuffer(qrResult);
+  if (png) {
+    const raster = buildEscPosQrRasterForPrint(png, printOpts);
+    if (raster && raster.buffer && raster.buffer.length) return raster.buffer;
+  }
+
+  const payload = qrResult.payload ? String(qrResult.payload) : "";
+  if (payload) return buildEscPosQrCommands(payload, moduleSize);
+
+  if (Buffer.isBuffer(qrResult.escpos_buffer) && qrResult.escpos_buffer.length) {
+    return qrResult.escpos_buffer;
+  }
+  if (qrResult.escpos_base64) {
+    try {
+      const b = Buffer.from(String(qrResult.escpos_base64), "base64");
+      if (b.length) return b;
+    } catch (e) {
+      console.error("[QR-DEBUG] buildFiscalQrEscPosBuffer decode FAILED:", e.message);
+    }
+  }
+  return null;
+}
+
+/**
+ * QR si bitmap GS v 0 i qendruar (native GS ( k shpesh ignoron ESC a 1 / GS L).
+ * @param {Buffer|string} pngInput — PNG buffer ose base64
+ * @returns {{ buffer: Buffer, width: number, height: number, marginLeft: number }|null}
+ */
+function buildEscPosQrRasterForPrint(pngInput, opts = {}) {
+  try {
+    const png = Buffer.isBuffer(pngInput)
+      ? pngInput
+      : Buffer.from(String(pngInput || ""), "base64");
+    if (!png.length) return null;
+    const { buildCenteredRasterPrintFromPng } = require("./fiscal-logo");
+    return buildCenteredRasterPrintFromPng(png, getFiscalQrPrintOpts(opts));
+  } catch (e) {
+    console.error('[QR-DEBUG] buildEscPosQrRasterForPrint FAILED:', e.message);
+    return null;
+  }
 }
 
 /**
@@ -130,12 +256,13 @@ function buildEscPosQrCommands(data, moduleSize = 4) {
   // Print: fn 81
   chunks.push(Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, cn, 0x51, 0x30]));
 
-  // Center align before/after handled by caller; add newlines
+  const qrBody = Buffer.concat(chunks);
   return Buffer.concat([
-    Buffer.from([0x1b, 0x61, 0x01]), // center
-    Buffer.concat(chunks),
+    buildQrCenterPrefix(size, text.length),
+    qrBody,
     Buffer.from("\n\n", "ascii"),
-    Buffer.from([0x1b, 0x61, 0x00]), // left
+    Buffer.from([0x1d, 0x4c, 0x00, 0x00]),
+    Buffer.from([0x1b, 0x61, 0x00]),
   ]);
 }
 
@@ -178,13 +305,16 @@ async function generateFiscalQR(receiptData) {
     errorCorrectionLevel: "M",
     type: "png",
     margin: 1,
-    width: 180,
+    width: FISCAL_QR_PNG_WIDTH,
   });
   if (!Buffer.isBuffer(pngBuffer) || !pngBuffer.length) {
     throw new Error("QR PNG buffer dështoi");
   }
 
-  const escpos = buildEscPosQrCommands(payload, 4);
+  const escpos = buildFiscalQrEscPosBuffer(
+    { payload, png_buffer: pngBuffer, png_base64: pngBuffer.toString("base64") },
+    getFiscalQrPrintOpts(),
+  );
 
   // ASCII opsional — dështimi nuk prish QR-në (utf8 renderer ka bug me array length)
   let ascii = "";
@@ -249,7 +379,29 @@ async function generateQRForPrint(qrData) {
 
   const maxLen = ATK_QR_FORMAT ? QR_PAYLOAD_MAX_ATK : QR_PAYLOAD_MAX_LEGACY;
   const safePayload = toQrSafeString(payload, maxLen);
-  const escpos = buildEscPosQrCommands(safePayload, 4);
+  let pngBuffer = null;
+  let png_base64 = null;
+  try {
+    pngBuffer = await QRCode.toBuffer(safePayload, {
+      type: "png",
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: FISCAL_QR_PNG_WIDTH,
+    });
+    if (Buffer.isBuffer(pngBuffer) && pngBuffer.length) {
+      png_base64 = pngBuffer.toString("base64");
+    }
+  } catch {
+    /* optional */
+  }
+  const escpos = buildFiscalQrEscPosBuffer(
+    {
+      payload: safePayload,
+      png_buffer: pngBuffer,
+      png_base64,
+    },
+    getFiscalQrPrintOpts(),
+  );
   let ascii = "";
   try {
     ascii = await QRCode.toString(safePayload, {
@@ -261,26 +413,84 @@ async function generateQRForPrint(qrData) {
   } catch {
     ascii = "";
   }
-  let png_base64 = null;
-  try {
-    const png = await QRCode.toBuffer(safePayload, {
-      type: "png",
-      errorCorrectionLevel: "M",
-      margin: 1,
-      width: 180,
-    });
-    png_base64 = png.toString("base64");
-  } catch {
-    /* optional */
-  }
 
   return {
     escpos_buffer: escpos,
-    escpos_base64: escpos.toString("base64"),
+    escpos_base64: escpos ? escpos.toString("base64") : "",
     ascii,
     png_base64,
     payload: safePayload,
   };
+}
+
+function ymdToFiscalDate(ymd) {
+  const s = String(ymd || "").trim().slice(0, 10);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return s;
+}
+
+function buildReportVerificationNo(details, mode) {
+  const crypto = require("crypto");
+  const { getSefIdentifier } = require("./fiscal-numbering");
+  const d = details && typeof details === "object" ? details : {};
+  const seed = [
+    String(mode || d.mode || "X").toUpperCase(),
+    d.date || "",
+    d.from_date || "",
+    d.to_date || "",
+    Number(d.total_amount) || 0,
+    Number(d.coupon_count) || 0,
+    getSefIdentifier() || "",
+  ].join("|");
+  return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 16).toUpperCase();
+}
+
+/**
+ * QR për Raport X / Z / Periodik — i njëjti format ATK: base64(CitizenCoupon)|base64(ECDSA).
+ */
+async function generateFiscalReportQR(reportDetails, opts = {}) {
+  if (!isFiscalEnabled()) return null;
+
+  const { getFiscalSettings } = require("./fiscal-config");
+  const { getSefIdentifier } = require("./fiscal-numbering");
+  const settings = getFiscalSettings();
+  const d = reportDetails && typeof reportDetails === "object" ? reportDetails : {};
+  const mode = String(opts.reportMode || d.mode || "X").toUpperCase();
+  const nuikf = buildReportVerificationNo(d, mode);
+  const dateRaw = String(d.date || d.from_date || "")
+    .split("→")[0]
+    .trim()
+    .slice(0, 10);
+  const fiscal_date =
+    ymdToFiscalDate(dateRaw) ||
+    ymdToFiscalDate(new Date().toISOString().slice(0, 10));
+  const now = new Date();
+  const fiscal_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+  const row = {
+    nuikf,
+    total_amount: Number(d.total_amount) || 0,
+    total_without_tax: Number(d.total_without_tax) || 0,
+    vat_breakdown_json: JSON.stringify(d.vat_breakdown || {}),
+    items_json: "[]",
+    receipt_type: "regular",
+    payment_method: "cash",
+    fiscal_date,
+    fiscal_time,
+    sef_id: getSefIdentifier() || "",
+    daily_number: Number(d.coupon_count) || 0,
+    taxpayer_nui: settings.taxpayer_nui || "",
+    taxpayer_address: settings.taxpayer_address || "",
+    operator_id: String(opts.operatorId || "POS"),
+  };
+
+  return generateFiscalQR({
+    ...row,
+    total: row.total_amount,
+    nui: row.taxpayer_nui,
+    taxpayer_nui: row.taxpayer_nui,
+  });
 }
 
 module.exports["SIATK_VERIFY_BASE"] = SIATK_VERIFY_BASE;
@@ -289,8 +499,17 @@ module.exports["isAtkQrFormat"] = isAtkQrFormat;
 module.exports["buildQrPayload"] = buildQrPayload;
 module.exports["buildAtkQrPayload"] = buildAtkQrPayload;
 module.exports["buildEscPosQrCommands"] = buildEscPosQrCommands;
+module.exports["buildFiscalQrEscPosBuffer"] = buildFiscalQrEscPosBuffer;
+module.exports["resolveQrPngBuffer"] = resolveQrPngBuffer;
+module.exports["buildEscPosQrRasterForPrint"] = buildEscPosQrRasterForPrint;
+module.exports["estimateQrPrintWidthDots"] = estimateQrPrintWidthDots;
+module.exports["buildQrCenterPrefix"] = buildQrCenterPrefix;
 module.exports["generateFiscalQR"] = generateFiscalQR;
+module.exports["generateFiscalReportQR"] = generateFiscalReportQR;
 module.exports["generateQRForPrint"] = generateQRForPrint;
+module.exports["getFiscalQrPrintOpts"] = getFiscalQrPrintOpts;
+module.exports["FISCAL_QR_PNG_WIDTH"] = FISCAL_QR_PNG_WIDTH;
+module.exports["FISCAL_QR_MAX_WIDTH_DOTS"] = FISCAL_QR_MAX_WIDTH_DOTS;
 module.exports["toQrSafeString"] = toQrSafeString;
 Object.defineProperty(module.exports, "ATK_QR_FORMAT", {
   enumerable: true,

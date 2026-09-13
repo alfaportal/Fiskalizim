@@ -4,6 +4,14 @@
  */
 const crypto = require("crypto");
 const { isFiscalEnabled } = require("./fiscal-config");
+const {
+  isFiscalMemoryOnly,
+  memGetNextDailyNumber,
+  memGetNextTotalNumber,
+  memResetDailyCounter,
+} = require("./fiscal-test-mode-store");
+const { getFiscalLocalYmd, getFiscalNow } = require("./fiscal-time-sync");
+const { round4 } = require("./fiscal-vat");
 
 const ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const NUIKF_LEN = 16;
@@ -30,6 +38,7 @@ function ensureSettingsRow(sqlite) {
 }
 
 function todayLocalYmd() {
+  if (isFiscalEnabled()) return getFiscalLocalYmd();
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -42,35 +51,56 @@ function assertFiscalOn() {
   return true;
 }
 
+function ensureLastDailyNumberDateColumn(sqlite) {
+  try {
+    sqlite
+      .prepare(
+        `ALTER TABLE fiscal_settings ADD COLUMN last_daily_number_date TEXT`
+      )
+      .run();
+  } catch {
+    /* already exists */
+  }
+}
+
 /**
  * Numri i radhës ditor (1, 2, 3...).
- * Rrit daily_receipt_counter; nëse data ≠ last_z_report_date → fillon nga 1.
- * Kur fillon dita e re, përditësohet last_z_report_date=sot që numërimi të vazhdojë 2,3,...
- * (resetDailyCounter e vendos counter=0 + last_z=sot pas raportit Z).
+ * Përditëson vetëm daily_receipt_counter + last_daily_number_date.
+ * last_z_report_date ndryshon VETËM nga resetDailyCounter() (raporti Z).
  */
 function getNextDailyNumber() {
   if (!assertFiscalOn()) return null;
+  if (isFiscalMemoryOnly()) return memGetNextDailyNumber();
 
   const sqlite = getSqlite();
   ensureSettingsRow(sqlite);
+  ensureLastDailyNumberDateColumn(sqlite);
 
   const row = sqlite
     .prepare(
-      `SELECT daily_receipt_counter, last_z_report_date FROM fiscal_settings WHERE id = 1`
+      `SELECT daily_receipt_counter, last_z_report_date, last_daily_number_date
+       FROM fiscal_settings WHERE id = 1`
     )
     .get();
 
   const today = todayLocalYmd();
   const lastZ = row?.last_z_report_date ? String(row.last_z_report_date).slice(0, 10) : "";
+  const lastDaily = row?.last_daily_number_date
+    ? String(row.last_daily_number_date).slice(0, 10)
+    : "";
+  const counter = Number(row?.daily_receipt_counter) || 0;
   let next;
-  let setDate = lastZ;
 
-  if (!lastZ || lastZ !== today) {
-    // Ditë e re që nga Z / dita e fundit e numërimit → fillo nga 1
+  if (lastZ === today) {
+    // Periudhë pas Z-së së sotme (counter u resetua në 0)
+    next = counter + 1;
+    if (next < 1) next = 1;
+  } else if (lastDaily !== today) {
+    // Ditë kalendarike e re — Z e vjetër ose pa Z sot
     next = 1;
-    setDate = today;
   } else {
-    next = (Number(row.daily_receipt_counter) || 0) + 1;
+    // I njëjti ditë, Z nuk është bërë sot
+    next = counter + 1;
     if (next < 1) next = 1;
   }
 
@@ -78,11 +108,11 @@ function getNextDailyNumber() {
     .prepare(
       `UPDATE fiscal_settings SET
         daily_receipt_counter = ?,
-        last_z_report_date = ?,
+        last_daily_number_date = ?,
         updated_at = datetime('now','localtime')
       WHERE id = 1`
     )
-    .run(next, setDate);
+    .run(next, today);
 
   return next;
 }
@@ -94,9 +124,11 @@ function getNextDailyNumber() {
  */
 function resetDailyCounter() {
   if (!assertFiscalOn()) return false;
+  if (isFiscalMemoryOnly()) return memResetDailyCounter();
 
   const sqlite = getSqlite();
   ensureSettingsRow(sqlite);
+  ensureLastDailyNumberDateColumn(sqlite);
   const today = todayLocalYmd();
 
   sqlite
@@ -104,10 +136,11 @@ function resetDailyCounter() {
       `UPDATE fiscal_settings SET
         daily_receipt_counter = 0,
         last_z_report_date = ?,
+        last_daily_number_date = ?,
         updated_at = datetime('now','localtime')
       WHERE id = 1`
     )
-    .run(today);
+    .run(today, today);
 
   return true;
 }
@@ -117,6 +150,7 @@ function resetDailyCounter() {
  */
 function getNextTotalNumber() {
   if (!assertFiscalOn()) return null;
+  if (isFiscalMemoryOnly()) return memGetNextTotalNumber();
 
   const sqlite = getSqlite();
   ensureSettingsRow(sqlite);
@@ -267,7 +301,7 @@ function getSefIdentifier() {
 }
 
 function round2(n) {
-  return Math.round((Number(n) || 0) * 100) / 100;
+  return round4(n);
 }
 
 /**
@@ -338,12 +372,27 @@ function parseDateRange(fromDate, toDate) {
   return { from, to };
 }
 
+/** Periudha e raportit mujor — muaji aktual nëse mungon Nga/Deri. */
+function resolveMonthlyReportPeriod(fromDate, toDate) {
+  if (fromDate && toDate) {
+    return parseDateRange(fromDate, toDate);
+  }
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const pad = (n) => String(n).padStart(2, "0");
+  const from = `${y}-${pad(m)}-01`;
+  const last = new Date(y, m, 0).getDate();
+  const to = `${y}-${pad(m)}-${pad(last)}`;
+  return { from, to };
+}
+
 function emptyVatMap() {
   return { A: 0, B: 0, C: 0, D: 0, E: 0 };
 }
 
 function nowFiscalStamp() {
-  const d = new Date();
+  const d = isFiscalEnabled() ? getFiscalNow() : new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return {
     fiscalization_date: `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`,
@@ -548,28 +597,14 @@ function getShortPeriodicFiscalReport(fromDate, toDate, operatorName, operatorId
 function getMonthlyFiscalMemoryReport(fromDate, toDate, operatorName, operatorId) {
   if (!assertFiscalOn()) return null;
 
-  let from;
-  let to;
-  if (fromDate && toDate) {
-    ({ from, to } = parseDateRange(fromDate, toDate));
-  } else {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const pad = (n) => String(n).padStart(2, "0");
-    from = `${y}-${pad(m)}-01`;
-    const last = new Date(y, m, 0).getDate();
-    to = `${y}-${pad(m)}-${pad(last)}`;
-  }
+  const { from, to } = resolveMonthlyReportPeriod(fromDate, toDate);
 
   ensureSettingsRow(getSqlite());
   const acc = accumulateReceiptsInRange(from, to);
   const stamp = nowFiscalStamp();
   const ram_resets = countRamResetsInRange(from, to);
 
-  // Placeholder derisa ATK real: OK nëse s'ka kuponë të padërguar në periudhë
   const transmission_ok = acc.unsent_count === 0;
-  const transmission_text = transmission_ok ? "Transmetimi OK" : "Transmetimi jo OK";
 
   const details = {
     source: "monthly_memory_report",
@@ -588,7 +623,6 @@ function getMonthlyFiscalMemoryReport(fromDate, toDate, operatorName, operatorId
     payments: acc.payments,
     ram_resets,
     transmission_ok,
-    transmission_text,
     unsent_count: acc.unsent_count,
     offline_count: acc.offline_count,
     reset_applied: false,
@@ -696,6 +730,7 @@ function onDailySummaryPrinted(operatorName, operatorId) {
     daily_receipt_counter_before: Number(settingsRow?.daily_receipt_counter) || 0,
     rfd_created_count: rfdCreated,
     reset_applied: false,
+    day_already_closed: alreadyClosedToday,
     official_close: true,
   };
 
@@ -727,5 +762,6 @@ module.exports = {
   getPeriodicFiscalReport,
   getShortPeriodicFiscalReport,
   getMonthlyFiscalMemoryReport,
+  resolveMonthlyReportPeriod,
   onDailySummaryPrinted,
 };

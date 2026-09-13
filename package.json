@@ -1,16 +1,115 @@
 {
-  "name": "biznes",
-  "version": "1.0.0",
-  "description": "POS desktop për testim ATK / SEF (Faza e Testimit) — pa lidhje me KAFENE",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "server": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.21.2",
-    "protobufjs": "^8.7.1",
-    "qrcode": "^1.5.4",
-    "sql.js": "^1.14.1"
-  }
+    "name": "revolution-fiskalizim",
+    "version": "1.1.2",
+    "description": "Revolution Fiskalizim — modul fiskal ATK (TEST)",
+    "main": "main.js",
+    "author": "Revolution Invest SH.P.K.",
+    "license": "UNLICENSED",
+    "private": true,
+    "scripts": {
+        "start": "node server.js",
+        "server": "node server.js",
+        "local": "node server.js",
+        "electron": "electron .",
+        "reset-atk-test": "node scripts/reset-atk-test.js",
+        "build": "electron-builder --win nsis",
+        "build:sef": "node scripts/build-sef.js",
+        "build:protected": "node scripts/obfuscate-build.mjs",
+        "dist": "electron-builder --win nsis",
+        "dist:dir": "electron-builder --win dir"
+    },
+    "dependencies": {
+        "express": "^4.21.2",
+        "protobufjs": "^8.7.1",
+        "qrcode": "^1.5.4",
+        "sql.js": "^1.14.1"
+    },
+    "devDependencies": {
+        "electron": "42.4.1",
+        "electron-builder": "^26.0.12",
+        "javascript-obfuscator": "^5.6.0",
+        "rcedit": "^4.0.1"
+    },
+    "build": {
+        "appId": "com.revolutioninvest.fiskalizim",
+        "productName": "Revolution Fiskalizim",
+        "copyright": "Copyright Â© Revolution Invest SH.P.K.",
+        "directories": {
+            "output": "dist-atk-v2"
+        },
+        "files": [
+            "main.js",
+            "preload.js",
+            "server.js",
+            "database.js",
+            "db-crypto.js",
+            "portable-path.js",
+            "disk-monitor.js",
+            "biznes-backup.js",
+            "printer.js",
+            "electron-print-worker.js",
+            "receipt-text.js",
+            "vat-smart-map.js",
+            "fiscal/**/*",
+            "fiscal/fiscal-onboarding.js",
+            "protection/**/*",
+            "public/**/*",
+            "data/**/*",
+            "package.json",
+            "!fiscal/**/*.key",
+            "!fiscal/signed-certificate.pem",
+            "!fiscal/private-key.pem",
+            "!fiscal-keys/**",
+            "!tests/**",
+            "!scripts/**",
+            "!_atk-deshmi/**",
+            "!.cursor/**",
+            "!dist-atk/**",
+            "!dist-atk-v2/**",
+            "!**/*.md"
+        ],
+        "asar": true,
+        "asarUnpack": [
+            "node_modules/sql.js/**",
+            "data/**"
+        ],
+        "electronFuses": {
+            "runAsNode": false,
+            "enableCookieEncryption": true,
+            "enableNodeOptionsEnvironmentVariable": false,
+            "enableNodeCliInspectArguments": false,
+            "enableEmbeddedAsarIntegrityValidation": true,
+            "onlyLoadAppFromAsar": true
+        },
+        "win": {
+            "icon": "icon.ico",
+            "signAndEditExecutable": true,
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "artifactName": "Revolution-Fiskalizim-Setup-${version}-${os}-${arch}.${ext}"
+        },
+        "nsis": {
+            "oneClick": true,
+            "perMachine": true,
+            "allowToChangeInstallationDirectory": false,
+            "allowElevation": true,
+            "runAfterFinish": true,
+            "displayLanguageSelector": false,
+            "createDesktopShortcut": "always",
+            "createStartMenuShortcut": true,
+            "shortcutName": "Revolution Fiskalizim",
+            "uninstallDisplayName": "Revolution Fiskalizim ${version}",
+            "include": "build/installer.nsh",
+            "installerIcon": "icon.ico",
+            "uninstallerIcon": "icon.ico",
+            "installerHeaderIcon": "icon.ico"
+        },
+        "electronVersion": "42.4.1"
+    }
 }

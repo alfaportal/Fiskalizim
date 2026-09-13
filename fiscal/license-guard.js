@@ -267,12 +267,12 @@ function beginGraceIfNeeded(app, reason, hardwareIdFormatted) {
 
 /**
  * Banner vetëm për admin/login (jo kamarier).
- * Null kur licenca OK; gjatë grace → njoftim skadimi (≤48 orë).
+ * Null kur licenca OK; gjatë grace → njoftim skadimi (≤24 orë).
  */
 function getGraceBannerInfo(app) {
   const g = getGraceStatus(app);
   if (!g.active) return null;
-  if (!(g.hoursLeft > 0 && g.hoursLeft <= 48)) return null;
+  if (!(g.hoursLeft > 0 && g.hoursLeft <= 24)) return null;
   return {
     hoursLeft: g.hoursLeft,
     message: `Licenca skadon për ${g.hoursLeft} orë — kontaktoni mbështetjen (${CONTACT_PHONE})`,
@@ -650,6 +650,10 @@ function promptHardwareActivation(app, opts = {}) {
       subText = MSG_LICENSE_EXPIRED;
     } else if (reason === "trial_used") {
       subText = `Trial është përdorur në këtë kompjuter. Futni License Key vjetor. Kontaktoni ${CONTACT_PHONE}.`;
+    } else if (reason === "expired") {
+      subText = MSG_LICENSE_EXPIRED;
+    } else if (reason === "offline_expired") {
+      subText = "Jeni jashtë internetit më shumë se 7 ditë. Lidhu online dhe riaktivizo.";
     } else if (reason === "revoked" || reason === "no_license") {
       subText =
         "Licenca u hoq ose nuk është aktive. Dërgoni ID-në (16 shifra) te admini dhe futni çelësin që ju jepet.";
@@ -911,7 +915,7 @@ function promptHardwareActivation(app, opts = {}) {
 }
 
 /**
- * Kur licenca prishet: 48h grace (programi punon) pastaj bllokim + aktivizim.
+ * Kur licenca prishet: 24h grace (dev) pastaj bllokim + aktivizim.
  * @returns {Promise<{ ok: boolean, grace: object|null }>}
  */
 async function allowWithGraceOrBlock(app, reason, formatted) {
@@ -932,7 +936,7 @@ async function allowWithGraceOrBlock(app, reason, formatted) {
           title: "Licenca ka problem",
           message: "Licenca ka problem. Kontaktoni " + CONTACT_PHONE + ".",
           detail:
-            "Programi vazhdon me punu për 48 orë.\n\n" +
+            "Programi vazhdon me punu për 24 orë.\n\n" +
             `Mbeten rreth ${status.hoursLeft} orë.\n` +
             `ID i pajisjes: ${formatted}\n\n` +
             "Dërgoni foto të ID-së në WhatsApp (" +
@@ -956,7 +960,7 @@ async function allowWithGraceOrBlock(app, reason, formatted) {
     dialog.showMessageBoxSync({
       type: "error",
       title: "Licenca",
-      message: "Periudha 48 orë përfundoi.",
+      message: "Periudha 24 orë përfundoi.",
       detail:
         "Programi është bllokuar derisa të futni kodin e ri.\n\n" +
         `ID i pajisjes: ${formatted}\n` +

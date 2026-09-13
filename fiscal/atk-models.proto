@@ -28,6 +28,9 @@ message CouponItem {
   int64 total = 5;
   string taxRate = 6;
   string type = 7;
+  // Hapi 4: zbritja e rreshtit (EUR → int64 cent, pas round4)
+  int64 discount = 8;
+  // price = €0.0001 neto/njësi pas zbritjes; total/discount = cent (×100)
 }
 
 message Payment {

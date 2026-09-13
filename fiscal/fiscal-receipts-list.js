@@ -4,6 +4,9 @@
  */
 const { isFiscalEnabled, getFiscalSettings } = require("./fiscal-config");
 const { generateFiscalReceipt } = require("./fiscal-print");
+const { getFiscalReceiptById } = require("./fiscal-db");
+const { isFiscalMemoryOnly, memListReceiptSummaries } = require("./fiscal-test-mode-store");
+const { formatSentAtForDisplay } = require("./fiscal-time-sync");
 const {
   t,
   tReceiptType,
@@ -69,6 +72,7 @@ function mapListRow(row) {
     id: row.id,
     nuikf: row.nuikf,
     daily_number: row.daily_number,
+    total_number: row.total_number,
     fiscal_date: row.fiscal_date,
     fiscal_time: row.fiscal_time,
     receipt_type: row.receipt_type,
@@ -80,6 +84,7 @@ function mapListRow(row) {
     operator_id: row.operator_id,
     is_offline: Number(row.is_offline) === 1,
     sent_to_atk: Number(row.sent_to_atk) === 1,
+    sent_at: formatSentAtForDisplay(row.sent_at, row.fiscal_date, row.fiscal_time),
     status: statusLabel(row),
     created_at: row.created_at,
   };
@@ -102,16 +107,27 @@ function listFiscalReceipts(limit = 500) {
   const lim = Math.min(2000, Math.max(1, Number(limit) || 500));
   const rows = sqlite
     .prepare(
-      `SELECT id, nuikf, daily_number, fiscal_date, fiscal_time, receipt_type,
+      `SELECT id, nuikf, daily_number, total_number, fiscal_date, fiscal_time, receipt_type,
               total_amount, payment_method, operator_name, operator_id,
-              is_offline, sent_to_atk, created_at
+              is_offline, sent_to_atk, sent_at, created_at
        FROM fiscal_receipts
        ORDER BY id DESC
        LIMIT ?`
     )
     .all(lim);
 
-  return rows.map(mapListRow);
+  let merged = rows;
+  if (isFiscalMemoryOnly()) {
+    const memRows = memListReceiptSummaries(lim);
+    const seen = new Set(rows.map((r) => Number(r.id)));
+    for (const row of memRows) {
+      if (!seen.has(Number(row.id))) merged.push(row);
+    }
+    merged.sort((a, b) => Number(b.id) - Number(a.id));
+    merged = merged.slice(0, lim);
+  }
+
+  return merged.map(mapListRow);
 }
 
 /**
@@ -122,11 +138,15 @@ function buildFiscalReceiptTextFromRow(row) {
   const items = parseJson(row.items_json, []);
   const vatBreak = parseJson(row.vat_breakdown_json, {});
 
+  const paymentSplits = parseJson(row.payment_splits_json, []);
+
   const orderData = {
     items: Array.isArray(items) ? items : [],
     operator_name: row.operator_name,
     operator_id: row.operator_id,
     payment_method: row.payment_method,
+    payment_splits: Array.isArray(paymentSplits) ? paymentSplits : [],
+    payment_splits_json: row.payment_splits_json,
     subtotal: row.subtotal,
     discount_amount: row.discount_amount,
     total_amount: row.total_amount,
@@ -159,6 +179,8 @@ function buildFiscalReceiptTextFromRow(row) {
     fiscal_date: row.fiscal_date,
     fiscal_time: row.fiscal_time,
     vat_breakdown: vatBreak,
+    payment_method: row.payment_method,
+    payment_splits_json: row.payment_splits_json,
     language,
   };
 
@@ -168,7 +190,7 @@ function buildFiscalReceiptTextFromRow(row) {
       "NUIKF: " +
       (row.nuikf || "-") +
       "\nTotali: " +
-      Number(row.total_amount || 0).toFixed(2) +
+      Number(row.total_amount || 0).toFixed(4) +
       " EUR\n";
   }
   return text;
@@ -207,8 +229,7 @@ function getFiscalReceiptPreview(id) {
     throw new Error("id i pavlefshëm");
   }
 
-  const sqlite = getSqlite();
-  const row = sqlite.prepare(`SELECT * FROM fiscal_receipts WHERE id = ?`).get(rid);
+  const row = getFiscalReceiptById(rid);
   if (!row) {
     throw new Error("Kuponi nuk u gjet");
   }
@@ -231,8 +252,7 @@ function loadReceiptRow(id) {
   if (!Number.isFinite(rid) || rid < 1) {
     throw new Error("id i pavlefshëm");
   }
-  const sqlite = getSqlite();
-  const row = sqlite.prepare(`SELECT * FROM fiscal_receipts WHERE id = ?`).get(rid);
+  const row = getFiscalReceiptById(rid);
   if (!row) {
     throw new Error("Kuponi nuk u gjet");
   }
