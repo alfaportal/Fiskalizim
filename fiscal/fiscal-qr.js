@@ -40,19 +40,71 @@ function isAtkQrFormat() {
 const QR_PAYLOAD_MAX_ATK = 2048;
 const QR_PAYLOAD_MAX_LEGACY = 700;
 
-/** PNG i mprehtë (400px); printim ~25 mm (200 dots) — raster i qendruar. */
-const FISCAL_QR_PNG_WIDTH = 400;
+/** PNG i mprehtë; raster termik ~20 mm (160 dots @ 203 DPI) — skanueshmëri ATK. */
+const FISCAL_QR_PNG_WIDTH = 320;
 const FISCAL_QR_MAX_WIDTH_DOTS = 160;
 const FISCAL_QR_MAX_HEIGHT_DOTS = 160;
-const FISCAL_QR_MODULE_SIZE = 3;
+const FISCAL_QR_MODULE_SIZE = 4;
+/** Binarizim QR raster — si 1.0.10 (78): zi/bardhë pa gray në module. */
+const FISCAL_QR_BLACK_LUM_MAX = 78;
+const FISCAL_QR_ALPHA_MIN = 96;
 
 function getFiscalQrPrintOpts(extra = {}) {
+  const {
+    normalizePrintDensity,
+    blackLumMaxFromPrintDensity,
+    qrDarkHexFromPrintDensity,
+  } = require("../receipt-text");
+  const printDensity =
+    extra.printDensity != null ? normalizePrintDensity(extra.printDensity) : null;
+  const d = printDensity ?? normalizePrintDensity(10);
+  const blackLumMax =
+    printDensity != null ? blackLumMaxFromPrintDensity(printDensity) : FISCAL_QR_BLACK_LUM_MAX;
+  const alphaMin =
+    printDensity != null
+      ? Math.min(120, Math.max(48, 128 - printDensity * 4))
+      : FISCAL_QR_ALPHA_MIN;
+  let printerName = "";
+  try {
+    printerName = require("../database").getSetting("printer_name", "") || "";
+  } catch {
+    /* */
+  }
+  let preferNativeQr =
+    extra.preferNativeQr != null ? !!extra.preferNativeQr : d >= 8;
+  const { isRongtaPrinterName } = require("../receipt-text");
+  if (isRongtaPrinterName(printerName) && d <= 7) {
+    preferNativeQr = false;
+  }
   return {
     moduleSize: FISCAL_QR_MODULE_SIZE,
     maxWidthDots: FISCAL_QR_MAX_WIDTH_DOTS,
     maxHeightDots: FISCAL_QR_MAX_HEIGHT_DOTS,
+    blackLumMax,
+    alphaMin,
+    printDensity: d,
+    printerName,
+    /** Si 1.0.10 për errësira ≥8; raster + dither për 1–7 (PNG #000 ishte gjithmonë zi). */
+    preferNativeQr,
+    solidRaster: true,
     ...extra,
+    blackLumMax,
+    alphaMin,
+    printDensity: d,
+    preferNativeQr,
+    solidRaster: extra.solidRaster !== false,
   };
+}
+
+function withQrPrintDensity(buffer, printDensity) {
+  const { prependPrintDensityEscPos } = require("../receipt-text");
+  let printerName = "";
+  try {
+    printerName = require("../database").getSetting("printer_name", "") || "";
+  } catch {
+    /* */
+  }
+  return prependPrintDensityEscPos(buffer, printDensity, printerName);
 }
 
 /**
@@ -135,22 +187,12 @@ function estimateQrPrintWidthDots(moduleSize, dataByteLength) {
   return modules * size;
 }
 
-function buildQrCenterPrefix(moduleSize, dataByteLength) {
-  let paperDots = 504;
-  try {
-    const { resolvePaperDotsForPrint } = require("./fiscal-logo");
-    paperDots = resolvePaperDotsForPrint();
-  } catch {
-    /* */
-  }
-  const qrW = estimateQrPrintWidthDots(moduleSize, dataByteLength);
-  const margin = Math.max(0, Math.floor((paperDots - qrW) / 2));
-  const marginChars = Math.max(0, Math.min(255, Math.floor(margin / 12)));
+function buildQrCenterPrefix() {
+  const { buildGsLeftMarginReset, buildEscLeftMarginChars } = require("./fiscal-logo");
   return Buffer.concat([
-    Buffer.from([0x1b, 0x61, 0x01]), // center (printerë që e respektojnë)
-    Buffer.from([0x1d, 0x4c, 0x00, 0x00]), // GS L reset
-    Buffer.from([0x1b, 0x6c, marginChars]), // ESC l — Tysso
-    Buffer.from([0x1d, 0x4c, margin & 0xff, (margin >> 8) & 0xff]),
+    buildGsLeftMarginReset(),
+    buildEscLeftMarginChars(0),
+    Buffer.from([0x1b, 0x61, 0x01]),
   ]);
 }
 
@@ -183,22 +225,29 @@ function buildFiscalQrEscPosBuffer(qrResult, opts = {}) {
   const printOpts = getFiscalQrPrintOpts(opts);
   const moduleSize = Number(printOpts.moduleSize) || FISCAL_QR_MODULE_SIZE;
 
+  const density = printOpts.printDensity;
+  const payload = qrResult.payload ? String(qrResult.payload) : "";
+  if (payload && printOpts.preferNativeQr !== false) {
+    return withQrPrintDensity(buildEscPosQrCommands(payload, moduleSize), density);
+  }
+
   const png = resolveQrPngBuffer(qrResult);
   if (png) {
     const raster = buildEscPosQrRasterForPrint(png, printOpts);
-    if (raster && raster.buffer && raster.buffer.length) return raster.buffer;
+    if (raster && raster.buffer && raster.buffer.length) {
+      return withQrPrintDensity(raster.buffer, density);
+    }
   }
 
-  const payload = qrResult.payload ? String(qrResult.payload) : "";
-  if (payload) return buildEscPosQrCommands(payload, moduleSize);
+  if (payload) return withQrPrintDensity(buildEscPosQrCommands(payload, moduleSize), density);
 
   if (Buffer.isBuffer(qrResult.escpos_buffer) && qrResult.escpos_buffer.length) {
-    return qrResult.escpos_buffer;
+    return withQrPrintDensity(qrResult.escpos_buffer, density);
   }
   if (qrResult.escpos_base64) {
     try {
       const b = Buffer.from(String(qrResult.escpos_base64), "base64");
-      if (b.length) return b;
+      if (b.length) return withQrPrintDensity(b, density);
     } catch (e) {
       console.error("[QR-DEBUG] buildFiscalQrEscPosBuffer decode FAILED:", e.message);
     }
@@ -258,7 +307,7 @@ function buildEscPosQrCommands(data, moduleSize = 4) {
 
   const qrBody = Buffer.concat(chunks);
   return Buffer.concat([
-    buildQrCenterPrefix(size, text.length),
+    buildQrCenterPrefix(),
     qrBody,
     Buffer.from("\n\n", "ascii"),
     Buffer.from([0x1d, 0x4c, 0x00, 0x00]),
@@ -300,20 +349,28 @@ async function generateFiscalQR(receiptData) {
     throw new Error("QR payload i pavlefshëm");
   }
 
-  // PNG — mos përdor toString(utf8): hedh "Invalid array length" për payload mesatar/të madh
+  let printDensity = 10;
+  try {
+    const database = require("../database");
+    printDensity = database.getSetting("printer_density", "10");
+  } catch {
+    /* */
+  }
+
+  // PNG — zi/bardhë të pastër (#000/#fff); kontrasti termik në raster (solidRaster).
   const pngBuffer = await QRCode.toBuffer(payload, {
     errorCorrectionLevel: "M",
     type: "png",
-    margin: 1,
+    margin: 2,
     width: FISCAL_QR_PNG_WIDTH,
+    color: { dark: "#000000", light: "#ffffff" },
   });
   if (!Buffer.isBuffer(pngBuffer) || !pngBuffer.length) {
     throw new Error("QR PNG buffer dështoi");
   }
-
   const escpos = buildFiscalQrEscPosBuffer(
     { payload, png_buffer: pngBuffer, png_base64: pngBuffer.toString("base64") },
-    getFiscalQrPrintOpts(),
+    getFiscalQrPrintOpts({ printDensity }),
   );
 
   // ASCII opsional — dështimi nuk prish QR-në (utf8 renderer ka bug me array length)
@@ -385,8 +442,9 @@ async function generateQRForPrint(qrData) {
     pngBuffer = await QRCode.toBuffer(safePayload, {
       type: "png",
       errorCorrectionLevel: "M",
-      margin: 1,
+      margin: 2,
       width: FISCAL_QR_PNG_WIDTH,
+      color: { dark: "#000000", light: "#ffffff" },
     });
     if (Buffer.isBuffer(pngBuffer) && pngBuffer.length) {
       png_base64 = pngBuffer.toString("base64");

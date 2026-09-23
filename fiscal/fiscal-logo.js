@@ -249,21 +249,53 @@ function scaleRgba(src, tw, th) {
  * RGBA → ESC/POS GS v 0 (1-bit raster, m=0 normal).
  * Pixel i zi (luminancë < 128 ose alpha e lartë + errët) = bit 1.
  */
-function rgbaToGsV0(img) {
+function rgbaToGsV0(img, opts = {}) {
   const w = img.width;
   const h = img.height;
   const widthBytes = Math.ceil(w / 8);
   const data = Buffer.alloc(widthBytes * h);
+  const blackLumMax = Number(opts.blackLumMax) > 0 ? Number(opts.blackLumMax) : 150;
+  const alphaMin = Number(opts.alphaMin) > 0 ? Number(opts.alphaMin) : 48;
+  /** QR/logo fiskal — zi/bardhë pa dither (1.0.10); dither vetëm kur solidRaster=false. */
+  const solidRaster = opts.solidRaster !== false;
+  let inkByte = 255;
+  if (!solidRaster) {
+    let ink = 1;
+    if (opts.printDensity != null) {
+      const {
+        inkLevelFromPrintDensity,
+        normalizePrintDensity,
+      } = require("../receipt-text");
+      let printerName = opts.printerName || "";
+      if (!printerName) {
+        try {
+          printerName = require("../database").getSetting("printer_name", "") || "";
+        } catch {
+          /* */
+        }
+      }
+      ink = inkLevelFromPrintDensity(
+        normalizePrintDensity(opts.printDensity),
+        printerName,
+      );
+    } else if (Number(opts.inkLevel) > 0) {
+      ink = Math.min(1, Number(opts.inkLevel));
+    }
+    inkByte = Math.round(ink * 255);
+  }
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       const a = img.rgba[i + 3];
       const lum = (img.rgba[i] * 299 + img.rgba[i + 1] * 587 + img.rgba[i + 2] * 114) / 1000;
-      const black = a > 32 && lum < 160;
-      if (black) {
-        data[y * widthBytes + (x >> 3)] |= 0x80 >> (x & 7);
+      const isInk = a >= alphaMin && lum <= blackLumMax;
+      if (!isInk) continue;
+      if (!solidRaster && inkByte < 255) {
+        const hsh = (x * 73 + y * 41 + y * w) & 0xff;
+        if (hsh >= inkByte) continue;
       }
+      data[y * widthBytes + (x >> 3)] |= 0x80 >> (x & 7);
     }
   }
 
@@ -361,7 +393,12 @@ function buildTextFallbackLogo() {
  * - type:'bitmap' + escposRaster (GS v 0) kur PNG zyrtar i disponueshëm dhe brenda ATK
  * - type:'text' fallback për placeholder / gabim / fiscal OFF
  */
-function getFiscalLogo() {
+function getFiscalLogo(opts = {}) {
+  const { blackLumMaxFromPrintDensity, normalizePrintDensity } = require("../receipt-text");
+  const printDensity = normalizePrintDensity(opts.printDensity ?? 10);
+  const logoBlackLum = Math.min(200, blackLumMaxFromPrintDensity(printDensity) + 24);
+  const logoAlphaMin = Math.min(100, Math.max(40, 108 - printDensity * 3));
+
   if (!assertFiscalOn()) {
     return { type: "text", text: FALLBACK_TEXT, disabled: true };
   }
@@ -379,17 +416,29 @@ function getFiscalLogo() {
   // Bitmap kompakt + qendër me GS L / ESC l (padding në bitmap Tysso e pret)
   const trimmed = trimInkBounds(decoded);
   const fitted = fitWithinAtkMax(trimmed);
-  const escposRaster = rgbaToGsV0(fitted);
   const paperDots = resolvePaperDotsForPrint();
-  const marginLeft = Math.max(0, Math.floor((paperDots - fitted.width) / 2));
+  const centered = centerRgbaOnPaper(fitted, paperDots);
+  let printerName = "";
+  try {
+    printerName = require("../database").getSetting("printer_name", "") || "";
+  } catch {
+    /* */
+  }
+  const escposRaster = rgbaToGsV0(centered, {
+    blackLumMax: logoBlackLum,
+    alphaMin: logoAlphaMin,
+    printDensity,
+    printerName,
+    solidRaster: true,
+  });
 
   return {
     type: "bitmap",
-    width: fitted.width,
-    height: fitted.height,
+    width: centered.width,
+    height: centered.height,
     width_mm: fitted.width / DOTS_PER_MM,
     height_mm: fitted.height / DOTS_PER_MM,
-    marginLeft,
+    marginLeft: 0,
     paperDots,
     escposRaster,
     path: LOGO_PATH,
@@ -415,19 +464,41 @@ function buildCenteredRasterPrintBuffer(decoded, opts = {}) {
           Math.max(1, Math.round(trimmed.height * scale))
         )
       : trimmed;
-  const marginLeft = Math.max(0, Math.floor((paperDots - fitted.width) / 2));
-  const escposRaster = rgbaToGsV0(fitted);
+  const centered = centerRgbaOnPaper(fitted, paperDots);
+  const { blackLumMaxFromPrintDensity, normalizePrintDensity } = require("../receipt-text");
+  const pd =
+    opts.printDensity != null
+      ? normalizePrintDensity(opts.printDensity)
+      : opts.blackLumMax != null
+        ? null
+        : 10;
+  const lumMax =
+    opts.blackLumMax ??
+    (pd != null ? blackLumMaxFromPrintDensity(pd) : blackLumMaxFromPrintDensity(10));
+  const escposRaster = rgbaToGsV0(centered, {
+    blackLumMax: opts.solidRaster !== false ? Math.max(lumMax, 78) : lumMax,
+    alphaMin:
+      opts.alphaMin ??
+      (pd != null
+        ? Math.min(120, Math.max(48, 128 - pd * 4))
+        : 96),
+    printDensity: pd != null ? pd : opts.printDensity,
+    printerName: opts.printerName || "",
+    solidRaster: opts.solidRaster !== false,
+  });
   return {
     buffer: Buffer.concat([
-      buildLogoCenterPrefix(marginLeft),
+      buildGsLeftMarginReset(),
+      buildEscLeftMarginChars(0),
+      Buffer.from([0x1b, 0x61, 0x01]),
       escposRaster,
       Buffer.from([0x0a]),
       buildGsLeftMarginReset(),
       Buffer.from([0x1b, 0x61, 0x00]),
     ]),
-    width: fitted.width,
-    height: fitted.height,
-    marginLeft,
+    width: centered.width,
+    height: centered.height,
+    marginLeft: 0,
     mode: "bitmap",
   };
 }
@@ -442,7 +513,9 @@ function buildCenteredRasterPrintFromPng(pngBuffer, opts = {}) {
  * ESC/POS: ESC a 1 (center) + ESC E 1 (bold) + logo (raster ose tekst) + reset.
  * @returns {{ buffer: Buffer, mode: 'bitmap'|'text', textMarkers: string }}
  */
-function getFiscalLogoForPrint() {
+function getFiscalLogoForPrint(opts = {}) {
+  const { normalizePrintDensity, prependPrintDensityEscPos } = require("../receipt-text");
+  const printDensity = normalizePrintDensity(opts.printDensity ?? 10);
   const ESC = 0x1b;
   const centerOn = Buffer.from([ESC, 0x61, 0x01]);
   const centerOff = Buffer.from([ESC, 0x61, 0x00]);
@@ -466,23 +539,29 @@ function getFiscalLogoForPrint() {
     };
   }
 
-  const logo = getFiscalLogo();
+  const logo = getFiscalLogo({ printDensity });
 
   if (logo.type === "bitmap" && logo.escposRaster && logo.escposRaster.length) {
-    const marginLeft = Number(logo.marginLeft) || 0;
+    const body = Buffer.concat([
+      buildGsLeftMarginReset(),
+      buildEscLeftMarginChars(0),
+      Buffer.from([0x1b, 0x61, 0x01]),
+      logo.escposRaster,
+      Buffer.from([0x0a]),
+      buildGsLeftMarginReset(),
+      Buffer.from([0x1b, 0x61, 0x00]),
+    ]);
     return {
       mode: "bitmap",
-      buffer: Buffer.concat([
-        buildLogoCenterPrefix(marginLeft),
-        logo.escposRaster,
-        Buffer.from([0x0a]),
-        buildGsLeftMarginReset(),
-        Buffer.from([0x1b, 0x61, 0x00]),
-      ]),
+      buffer: prependPrintDensityEscPos(
+        body,
+        printDensity,
+        require("../database").getSetting("printer_name", "") || "",
+      ),
       textMarkers,
       width_mm: logo.width_mm,
       height_mm: logo.height_mm,
-      marginLeft,
+      marginLeft: 0,
     };
   }
 
@@ -508,6 +587,8 @@ module.exports = {
   centerRgbaOnPaper,
   resolvePaperDotsForPrint,
   buildGsLeftMarginDots,
+  buildGsLeftMarginReset,
+  buildEscLeftMarginChars,
   buildLogoCenterPrefix,
   buildCenteredRasterPrintBuffer,
   buildCenteredRasterPrintFromPng,
