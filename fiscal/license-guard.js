@@ -383,9 +383,10 @@ function readDiskSerial() {
 function getHardwareId(app) {
   const board = readBoardSerial() || "NO-BOARD";
   const disk = readDiskSerial() || "NO-DISK";
+  const installSalt = ensureInstallSalt(app);
   return crypto
     .createHash("sha256")
-    .update(`${board}::${disk}`)
+    .update(`${board}::${disk}::${installSalt}`)
     .digest("hex");
 }
 
