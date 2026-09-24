@@ -26,21 +26,9 @@ async function isProdLicenseSatisfied(cloud, app) {
 async function runProdLicenseDialogUntilOk(app, initialReason = "no_license") {
   const cloud = loadCloud();
   cloud.registerInstallContext(app);
-
-  let reason = initialReason;
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    if (await isProdLicenseSatisfied(cloud, app)) return true;
-
-    const activated = await licenseGuard.promptHardwareActivation(app, { reason });
-    if (!activated) return false;
-
-    if (await isProdLicenseSatisfied(cloud, app)) return true;
-
-    const key = cloud.readStoredLicense(app);
-    const v = key ? await cloud.validateLicenseOnline(key, app) : { valid: false };
-    reason = reasonFromValidation(v, cloud, "no_license");
-  }
-  return false;
+  if (await isProdLicenseSatisfied(cloud, app)) return true;
+  const activated = await licenseGuard.promptHardwareActivation(app, { reason: initialReason });
+  return !!activated;
 }
 
 module.exports = {

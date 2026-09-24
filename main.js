@@ -109,7 +109,6 @@ async function reopenLicenseDialog(beat = {}, detail) {
     console.warn("[license] purge/clear:", e.message || e);
   }
   _licenseUiSnap = "";
-  await clearRendererLicenseStorage().catch(() => {});
   try {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
   } catch {
@@ -119,11 +118,12 @@ async function reopenLicenseDialog(beat = {}, detail) {
   stopServer();
 
   const reason = licenseFailReasonFromBeat(beat);
+  const licenseGuard = require("./fiscal/license-guard");
   let activated = false;
   try {
-    activated = await runProdLicenseDialogUntilOk(app, reason);
+    activated = await licenseGuard.promptHardwareActivation(app, { reason });
   } catch (e) {
-    console.warn("[license] reopen dialog:", e.message || e);
+    console.warn("[license] reopen hardware dialog:", e.message || e);
   }
   _licenseReopenInProgress = false;
 
@@ -133,15 +133,11 @@ async function reopenLicenseDialog(beat = {}, detail) {
   }
 
   try {
-    const licenseGuard = require("./fiscal/license-guard");
     const hw = await licenseGuard.ensureHardwareLicense(app);
     const hwOk = typeof hw === "boolean" ? hw : hw?.ok;
     if (!hwOk) {
-      const retry = await runProdLicenseDialogUntilOk(app, "no_license");
-      if (!retry) {
-        app.quit();
-        return;
-      }
+      app.quit();
+      return;
     }
     await pushLicenseUiFromCloud();
     startLicenseWatchdogForApp(cloud);
@@ -193,21 +189,12 @@ async function bootFiskalizimLicenseLayers() {
     return true;
   }
 
-  const bootOk = await runProdLicenseDialogUntilOk(app, bootReason);
-  if (!bootOk) {
-    app.quit();
-    return false;
-  }
-
   const licenseGuard = require("./fiscal/license-guard");
   const hw = await licenseGuard.ensureHardwareLicense(app);
   const hwOk = typeof hw === "boolean" ? hw : hw?.ok;
   if (!hwOk) {
-    const retry = await runProdLicenseDialogUntilOk(app, "no_license");
-    if (!retry) {
-      app.quit();
-      return false;
-    }
+    app.quit();
+    return false;
   }
 
   await pushLicenseUiFromCloud();
@@ -445,14 +432,16 @@ function buildStartupSplashHtml() {
 }
 
 function createWindow(initialUrl) {
-  const work = screen.getPrimaryDisplay().workAreaSize;
-  const winW = Math.min(1440, Math.max(1024, work.width - 32));
-  const winH = Math.min(960, Math.max(640, work.height - 32));
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
   mainWindow = new BrowserWindow({
-    width: winW,
-    height: winH,
-    minWidth: 960,
+    width,
+    height,
+    minWidth: 800,
     minHeight: 600,
+    resizable: true,
+    maximizable: true,
+    fullscreenable: true,
     title: "Revolution Fiskalizim",
     backgroundColor: "#1a2332",
     show: false,
@@ -466,6 +455,7 @@ function createWindow(initialUrl) {
       preload: getPreloadPath(),
     },
   });
+  mainWindow.maximize();
 
   attachDevToolsBlock(mainWindow);
 
@@ -532,36 +522,32 @@ app.whenReady().then(async () => {
     "RevolutionInvest",
     "factory-reset-pending-biznes",
   );
-  const wipeDirHard = (dir) => {
-    if (!dir || !fs.existsSync(dir)) return;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      let left = 0;
-      try {
-        for (const name of fs.readdirSync(dir)) {
-          const p = path.join(dir, name);
-          try {
-            fs.rmSync(p, { recursive: true, force: true });
-          } catch {
-            left += 1;
-          }
-        }
-      } catch {
-        left += 1;
-      }
-      if (left === 0) return;
-    }
-  };
-  if (fs.existsSync(resetFlag) || fs.existsSync(resetFlagExternal)) {
-    wipeDirHard(userData);
-    wipeDirHard(dbDir);
-    wipeDirHard(path.join(app.getPath("appData"), "RevolutionInvest", "BiznesLicense"));
-    wipeDirHard(path.join(app.getPath("appData"), "RevolutionInvest", "KafeneLicense"));
-    wipeDirHard(path.join(app.getPath("appData"), "RevolutionInvest", "FiskalizimLicense"));
+  const clearFactoryResetFlags = () => {
     try {
-      fs.unlinkSync(resetFlagExternal);
+      if (fs.existsSync(resetFlagExternal)) fs.unlinkSync(resetFlagExternal);
     } catch {
       /* ignore */
     }
+    try {
+      if (fs.existsSync(resetFlag)) fs.unlinkSync(resetFlag);
+    } catch {
+      /* ignore */
+    }
+  };
+  const wipeLicenseOnlyForFactoryReset = () => {
+    try {
+      const cloud = require("./protection/cloud-license");
+      cloud.registerInstallContext(app);
+      if (typeof cloud.wipeAllActivationData === "function") {
+        cloud.wipeAllActivationData(app);
+      }
+    } catch (e) {
+      console.warn("[factory-reset] vetëm licencë:", e.message || e);
+    }
+  };
+  if (fs.existsSync(resetFlag) || fs.existsSync(resetFlagExternal)) {
+    wipeLicenseOnlyForFactoryReset();
+    clearFactoryResetFlags();
     fs.mkdirSync(userData, { recursive: true });
   }
   try {

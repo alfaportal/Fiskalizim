@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const cloudHealth = require("./cloud-health");
-const { factoryWipeLocalData, NO_LICENSE_MESSAGE } = require("./factory-wipe");
+const { NO_LICENSE_MESSAGE } = require("./factory-wipe");
 
 const LICENSE_STORAGE_REL = path.join("RevolutionInvest", "FiskalizimLicense");
 const KEY_FILE = ".cloud-lic";
@@ -25,7 +25,6 @@ const HARD_LICENSE_FAIL_CODES = new Set([
   "TERMINAL_LIMIT_EXCEEDED",
   "DEVICE_MISMATCH",
   "NOT_FOUND",
-  "OFFLINE_EXPIRED",
 ]);
 
 /** Kodet që anulojnë licencën lokalisht (fshirje e plotë + mbyllje). */
@@ -46,30 +45,29 @@ function storageRoot(app) {
   return root;
 }
 
-function createInstallDeviceId() {
-  return crypto.randomBytes(6).toString("hex").toUpperCase();
-}
-
 function getMachineId(app) {
+  const board = os.hostname();
+  const user = os.userInfo().username;
+  const plat = os.platform();
+  const arch = os.arch();
+  const raw = [board, user, plat, arch].join("|");
+  const hash = crypto.createHash("sha256").update(raw).digest("hex").slice(0, 12).toUpperCase();
   const p = path.join(storageRoot(app), DEVICE_FILE);
   try {
     if (fs.existsSync(p)) {
-      const id = String(fs.readFileSync(p, "utf8") || "")
+      const stored = String(fs.readFileSync(p, "utf8") || "")
         .trim()
         .toUpperCase()
-        .replace(/[^A-F0-9]/g, "");
-      if (id.length >= 8) return id.slice(0, 12).padEnd(12, "0").slice(0, 12);
+        .replace(/[^A-F0-9]/g, "")
+        .slice(0, 12);
+      if (/^[A-F0-9]{12}$/.test(stored) && stored === hash) return stored;
     }
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, hash, "utf8");
   } catch {
     /* ignore */
   }
-  const id = createInstallDeviceId();
-  try {
-    fs.writeFileSync(p, id, "utf8");
-  } catch {
-    /* ignore */
-  }
-  return id;
+  return hash;
 }
 
 function normalizeKey(key) {
@@ -133,8 +131,46 @@ function clearHardwareLicenseFile(app) {
   }
 }
 
+function wipeDirHard(_dir) {
+  // BLLOKUAR — nuk lejohet fshirja e folderëve të klientit
+  // Ky funksion nuk duhet me fshirë asgjë përveç skedarëve të licencës
+  return;
+}
+
+function licenseHardFailMessage(code) {
+  return code === "NOT_FOUND"
+    ? String(NO_LICENSE_MESSAGE || "Licenca nuk u gjet.")
+    : "Licenca është e çaktivizuar. Kontaktoni Revolution Invest.";
+}
+
+/** Vetëm skedarët e licencës (.cloud-lic, aktivizim, hardware guard) — jo DB klienti. */
+function wipeAllActivationData(app) {
+  registerInstallContext(app);
+  clearStoredLicense(app);
+  clearActivationRecord(app);
+  clearHardwareLicenseFile(app);
+}
+
+function purgeAllClientDataAfterRevoke(app) {
+  // RREGULL ABSOLUT: Të dhënat e klientit (DB, produkte, settings, cache) NUK fshihen KURRË.
+  // Vetëm skedarët e licencës pastrohen — klienti riaktivizon dhe krejt mbetet si ishte.
+  wipeAllActivationData(app);
+}
+
+function handleLicenseHardFail(app, code) {
+  // RREGULL ABSOLUT: Asnjëherë mos fshi të dhënat e klientit.
+  // Vetëm licenca pastrohet, programi ndalet derisa klienti riaktivizon.
+  wipeAllActivationData(app);
+  return {
+    blocked: true,
+    message: licenseHardFailMessage(code),
+    purged: false,
+    code: code || "REVOKED",
+  };
+}
+
 /**
- * Fshi krejt artefaktet e licencës + të dhënat lokale (DB, cache, settings).
+ * Vetëm artefaktet e licencës — DB/settings/cache të klientit NUK preken.
  */
 function purgeAllLicenseArtifacts(app, message, opts = {}) {
   registerInstallContext(app);
@@ -144,14 +180,7 @@ function purgeAllLicenseArtifacts(app, message, opts = {}) {
   } else {
     markLicenseRevokedLocally(app, String(message || NO_LICENSE_MESSAGE));
   }
-  clearStoredLicense(app);
-  clearActivationRecord(app);
-  clearHardwareLicenseFile(app);
-  try {
-    factoryWipeLocalData(app, { wipeLicenseDir: opts.fullLocalReset !== false });
-  } catch (e) {
-    console.warn("[cloud-license] factory wipe:", e.message || e);
-  }
+  wipeAllActivationData(app);
 }
 
 function readActivationRecord(app) {
@@ -165,11 +194,7 @@ function readActivationRecord(app) {
 }
 
 function isWithinCloudOfflineWindow(app) {
-  const rec = readActivationRecord(app);
-  if (!rec?.last_ok_at) return false;
-  const t = new Date(rec.last_ok_at).getTime();
-  if (!Number.isFinite(t)) return false;
-  return Date.now() - t <= CLOUD_OFFLINE_MAX_MS;
+  return true;
 }
 
 function offlineExpiredMessage() {
@@ -265,12 +290,12 @@ async function validateLicenseOnline(key, app) {
       force_logout: !!parsed.force_logout,
     };
   } catch (err) {
-    if (isWithinCloudOfflineWindow(app) && readStoredLicense(app)) {
-      return { valid: true, offline: true, message: "Pa internet — brenda 7 ditëve." };
+    if (readStoredLicense(app)) {
+      return { valid: true, offline: true, message: "Pa internet — licencë e ruajtur." };
     }
     return {
       valid: false,
-      code: "OFFLINE_EXPIRED",
+      code: "OFFLINE",
       message: err.message || offlineExpiredMessage(),
       offline: true,
     };
@@ -314,10 +339,7 @@ async function validateLicenseHeartbeat(key, app) {
     if (localRevoke?.blocked) {
       return { valid: false, code: "REVOKED", force_logout: true, message: localRevoke.message };
     }
-    if (isWithinCloudOfflineWindow(a)) {
-      return { valid: true, offline: true, message: "Pa internet — heartbeat (brenda 7 ditëve)." };
-    }
-    return { valid: false, offline: true, code: "OFFLINE_EXPIRED", message: offlineExpiredMessage() };
+    return { valid: true, offline: true, message: "Pa internet — heartbeat." };
   }
 }
 
@@ -484,6 +506,11 @@ module.exports = {
   writeStoredLicense,
   clearStoredLicense,
   purgeAllLicenseArtifacts,
+  purgeAllClientDataAfterRevoke,
+  handleLicenseHardFail,
+  wipeAllActivationData,
+  wipeDirHard,
+  licenseHardFailMessage,
   isRevocationCode,
   activateWithKey,
   claimByHardwareId,
