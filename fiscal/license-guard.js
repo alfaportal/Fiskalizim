@@ -986,6 +986,34 @@ async function ensureHardwareLicense(app) {
         return { ok: !!activated, grace: null };
       }
       if (keyOk && isHardwareUnlocked(app, hwId)) {
+        if (rec && rec.source === "cloud") {
+          const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+          const cloudKey = cloud.readStoredLicense(app);
+          const validateKey = cloudKey || rec.key;
+          const promptNoLicense = async () => {
+            const activated = await promptHardwareActivation(app, { reason: "no_license" });
+            return { ok: !!activated, grace: null };
+          };
+          try {
+            const online = await cloud.validateLicenseOnline(validateKey, app);
+            if (online.valid && !online.offline) {
+              /* server OK */
+            } else if (online.offline) {
+              if (!cloudKey) return await promptNoLicense();
+            } else {
+              cloud.wipeAllActivationData(app);
+              try {
+                const hwPath = hwLicensePath(app);
+                if (fs.existsSync(hwPath)) fs.unlinkSync(hwPath);
+              } catch {
+                /* ignore */
+              }
+              return await promptNoLicense();
+            }
+          } catch {
+            if (!cloudKey) return await promptNoLicense();
+          }
+        }
         if (await tryClaimCloudByHardware()) return { ok: true, grace: null };
         try {
           const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));

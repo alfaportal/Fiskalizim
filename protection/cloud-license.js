@@ -464,7 +464,18 @@ function startLicenseWatchdog(app, onForceLogout) {
     if (_watchdogInFlight) return;
     _watchdogInFlight = true;
     try {
-      const key = readStoredLicense(app);
+      let key = readStoredLicense(app);
+      if (!key) {
+        try {
+          const lg = require("../fiscal/license-guard");
+          const hwRec = lg.readStoredLicenseRecord(app);
+          if (hwRec && hwRec.key && hwRec.source === "cloud") {
+            key = hwRec.key;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       if (!key) return;
       const beat = await validateLicenseHeartbeat(key, app);
       if (beat.force_factory_reset) {
