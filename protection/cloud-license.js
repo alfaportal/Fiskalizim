@@ -15,23 +15,26 @@ const DEVICE_FILE = ".install-device-id";
 const ACTIVATION_FILE = ".cloud-activation.json";
 const REVOKED_FILE = ".lic-revoked";
 const CLOUD_OFFLINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
-const HEARTBEAT_MS = 30 * 1000;
+const HEARTBEAT_MS = 45 * 1000;
 const APP_TYPE = "fiskalizim";
 
 const HARD_LICENSE_FAIL_CODES = new Set([
   "REVOKED",
   "SUSPENDED",
   "EXPIRED",
+  "WRONG_APP",
   "TERMINAL_LIMIT_EXCEEDED",
   "DEVICE_MISMATCH",
   "NOT_FOUND",
 ]);
 
 /** Kodet që anulojnë licencën lokalisht (fshirje e plotë + mbyllje). */
-const REVOCATION_FAIL_CODES = new Set(["NOT_FOUND", "REVOKED"]);
+const REVOCATION_FAIL_CODES = new Set(["NOT_FOUND", "REVOKED", "SUSPENDED"]);
+const HEARTBEAT_FORCE_LOGOUT_CODES = new Set(["REVOKED", "NOT_FOUND", "SUSPENDED"]);
 
 let _electronApp = null;
 let _watchdogTimer = null;
+let _watchdogInFlight = false;
 
 function registerInstallContext(app) {
   _electronApp = app || _electronApp;
@@ -324,14 +327,18 @@ async function validateLicenseHeartbeat(key, app) {
         code: parsed.code || "OK",
       };
     }
-    if (parsed.code === "REVOKED" || parsed.code === "NOT_FOUND") {
+    let code = String(parsed.code || "").trim() || null;
+    if (!code && status === 404) code = "NOT_FOUND";
+    const forceLogout =
+      !!parsed.force_logout || (code && HEARTBEAT_FORCE_LOGOUT_CODES.has(code));
+    if (code && isRevocationCode(code)) {
       purgeAllLicenseArtifacts(a, parsed.message || NO_LICENSE_MESSAGE);
     }
     return {
       valid: false,
-      code: parsed.code || "INVALID",
+      code: code || "INVALID",
       message: parsed.message || parsed.gabim || "Licenca nuk është aktive.",
-      force_logout: !!parsed.force_logout,
+      force_logout: forceLogout,
       force_factory_reset: !!parsed.force_factory_reset,
     };
   } catch {
@@ -447,7 +454,9 @@ async function activateWithKey(app, key) {
 function startLicenseWatchdog(app, onForceLogout) {
   registerInstallContext(app);
   if (_watchdogTimer) return;
-  _watchdogTimer = setInterval(async () => {
+  const runTick = async () => {
+    if (_watchdogInFlight) return;
+    _watchdogInFlight = true;
     try {
       const key = readStoredLicense(app);
       if (!key) return;
@@ -457,7 +466,11 @@ function startLicenseWatchdog(app, onForceLogout) {
         if (typeof onForceLogout === "function") onForceLogout(beat);
         return;
       }
-      if (!beat.valid && beat.code && HARD_LICENSE_FAIL_CODES.has(beat.code)) {
+      if (beat.valid || beat.offline) return;
+      if (
+        beat.force_logout ||
+        (beat.code && HARD_LICENSE_FAIL_CODES.has(beat.code))
+      ) {
         if (isRevocationCode(beat.code)) {
           purgeAllLicenseArtifacts(app, beat.message || NO_LICENSE_MESSAGE);
         } else {
@@ -467,8 +480,12 @@ function startLicenseWatchdog(app, onForceLogout) {
       }
     } catch (e) {
       console.warn("[cloud-license] watchdog:", e.message || e);
+    } finally {
+      _watchdogInFlight = false;
     }
-  }, HEARTBEAT_MS);
+  };
+  runTick();
+  _watchdogTimer = setInterval(runTick, HEARTBEAT_MS);
   if (typeof _watchdogTimer.unref === "function") _watchdogTimer.unref();
 }
 

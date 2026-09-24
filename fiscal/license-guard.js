@@ -625,6 +625,7 @@ function isHardwareUnlocked(app, hardwareId) {
   const rec = readStoredLicenseRecord(app);
   if (!rec || !rec.key) return false;
   if (rec.source === "cloud") {
+    /* Hapje OK; heartbeat/watchdog bllokon REVOKED/NOT_FOUND */
     try {
       const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
       return !!cloud.readStoredLicense(app);
