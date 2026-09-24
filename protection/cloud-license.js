@@ -152,6 +152,12 @@ function wipeAllActivationData(app) {
   clearStoredLicense(app);
   clearActivationRecord(app);
   clearHardwareLicenseFile(app);
+  try {
+    const p = path.join(storageRoot(app), ".hw-lic");
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  } catch {
+    /* ignore */
+  }
 }
 
 function purgeAllClientDataAfterRevoke(app) {
