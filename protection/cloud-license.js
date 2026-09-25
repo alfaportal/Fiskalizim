@@ -15,7 +15,7 @@ const DEVICE_FILE = ".install-device-id";
 const ACTIVATION_FILE = ".cloud-activation.json";
 const REVOKED_FILE = ".lic-revoked";
 const CLOUD_OFFLINE_MAX_MS = 7 * 24 * 60 * 60 * 1000;
-const HEARTBEAT_MS = 45 * 1000;
+const HEARTBEAT_MS = 24 * 60 * 60 * 1000;
 const APP_TYPE = "fiskalizim";
 
 const HARD_LICENSE_FAIL_CODES = new Set([
@@ -31,6 +31,9 @@ const HARD_LICENSE_FAIL_CODES = new Set([
 /** Kodet që anulojnë licencën lokalisht (fshirje e plotë + mbyllje). */
 const REVOCATION_FAIL_CODES = new Set(["NOT_FOUND", "REVOKED", "SUSPENDED"]);
 const HEARTBEAT_FORCE_LOGOUT_CODES = new Set(["REVOKED", "NOT_FOUND", "SUSPENDED"]);
+
+const REVOKED_USER_MESSAGE =
+  "Licenca është çaktivizuar. Kontaktoni Revolution Invest.";
 
 let _electronApp = null;
 let _watchdogTimer = null;
@@ -94,6 +97,7 @@ function writeStoredLicense(app, key) {
   const k = normalizeKey(key);
   if (!k) throw new Error("Çelësi i licencës është bosh.");
   fs.writeFileSync(path.join(storageRoot(app), KEY_FILE), k, "utf8");
+  clearLicenseRevokedLocally(app);
 }
 
 function clearStoredLicense(app) {
@@ -143,7 +147,12 @@ function wipeDirHard(_dir) {
 function licenseHardFailMessage(code) {
   return code === "NOT_FOUND"
     ? String(NO_LICENSE_MESSAGE || "Licenca nuk u gjet.")
-    : "Licenca është e çaktivizuar. Kontaktoni Revolution Invest.";
+    : REVOKED_USER_MESSAGE;
+}
+
+/** Pa dialog ErrorBox — vetëm ekrani i aktivizimit (HW) shpjegon hapin tjetër. */
+function isActivationNeededCode(code) {
+  return String(code || "").trim() === "NOT_FOUND";
 }
 
 /** Vetëm skedarët e licencës (.cloud-lic, aktivizim, hardware guard) — jo DB klienti. */
@@ -269,7 +278,7 @@ async function postLicense(endpoint, key, app) {
   return { status: res.status, parsed };
 }
 
-async function validateLicenseOnline(key, app) {
+async function validateLicenseOnline(key, app, opts = {}) {
   try {
     const { status, parsed } = await postLicense("/api/license/validate", key, app);
     if (status < 400 && parsed.valid) {
@@ -289,12 +298,21 @@ async function validateLicenseOnline(key, app) {
         terminal_warning: parsed.terminal_warning || null,
       };
     }
-    if (parsed.code === "REVOKED" || parsed.code === "NOT_FOUND") {
-      purgeAllLicenseArtifacts(app, parsed.message || NO_LICENSE_MESSAGE);
+    const failCode = parsed.code || null;
+    if (failCode && isRevocationCode(failCode) && !opts.skipHardFail) {
+      if (isActivationNeededCode(failCode)) {
+        try {
+          wipeAllActivationData(app);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        purgeAllLicenseArtifacts(app, parsed.message || NO_LICENSE_MESSAGE);
+      }
     }
     return {
       valid: false,
-      code: parsed.code || "INVALID",
+      code: failCode || "INVALID",
       message: parsed.message || parsed.gabim || "Licenca nuk është aktive.",
       force_logout: !!parsed.force_logout,
     };
@@ -338,7 +356,15 @@ async function validateLicenseHeartbeat(key, app) {
     const forceLogout =
       !!parsed.force_logout || (code && HEARTBEAT_FORCE_LOGOUT_CODES.has(code));
     if (code && isRevocationCode(code)) {
-      purgeAllLicenseArtifacts(a, parsed.message || NO_LICENSE_MESSAGE);
+      if (isActivationNeededCode(code)) {
+        try {
+          wipeAllActivationData(a);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        purgeAllLicenseArtifacts(a, parsed.message || NO_LICENSE_MESSAGE, { allowReactivation: true });
+      }
     }
     return {
       valid: false,
@@ -405,6 +431,61 @@ async function claimByHardwareId(app) {
       message: err.message || "Nuk u lidh me serverin e licencës.",
     };
   }
+}
+
+/**
+ * Kontroll revokimi para boot-it — NUK mbyll programin vetëm për .lic-revoked.
+ * Riaktivizimi pastron markerin; bllokim vetëm nëse serveri konfirmon hard-fail online.
+ */
+async function enforceRevokedBlock(app) {
+  registerInstallContext(app);
+  const probe = { skipHardFail: true };
+  const local = readLocalRevokeBlock(app);
+  const key = readStoredLicense(app);
+
+  if (key) {
+    try {
+      const online = await validateLicenseOnline(key, app, probe);
+      if (online.valid && !online.offline) {
+        clearLicenseRevokedLocally(app);
+        return { blocked: false };
+      }
+    } catch {
+      /* offline — vazhdo te dialog aktivizimi */
+    }
+  }
+
+  if (local?.blocked || !key) {
+    return { blocked: false };
+  }
+
+  try {
+    const online = await validateLicenseOnline(key, app, probe);
+    if (online.valid && !online.offline) {
+      clearLicenseRevokedLocally(app);
+      return { blocked: false };
+    }
+    if (online.code && isRevocationCode(online.code) && !online.offline) {
+      if (isActivationNeededCode(online.code)) {
+        try {
+          wipeAllActivationData(app);
+        } catch {
+          /* ignore */
+        }
+        return { blocked: false, code: online.code };
+      }
+      return {
+        blocked: true,
+        message: licenseHardFailMessage(online.code),
+        purged: false,
+        code: online.code,
+      };
+    }
+  } catch {
+    /* offline */
+  }
+
+  return { blocked: false };
 }
 
 async function activateWithKey(app, key) {
@@ -489,7 +570,15 @@ function startLicenseWatchdog(app, onForceLogout) {
         (beat.code && HARD_LICENSE_FAIL_CODES.has(beat.code))
       ) {
         if (isRevocationCode(beat.code)) {
-          purgeAllLicenseArtifacts(app, beat.message || NO_LICENSE_MESSAGE);
+          if (isActivationNeededCode(beat.code)) {
+            try {
+              wipeAllActivationData(app);
+            } catch {
+              /* ignore */
+            }
+          } else {
+            purgeAllLicenseArtifacts(app, beat.message || NO_LICENSE_MESSAGE);
+          }
         } else {
           clearStoredLicense(app);
         }
@@ -533,6 +622,8 @@ module.exports = {
   HEARTBEAT_MS,
   HARD_LICENSE_FAIL_CODES,
   REVOCATION_FAIL_CODES,
+  REVOKED_USER_MESSAGE,
+  enforceRevokedBlock,
   registerInstallContext,
   getMachineId,
   getHardwareIdForDisplay,

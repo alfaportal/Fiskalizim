@@ -574,6 +574,14 @@ function writeStoredLicenseKey(app, key, opts = {}) {
     licenseType: record.licenseType || null,
     expires_at: record.expires_at || null,
   });
+  try {
+    const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+    if (typeof cloud.clearLicenseRevokedLocally === "function") {
+      cloud.clearLicenseRevokedLocally(app);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 function verifyLicenseKey(key, app, hardwareId) {
@@ -641,6 +649,14 @@ function isHardwareUnlocked(app, hardwareId) {
 
 function promptHardwareActivation(app, opts = {}) {
   return new Promise((resolve) => {
+    try {
+      const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+      if (typeof cloud.clearLicenseRevokedLocally === "function") {
+        cloud.clearLicenseRevokedLocally(app);
+      }
+    } catch {
+      /* ignore */
+    }
     const { BrowserWindow, ipcMain } = require("electron");
     const hwFormatted = formatHardwareId(getHardwareId(app));
     const reason = String(opts.reason || "");
@@ -928,6 +944,13 @@ async function allowWithGraceOrBlock() {
  * @returns {Promise<{ ok: boolean, grace: object|null }>}
  */
 async function ensureHardwareLicense(app) {
+  try {
+    const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+    await cloud.enforceRevokedBlock(app);
+  } catch {
+    /* ignore */
+  }
+
   let hwId;
   let formatted;
   try {
@@ -996,7 +1019,9 @@ async function ensureHardwareLicense(app) {
             return { ok: !!activated, grace: null };
           };
           try {
-            const online = await cloud.validateLicenseOnline(validateKey, app);
+            const online = await cloud.validateLicenseOnline(validateKey, app, {
+              skipHardFail: true,
+            });
             if (online.valid && !online.offline) {
               /* server OK */
             } else if (online.offline) {

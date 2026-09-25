@@ -151,6 +151,15 @@ async function reopenLicenseDialog(beat = {}, detail) {
 function startLicenseWatchdogForApp(cloud) {
   try {
     cloud.startLicenseWatchdog(app, (beat) => {
+      if (beat?.code === "NOT_FOUND") {
+        try {
+          cloud.wipeAllActivationData(app);
+        } catch {
+          /* ignore */
+        }
+        app.quit();
+        return;
+      }
       if (cloud.isRevocationCode(beat?.code) || beat?.force_factory_reset) {
         reopenLicenseDialog(beat, beat?.message || NO_LICENSE_MSG).catch(() => {});
         return;
@@ -170,15 +179,31 @@ async function bootFiskalizimLicenseLayers() {
   const cloud = loadCloud();
   cloud.registerInstallContext(app);
 
-  const localRevoke = cloud.readLocalRevokeBlock(app);
-  const bootReason = localRevoke?.blocked ? "revoked" : "no_license";
-  if (localRevoke?.blocked) {
-    cloud.clearLicenseRevokedLocally(app);
+  try {
+    const revokeBlock = await cloud.enforceRevokedBlock(app);
+    if (revokeBlock.blocked) {
+      try {
+        cloud.wipeAllActivationData(app);
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* vazhdo te aktivizimi HW — pa ErrorBox */
   }
 
   if (!isProd) {
     try {
       cloud.startLicenseWatchdog(app, (beat) => {
+        if (beat?.code === "NOT_FOUND") {
+          try {
+            cloud.wipeAllActivationData(app);
+          } catch {
+            /* ignore */
+          }
+          app.quit();
+          return;
+        }
         if (cloud.isRevocationCode(beat?.code)) {
           reopenLicenseDialog(beat, beat?.message || NO_LICENSE_MSG).catch(() => {});
         }
