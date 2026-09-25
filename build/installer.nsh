@@ -1,4 +1,5 @@
 ; Revolution Fiskalizim — instalim si FURRA:
+; UPDATE dhe instalim i ri: MOS fshi biznes.db, Revolution Fiskalizim, FiskalizimLicense / .install-salt.
 ; - Shortcuts → ProgramData\RevolutionInvest\{PRODUCT_NAME}-Launch\Start.cmd (JO $INSTDIR)
 ; - Folderi i instalimit fshehur (sef-lock.ps1)
 ; - Pa listë skedarësh gjatë instalimit
@@ -24,6 +25,7 @@
   !endif
 !macroend
 
+; LEGACY — mos thirr nga customInstall/customUnInstall. Factory wipe vetëm nga app (flag), jo Setup.
 !macro WipeSEFDataDir DIR
   IfFileExists "${DIR}\*" 0 +2
     RMDir /r "${DIR}"
@@ -58,6 +60,7 @@
 !macroend
 
 !macro customUnInstall
+  ; Çinstalim: hiq vetëm launcher — MOS fshi FiskalizimLicense / .install-salt / DB.
   !insertmacro SEFLaunchDir
   RMDir /r "$R7"
   RMDir /r "$LOCALAPPDATA\${PRODUCT_NAME}-Launch"
@@ -75,14 +78,16 @@
   SetDetailsPrint none
   SetDetailsView hide
 
-  ; MOS fshi biznes.db / fiscal-keys — përdoruesi ruan cilësimet & çelësat në instalim.
+  ; Instalim/update: ruaj DB dhe FiskalizimLicense (.install-salt, licencë).
 
   File "/oname=$PLUGINSDIR\sef-lock.ps1" "${BUILD_RESOURCES_DIR}\sef-lock.ps1"
   ExecWait '"$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$PLUGINSDIR\sef-lock.ps1" -Dir "$INSTDIR"' $0
   ExecWait 'cmd /c attrib +H "$INSTDIR"' $0
 
-  File "/oname=$PLUGINSDIR\create-install-salt.ps1" "${BUILD_RESOURCES_DIR}\create-install-salt.ps1"
-  ExecWait '"$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$PLUGINSDIR\create-install-salt.ps1"' $0
+  IfFileExists "$APPDATA\RevolutionInvest\FiskalizimLicense\.install-salt" fisk_salt_skip
+    File "/oname=$PLUGINSDIR\create-install-salt.ps1" "${BUILD_RESOURCES_DIR}\create-install-salt.ps1"
+    ExecWait '"$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$PLUGINSDIR\create-install-salt.ps1"' $0
+  fisk_salt_skip:
 
   !insertmacro WriteSEFLaunchStub
   !insertmacro SEFLaunchDir
