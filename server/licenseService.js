@@ -320,6 +320,46 @@ async function findLicenseByHardwareId(hardwareId) {
   return matches.find((row) => row.status === "active") || matches[0];
 }
 
+async function checkHardwareStatus(hardwareId) {
+  const license = await findLicenseByHardwareId(hardwareId);
+  if (!license) {
+    return {
+      valid: false,
+      code: "NOT_FOUND",
+      message: "Nuk ka licencë të regjistruar për këtë Hardware ID.",
+    };
+  }
+  if (license.status === "revoked") {
+    return {
+      valid: false,
+      code: "REVOKED",
+      message: "Licenca për këtë Hardware ID nuk është aktive.",
+    };
+  }
+  if (license.status === "suspended") {
+    return {
+      valid: false,
+      code: "SUSPENDED",
+      message: "Licenca për këtë Hardware ID nuk është aktive.",
+    };
+  }
+  if (license.status === "expired") {
+    return {
+      valid: false,
+      code: "EXPIRED",
+      message: "Licenca ka skaduar.",
+    };
+  }
+  if (license.status !== "active") {
+    return {
+      valid: false,
+      code: "REVOKED",
+      message: "Licenca për këtë Hardware ID nuk është aktive.",
+    };
+  }
+  return { valid: true, code: "OK", message: "Licenca është aktive." };
+}
+
 async function claimLicenseByHardware({ hardware_id, device_id, app_type }) {
   const license = await findLicenseByHardwareId(hardware_id);
   if (!license) {
@@ -401,6 +441,7 @@ module.exports = {
   validateLicense,
   findLicenseByDeviceId,
   findLicenseByHardwareId,
+  checkHardwareStatus,
   claimLicenseByHardware,
   findLicenseByKey,
 };

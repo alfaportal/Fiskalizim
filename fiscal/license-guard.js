@@ -1040,6 +1040,35 @@ async function ensureHardwareLicense(app) {
             if (!cloudKey) return await promptNoLicense();
           }
         }
+        if (rec && rec.source !== "cloud") {
+          try {
+            const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+            const onlineResult = await cloud.validateHardwareWithCloud(app, formatted);
+            if (
+              onlineResult &&
+              !onlineResult.offline &&
+              !onlineResult.valid &&
+              (onlineResult.code === "REVOKED" ||
+                onlineResult.code === "NOT_FOUND" ||
+                onlineResult.code === "SUSPENDED")
+            ) {
+              clearHardwareLicense(app);
+              try {
+                cloud.wipeAllActivationData(app);
+              } catch {
+                /* ignore */
+              }
+              logHwLicenseAudit(app, "hardware_cloud_revoked", {
+                hardware_id: formatted,
+                code: onlineResult.code,
+              });
+              const activated = await promptHardwareActivation(app, { reason: "no_license" });
+              return { ok: !!activated, grace: null };
+            }
+          } catch {
+            /* Pa internet — vazhdo me licencën lokale */
+          }
+        }
         if (await tryClaimCloudByHardware()) return { ok: true, grace: null };
         try {
           const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));

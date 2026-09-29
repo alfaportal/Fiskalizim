@@ -3,6 +3,7 @@ const {
   validateLicense,
   findLicenseByDeviceId,
   claimLicenseByHardware,
+  checkHardwareStatus,
   clientIp,
   APP_TYPE,
 } = require("../licenseService");
@@ -102,6 +103,25 @@ router.post("/activate", async (req, res) => {
   } catch (e) {
     console.error("[license/activate]", e.message || e);
     res.status(500).json({ valid: false, gabim: e.message || "Gabim serveri.", code: "SERVER_ERROR" });
+  }
+});
+
+router.post("/check-hardware", async (req, res) => {
+  try {
+    const body = pickBody(req);
+    if (!body.hardware_id) {
+      return res.status(400).json({
+        valid: false,
+        code: "NOT_FOUND",
+        gabim: "Mungon Hardware ID.",
+      });
+    }
+    const result = await checkHardwareStatus(body.hardware_id);
+    const status = result.valid ? 200 : result.code === "NOT_FOUND" ? 404 : 403;
+    res.status(status).json(result);
+  } catch (e) {
+    console.error("[license/check-hardware]", e.message || e);
+    res.status(500).json({ valid: false, code: "ERROR", gabim: e.message || "Gabim serveri." });
   }
 });
 
