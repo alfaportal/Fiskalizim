@@ -219,6 +219,16 @@ function isWithinCloudOfflineWindow(app) {
   return Date.now() - t <= CLOUD_OFFLINE_MAX_MS;
 }
 
+/** Cache offline e vlefshme vetëm pas validate/heartbeat OK nga serveri (celesi përputhet). */
+function hasServerConfirmedActivation(app) {
+  const rec = readActivationRecord(app);
+  if (!rec?.last_ok_at) return false;
+  const fromRec = normalizeKey(rec.celesi || "");
+  const stored = readStoredLicense(app);
+  if (!fromRec || !stored || fromRec !== stored) return false;
+  return true;
+}
+
 function offlineExpiredMessage() {
   return "Pa internet më shumë se 7 ditë. Lidhuni online për të vazhduar (licenca duhet të jetë aktive).";
 }
@@ -321,7 +331,11 @@ async function validateLicenseOnline(key, app, opts = {}) {
       force_logout: !!parsed.force_logout,
     };
   } catch (err) {
-    if (isWithinCloudOfflineWindow(app) && readStoredLicense(app)) {
+    if (
+      isWithinCloudOfflineWindow(app) &&
+      readStoredLicense(app) &&
+      hasServerConfirmedActivation(app)
+    ) {
       return {
         valid: true,
         offline: true,
@@ -374,7 +388,11 @@ async function validateHardwareWithCloud(app, hardwareId) {
       message: parsed.message || parsed.gabim || "Liçenca nuk është aktive.",
     };
   } catch {
-    if (isWithinCloudOfflineWindow(app) && readStoredLicense(app)) {
+    if (
+      isWithinCloudOfflineWindow(app) &&
+      readStoredLicense(app) &&
+      hasServerConfirmedActivation(app)
+    ) {
       return {
         valid: true,
         offline: true,
@@ -440,8 +458,12 @@ async function validateLicenseHeartbeat(key, app) {
     if (localRevoke?.blocked) {
       return { valid: false, code: "REVOKED", force_logout: true, message: localRevoke.message };
     }
-    if (isWithinCloudOfflineWindow(a) && readStoredLicense(a)) {
-      return { valid: true, offline: true, message: "Pa internet — brenda 7 ditëve." };
+    if (
+      isWithinCloudOfflineWindow(a) &&
+      readStoredLicense(a) &&
+      hasServerConfirmedActivation(a)
+    ) {
+      return { valid: true, offline: true, message: "Pa internet — brenda 7 ditëve.", code: "OK" };
     }
     return {
       valid: false,
@@ -749,6 +771,8 @@ module.exports = {
   markLicenseRevokedLocally,
   clearLicenseRevokedLocally,
   readLocalRevokeBlock,
+  readActivationRecord,
+  hasServerConfirmedActivation,
   offlineExpiredMessage,
   NO_LICENSE_MESSAGE,
 };

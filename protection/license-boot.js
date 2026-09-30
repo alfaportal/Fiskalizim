@@ -16,17 +16,22 @@ function reasonFromValidation(v, cloud, fallback = "no_license") {
 }
 
 function allowOfflineGrace(cloud, app) {
-  return cloud.isWithinCloudOfflineWindow(app) && !!cloud.readStoredLicense(app);
+  return (
+    cloud.isWithinCloudOfflineWindow(app) &&
+    !!cloud.readStoredLicense(app) &&
+    cloud.hasServerConfirmedActivation(app)
+  );
 }
 
 async function isProdLicenseSatisfied(cloud, app) {
   const claimed = await cloud.claimByHardwareId(app);
-  if (claimed?.valid) return true;
+  if (claimed?.valid && !claimed.offline) return true;
   const key = cloud.readStoredLicense(app);
-  if (!key) return false;
+  if (!key || !cloud.hasServerConfirmedActivation(app)) return false;
   const v = await cloud.validateLicenseOnline(key, app);
-  if (v.valid) return true;
-  if (v.offline && allowOfflineGrace(cloud, app)) return true;
+  if (v.valid && !v.offline) return true;
+  if (!v.valid && !v.offline) return false;
+  if (v.offline && v.code === "OK" && allowOfflineGrace(cloud, app)) return true;
   return false;
 }
 

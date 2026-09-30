@@ -1027,6 +1027,7 @@ async function ensureHardwareLicense(app) {
             } else if (online.offline) {
               if (!cloudKey) return await promptNoLicense();
               if (!cloud.isWithinCloudOfflineWindow(app)) return await promptNoLicense();
+              if (!cloud.hasServerConfirmedActivation(app)) return await promptNoLicense();
             } else {
               cloud.wipeAllActivationData(app);
               try {
@@ -1040,6 +1041,7 @@ async function ensureHardwareLicense(app) {
           } catch {
             if (!cloudKey) return await promptNoLicense();
             if (!cloud.isWithinCloudOfflineWindow(app)) return await promptNoLicense();
+            if (!cloud.hasServerConfirmedActivation(app)) return await promptNoLicense();
           }
         }
         if (rec && rec.source !== "cloud") {
@@ -1074,11 +1076,20 @@ async function ensureHardwareLicense(app) {
         if (await tryClaimCloudByHardware()) return { ok: true, grace: null };
         try {
           const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
-          if (cloud.readStoredLicense(app) && cloud.isWithinCloudOfflineWindow(app)) {
+          if (
+            cloud.readStoredLicense(app) &&
+            cloud.isWithinCloudOfflineWindow(app) &&
+            cloud.hasServerConfirmedActivation(app)
+          ) {
             clearGrace(app);
             return { ok: true, grace: null };
           }
-          if (rec?.key && rec.source === "cloud" && cloud.isWithinCloudOfflineWindow(app)) {
+          if (
+            rec?.key &&
+            rec.source === "cloud" &&
+            cloud.isWithinCloudOfflineWindow(app) &&
+            cloud.hasServerConfirmedActivation(app)
+          ) {
             cloud.writeStoredLicense(app, rec.key);
             clearGrace(app);
             return { ok: true, grace: null };

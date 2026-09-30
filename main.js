@@ -192,6 +192,11 @@ async function bootFiskalizimLicenseLayers() {
     /* vazhdo te aktivizimi HW — pa ErrorBox */
   }
 
+  console.log(
+    `[license boot] packaged=${app.isPackaged} isProd=${isProd} ` +
+      `ELECTRON_FORCE_PROD=${process.env.ELECTRON_FORCE_PROD || "(unset)"}`,
+  );
+
   if (!isProd) {
     try {
       cloud.startLicenseWatchdog(app, (beat) => {
