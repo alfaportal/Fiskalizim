@@ -881,6 +881,23 @@ function promptHardwareActivation(app, opts = {}) {
           } catch {
             /* HMAC lokale mjafton këtu; boot pret cloud */
           }
+          if (app.isPackaged) {
+            try {
+              const cloudMod = require(path.join(PROTECTION_DIR, "cloud-license"));
+              if (!cloudMod.hasServerConfirmedActivation(app)) {
+                return {
+                  ok: false,
+                  message:
+                    "Çelësi lokal u pranua, por licenca cloud nuk është aktive. Futni çelësin nga admini ose prisni aktivizimin e Hardware ID.",
+                };
+              }
+            } catch {
+              return {
+                ok: false,
+                message: "Licenca cloud duhet konfirmuar online për instalimin.",
+              };
+            }
+          }
           finish(true);
           return { ok: true };
         }
@@ -967,7 +984,9 @@ async function ensureHardwareLicense(app) {
       const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
       const claimed = await cloud.claimByHardwareId(app);
       if (claimed && claimed.valid && (claimed.celesi || claimed.license_key)) {
-        writeStoredLicenseKey(app, claimed.celesi || claimed.license_key, { source: "cloud" });
+        const ck = claimed.celesi || claimed.license_key;
+        writeStoredLicenseKey(app, ck, { source: "cloud" });
+        cloud.writeStoredLicense(app, ck);
         clearGrace(app);
         logHwLicenseAudit(app, "cloud_claim_by_hardware", { hardware_id: formatted });
         return true;

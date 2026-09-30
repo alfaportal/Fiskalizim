@@ -223,10 +223,11 @@ function isWithinCloudOfflineWindow(app) {
 function hasServerConfirmedActivation(app) {
   const rec = readActivationRecord(app);
   if (!rec?.last_ok_at) return false;
-  const fromRec = normalizeKey(rec.celesi || "");
   const stored = readStoredLicense(app);
-  if (!fromRec || !stored || fromRec !== stored) return false;
-  return true;
+  if (!stored) return false;
+  const fromRec = normalizeKey(rec.celesi || rec.license_key || "");
+  if (fromRec && fromRec === stored) return true;
+  return false;
 }
 
 function offlineExpiredMessage() {

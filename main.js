@@ -2,7 +2,11 @@
  * Electron desktop — Biznes (test ATK/SEF), si KAFENE: dritare + server lokal + printer.
  */
 const { app, BrowserWindow, dialog, ipcMain, screen } = require("electron");
-const { runProdLicenseDialogUntilOk, loadCloud } = require("./protection/license-boot");
+const {
+  runProdLicenseDialogUntilOk,
+  loadCloud,
+  isProdLicenseSatisfied,
+} = require("./protection/license-boot");
 const path = require("path");
 const fs = require("fs");
 require("./portable-path").applyPortableEnv();
@@ -139,6 +143,13 @@ async function reopenLicenseDialog(beat = {}, detail) {
       app.quit();
       return;
     }
+    if (app.isPackaged && !(await isProdLicenseSatisfied(cloud, app))) {
+      const dialogOk = await runProdLicenseDialogUntilOk(app, licenseFailReasonFromBeat(beat));
+      if (!dialogOk) {
+        app.quit();
+        return;
+      }
+    }
     await pushLicenseUiFromCloud();
     startLicenseWatchdogForApp(cloud);
     await launchMainUi();
@@ -225,6 +236,18 @@ async function bootFiskalizimLicenseLayers() {
   if (!hwOk) {
     app.quit();
     return false;
+  }
+
+  if (app.isPackaged) {
+    if (!(await isProdLicenseSatisfied(cloud, app))) {
+      const dialogOk = await runProdLicenseDialogUntilOk(app, "no_license");
+      if (!dialogOk) {
+        console.log("[license boot] cloud gate — user closed or no valid license");
+        app.quit();
+        return false;
+      }
+    }
+    console.log("[license boot] cloud gate OK");
   }
 
   await pushLicenseUiFromCloud();
