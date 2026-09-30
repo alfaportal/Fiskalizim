@@ -11,7 +11,12 @@ function reasonFromValidation(v, cloud, fallback = "no_license") {
   if (cloud.isRevocationCode(v?.code)) return "revoked";
   if (v?.code === "EXPIRED") return "expired";
   if (v?.code === "OFFLINE_EXPIRED") return "offline_expired";
+  if (v?.code === "OFFLINE_NEED_ACTIVATION") return "no_license";
   return fallback;
+}
+
+function allowOfflineGrace(cloud, app) {
+  return cloud.isWithinCloudOfflineWindow(app) && !!cloud.readStoredLicense(app);
 }
 
 async function isProdLicenseSatisfied(cloud, app) {
@@ -20,7 +25,9 @@ async function isProdLicenseSatisfied(cloud, app) {
   const key = cloud.readStoredLicense(app);
   if (!key) return false;
   const v = await cloud.validateLicenseOnline(key, app);
-  return !!(v.valid || v.offline);
+  if (v.valid) return true;
+  if (v.offline && allowOfflineGrace(cloud, app)) return true;
+  return false;
 }
 
 async function runProdLicenseDialogUntilOk(app, initialReason = "no_license") {
