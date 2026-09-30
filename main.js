@@ -106,7 +106,11 @@ async function reopenLicenseDialog(beat = {}, detail) {
   try {
     if (cloud.isRevocationCode(beat?.code) || beat?.force_factory_reset) {
       cloud.purgeAllLicenseArtifacts(app, msg, { allowReactivation: true });
-    } else if (beat?.code && cloud.HARD_LICENSE_FAIL_CODES.has(beat.code)) {
+    } else if (
+      beat?.code === "OFFLINE_EXPIRED" ||
+      beat?.code === "OFFLINE_NEED_ACTIVATION" ||
+      (beat?.code && cloud.HARD_LICENSE_FAIL_CODES.has(beat.code))
+    ) {
       cloud.clearStoredLicense(app);
     }
   } catch (e) {
@@ -171,13 +175,20 @@ function startLicenseWatchdogForApp(cloud) {
         app.quit();
         return;
       }
-      if (cloud.isRevocationCode(beat?.code) || beat?.force_factory_reset) {
+      if (
+        cloud.isRevocationCode(beat?.code) ||
+        beat?.force_factory_reset ||
+        beat?.code === "OFFLINE_EXPIRED" ||
+        beat?.code === "OFFLINE_NEED_ACTIVATION"
+      ) {
         reopenLicenseDialog(beat, beat?.message || NO_LICENSE_MSG).catch(() => {});
         return;
       }
       if (beat?.code && cloud.HARD_LICENSE_FAIL_CODES.has(beat.code)) {
         reopenLicenseDialog(beat, beat?.message || NO_LICENSE_MSG).catch(() => {});
-      } else if (beat?.valid) {
+        return;
+      }
+      if (beat?.valid) {
         pushLicenseUiFromCloud().catch(() => {});
       }
     });
