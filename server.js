@@ -467,6 +467,8 @@ async function boot() {
     "/api/backup/status",
     "/api/backup/open-folder",
     "/api/backup/run",
+    "/api/auto-backup/restore",
+    "/api/auto-backup/run-now",
     "/api/auth/login",
     "/api/operators/verify-pin",
   ]);
@@ -498,6 +500,100 @@ async function boot() {
         db_decrypt_failed: !!global.DB_DECRYPT_FAILED,
         blocks_sales: !!global.DB_DECRYPT_FAILED || blocksNewRecords(status),
       });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  function resolveAutoBackupPaths() {
+    const dbPath = db.DB_PATH || process.env.BIZNES_DB_PATH || process.env.DB_PATH || "";
+    let fiscalKeysPath = "";
+    try {
+      const { getKeysDir } = require("./fiscal/fiscal-crypto");
+      fiscalKeysPath = getKeysDir();
+    } catch {
+      fiscalKeysPath = dbPath ? path.join(path.dirname(dbPath), "fiscal-keys") : "";
+    }
+    return { dbPath, fiscalKeysPath };
+  }
+
+  function collectAutoBackupSettingsSnapshot() {
+    try {
+      const { getFiscalSettings } = require("./fiscal/fiscal-config");
+      const s = getFiscalSettings() || {};
+      return {
+        biz_name: s.biz_name || s.business_name || "",
+        nuikf: s.nuikf || "",
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  app.get("/api/auto-backup/status", (_req, res) => {
+    try {
+      const autoBackup = require("./auto-backup");
+      res.json({ ok: true, ...autoBackup.getBackupStatus() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.get("/api/auto-backup/catalog", (_req, res) => {
+    try {
+      const autoBackup = require("./auto-backup");
+      res.json(autoBackup.listRestoreCatalog());
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/auto-backup/run-now", (_req, res) => {
+    try {
+      const autoBackup = require("./auto-backup");
+      const paths = resolveAutoBackupPaths();
+      const result = autoBackup.runBackupCycle({
+        dbPath: paths.dbPath,
+        fiscalKeysPath: paths.fiscalKeysPath,
+        flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
+        getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
+      });
+      res.json({ ok: !!result.ok, ...result });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/auto-backup/restore", async (req, res) => {
+    try {
+      const autoBackup = require("./auto-backup");
+      const paths = resolveAutoBackupPaths();
+      if (!paths.dbPath) {
+        return res.status(400).json({ ok: false, error: "DB_PATH mungon." });
+      }
+      const sourceType = String(req.body?.source_type || req.body?.sourceType || "latest").trim();
+      const sourceId = String(req.body?.source_id || req.body?.sourceId || "latest").trim();
+      const result = autoBackup.restoreFromBackup({
+        targetDbPath: paths.dbPath,
+        targetKeysPath: paths.fiscalKeysPath,
+        source_type: sourceType,
+        source_id: sourceId,
+      });
+      if (!result.restored) {
+        return res.status(400).json({ ok: false, error: result.error || "Restore dështoi." });
+      }
+      try {
+        const { logFiscalAction } = require("./fiscal/fiscal-audit");
+        logFiscalAction(
+          "Rikthim auto-backup",
+          { source: `${sourceType}/${sourceId}`, at: result.restored_at || "" },
+          "SYSTEM",
+          "BACKUP",
+        );
+      } catch {
+        /* ignore */
+      }
+      res.json({ ok: true, message: result.message, restart_required: true });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
@@ -1658,7 +1754,7 @@ async function boot() {
       if (!items) {
         return res.status(404).json({
           ok: false,
-          error: "Kuponi origjinal (regular) nuk u gjet për këtë NUIKF",
+          error: "Kuponi origjinal nuk u gjet për këtë NUIKF ose numër serik",
         });
       }
       const receipt = getOriginalReceipt(nuikf);
@@ -2555,6 +2651,21 @@ async function boot() {
       console.warn("[biznes] offline monitor:", e.message);
     }
   });
+  try {
+    const autoBackup = require("./auto-backup");
+    const paths = resolveAutoBackupPaths();
+    if (paths.dbPath) {
+      autoBackup.startAutoBackup({
+        dbPath: paths.dbPath,
+        fiscalKeysPath: paths.fiscalKeysPath,
+        intervalMs: 60 * 1000,
+        flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
+        getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
+      });
+    }
+  } catch (e) {
+    console.warn("[backup] auto-start:", e.message);
+  }
   } catch (routeErr) {
     console.error("[biznes] route registration:", routeErr && routeErr.message ? routeErr.message : routeErr);
   }

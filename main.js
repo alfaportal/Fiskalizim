@@ -209,6 +209,13 @@ async function bootFiskalizimLicenseLayers() {
       } catch {
         /* ignore */
       }
+      if (revokeBlock.code === "NOT_FOUND") {
+        forceCloseApp(
+          "Licenca",
+          "Licenca nuk u gjet. Kontaktoni administratorin.",
+        );
+        return false;
+      }
     }
   } catch {
     /* vazhdo te aktivizimi HW — pa ErrorBox */
@@ -620,6 +627,22 @@ app.whenReady().then(async () => {
     /* ignore */
   }
   process.env.BIZNES_DB_PATH = path.join(dbDir, "biznes.db");
+  process.env.DB_PATH = process.env.BIZNES_DB_PATH;
+
+  global.__fiskalizimiAutoRestoreMessage = "";
+  try {
+    const autoBackup = require(path.join(__dirname, "auto-backup"));
+    const fiscalKeysPath = path.join(dbDir, "fiscal-keys");
+    const restore = autoBackup.maybeRestoreOnStartup({
+      targetDbPath: process.env.BIZNES_DB_PATH,
+      targetKeysPath: fiscalKeysPath,
+    });
+    if (restore?.restored && restore.message) {
+      global.__fiskalizimiAutoRestoreMessage = restore.message;
+    }
+  } catch (e) {
+    console.warn("[backup] startup restore:", e.message || e);
+  }
 
   registerAuditExportIpc();
   registerLicenseIpc();
@@ -629,6 +652,20 @@ app.whenReady().then(async () => {
 
   try {
     await launchMainUi();
+    if (global.__fiskalizimiAutoRestoreMessage) {
+      try {
+        dialog.showMessageBoxSync({
+          type: "info",
+          title: "Revolution Fiskalizim",
+          message: "Rikthim nga backup",
+          detail: String(global.__fiskalizimiAutoRestoreMessage),
+          buttons: ["OK"],
+        });
+      } catch {
+        /* ignore */
+      }
+      global.__fiskalizimiAutoRestoreMessage = "";
+    }
   } catch (e) {
     dialog.showErrorBox(
       "Revolution Fiskalizim - gabim",

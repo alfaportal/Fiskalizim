@@ -1,6 +1,6 @@
 {
     "name": "revolution-fiskalizim",
-    "version": "1.1.4",
+    "version": "1.1.6",
     "description": "Revolution Fiskalizim — modul fiskal ATK (TEST)",
     "main": "main.js",
     "author": "Revolution Invest SH.P.K.",
@@ -42,6 +42,7 @@
             "preload.js",
             "server.js",
             "database.js",
+            "auto-backup.js",
             "db-crypto.js",
             "portable-path.js",
             "disk-monitor.js",

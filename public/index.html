@@ -223,11 +223,66 @@
       font-size: 0.82rem;
       padding: 5px 6px;
     }
-    .tabs button[data-tab="products"],
-    .tabs button[data-tab="receipts"],
-    .tabs button[data-tab="periodic"],
-    .tabs button[data-tab="punonjes"] {
-      display: none !important;
+    #tab-paper-block #paper-block-issue-wrap {
+      position: relative;
+      z-index: 2;
+    }
+    #tab-paper-block input,
+    #tab-paper-block select,
+    #tab-paper-block textarea {
+      pointer-events: auto;
+      cursor: text;
+      -webkit-user-select: text;
+      user-select: text;
+      position: relative;
+      z-index: 1;
+      caret-color: var(--text);
+    }
+    #tab-paper-block select {
+      cursor: pointer;
+    }
+    #tab-paper-block .paper-issue-row input,
+    #tab-paper-block .paper-issue-row select {
+      margin-bottom: 0;
+    }
+    #paper-product-results {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 4px);
+      max-height: 240px;
+      overflow-y: auto;
+      background: #111827;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 20;
+    }
+    #paper-product-results button {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 10px 12px;
+      text-align: left;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.88rem;
+      line-height: 1.35;
+    }
+    #paper-product-results button:last-child { border-bottom: none; }
+    #paper-product-results button:hover,
+    #paper-product-results button:focus {
+      background: #1e3a5f;
+      outline: none;
+    }
+    #paper-product-results .paper-pick-meta {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 2px;
     }
     main {
       flex: 1 1 auto;
@@ -1612,6 +1667,7 @@
       <button type="button" data-tab="audit">Audit</button>
       <button type="button" data-tab="printer">Printeri</button>
       <button type="button" data-tab="punonjes">Punonjësit</button>
+      <button type="button" data-tab="paper-block">Blloku i letrës</button>
       <button type="button" data-tab="licenca">Licenca</button>
       <button type="button" data-tab="settings">Cilësimet SEF</button>
     </div>
@@ -1900,7 +1956,7 @@
       <div class="receipts-toolbar receipts-toolbar-actions">
         <button type="button" class="btn btn-ghost" id="btn-refresh-receipts" style="width:auto">Rifresko</button>
         <input id="storno-nuikf" placeholder="NUIKF për anulim / kthim / ndërrim" style="max-width:280px;margin:0" />
-        <button type="button" class="btn btn-danger" id="btn-storno" style="display:none;width:auto" aria-hidden="true">Storno</button>
+        <button type="button" class="btn btn-danger" id="btn-storno" style="width:auto">Storno</button>
         <button type="button" class="btn btn-warn" id="btn-cancel" style="width:auto">Anulo</button>
         <button type="button" class="btn btn-primary" id="btn-return-goods" style="width:auto">Kthim malli</button>
       </div>
@@ -2070,6 +2126,71 @@
         <button type="button" class="btn btn-ghost" id="btn-paper-disable" style="width:auto">Çaktivizo</button>
         <button type="button" class="btn btn-primary" id="btn-paper-register-all" style="width:auto">Regjistro të gjithë në SEF</button>
       </div>
+      <div
+        id="paper-block-issue-wrap"
+        style="margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);max-width:920px"
+      >
+        <h3 style="margin:0 0 10px;font-size:1rem">Regjistro kupon bllok letër</h3>
+        <p style="margin:0 0 12px;color:var(--muted);font-size:0.82rem;line-height:1.45">
+          Modaliteti bllok letër duhet të jetë aktiv. Numri serik dhe artikujt ruhen në databazë për regjistrim
+          në SEF më vonë.
+        </p>
+        <label for="paper-serial-no">Numri serik i bllokut</label>
+        <input
+          id="paper-serial-no"
+          type="text"
+          placeholder="p.sh. 000123"
+          autocomplete="off"
+          style="max-width:280px"
+        />
+        <p style="margin:10px 0 6px;font-size:0.78rem;color:var(--muted)">
+          Data dhe ora e shitjes fizike (si në bllokun letër) — përdoren si koha e kuponit kur shkon te ATK.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;max-width:420px">
+          <div>
+            <label for="paper-sale-date" style="font-size:0.78rem">Data e shitjes</label>
+            <input id="paper-sale-date" type="date" style="display:block;margin-top:4px" />
+          </div>
+          <div>
+            <label for="paper-sale-time" style="font-size:0.78rem">Ora e shitjes</label>
+            <input id="paper-sale-time" type="time" step="60" style="display:block;margin-top:4px" />
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <span style="font-size:0.78rem;color:var(--muted)">Artikujt — nga katalogu (si Arka)</span>
+          <label for="paper-product-search" style="font-size:0.78rem;margin-top:8px;display:block">Kërko ose skano produktin</label>
+          <div style="position:relative;max-width:520px;margin:4px 0 10px">
+            <input
+              id="paper-product-search"
+              type="search"
+              placeholder="Emri i produktit…"
+              autocomplete="off"
+              style="margin-bottom:0"
+            />
+            <div id="paper-product-results" class="hidden" role="listbox" aria-label="Rezultatet e katalogut"></div>
+          </div>
+          <button type="button" class="btn btn-ghost" id="btn-paper-add-item" style="width:auto;margin:0 0 10px">
+            Artikull manual (jo në katalog)
+          </button>
+          <div
+            style="display:grid;grid-template-columns:minmax(100px,1fr) 52px 72px 96px 64px 36px;gap:8px;font-size:0.75rem;color:var(--muted);margin:8px 0 4px;max-width:780px"
+          >
+            <span>Emri</span>
+            <span>Njësia</span>
+            <span>Sasia</span>
+            <span>Çmimi (€)</span>
+            <span>TVSH</span>
+            <span></span>
+          </div>
+          <div id="paper-issue-items"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button type="button" class="btn btn-primary" id="btn-paper-issue-submit" style="width:auto">
+            Regjistro kuponin
+          </button>
+          <span id="paper-issue-total-hint" style="color:var(--muted);font-size:0.88rem"></span>
+        </div>
+      </div>
       <ul id="paper-block-list" style="margin:10px 0 0;padding-left:1.2rem;font-size:0.88rem;color:var(--muted)"></ul>
       <div id="offline-compliance-box" class="msg hidden" style="margin-top:12px;white-space:pre-wrap;line-height:1.45"></div>
       <div id="offline-compliance-actions" class="hidden" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px">
@@ -2237,7 +2358,9 @@
         <p style="margin:0 0 8px;font-size:13px;color:var(--muted);">
           <strong>Backup automatik: aktiv</strong>
         </p>
+        <p id="auto-backup-status-line" class="sub" style="margin:0 0 8px;font-size:12px"></p>
         <button type="button" class="btn btn-ghost settings-btn-hidden" id="btn-open-backup-folder" style="width:auto;min-width:220px;margin-bottom:0">Hap folderin e backup-it</button>
+        <button type="button" class="btn btn-ghost" id="btn-restore-auto-backup-docs" style="width:auto;min-width:220px;margin-left:8px">Rikthe backup (Documents)</button>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button type="button" class="btn btn-primary" id="btn-save-settings" style="width:auto;min-width:200px">Ruaj cilësimet</button>
@@ -5190,7 +5313,7 @@
         return;
       }
       const atk = state.atkStatus || {};
-      if (atk.has_private_key && atk.private_key_readable === false) {
+      if (!state.paperBlockActive && atk.has_private_key && atk.private_key_readable === false) {
         setMsg(
           msg,
           atk.private_key_error ||
@@ -5199,7 +5322,7 @@
         );
         return;
       }
-      if (atk.fiscal_enabled && !atk.ready_for_atk) {
+      if (!state.paperBlockActive && atk.fiscal_enabled && !atk.ready_for_atk) {
         setMsg(msg, "Bëni onboarding (Lidhu me ATK) para se të shtypni kupon fiskal.", false);
         return;
       }
@@ -5234,6 +5357,79 @@
       }
       btn.disabled = true;
       try {
+        if (state.paperBlockActive) {
+          let serialNo = null;
+          const titleEl = document.getElementById("text-prompt-title");
+          const prevTitle = titleEl ? titleEl.textContent : "";
+          while (true) {
+            if (titleEl) titleEl.textContent = "Numri serik i bllokut letër";
+            const entered = await askText(
+              "Vendos numrin serik nga blloku fizik i letrës. Pa numër serik nuk vazhdohet pagesa.",
+              "p.sh. 000123"
+            );
+            if (titleEl) titleEl.textContent = prevTitle || "Fut vlerën";
+            if (entered === null) {
+              setMsg(msg, "Pagesa u anulua — mungon numri serik i bllokut.", false);
+              return;
+            }
+            serialNo = String(entered).trim();
+            if (serialNo) break;
+            setMsg(msg, "Numri serik i bllokut letër është i detyrueshëm.", false);
+          }
+
+          const finishPaperBlockCheckout = (data) => {
+            const p = data.paper || {};
+            setCouponStatus(msg, { is_local_only: true });
+            state.cart = [];
+            resetCartAdjustments();
+            resetPaymentToDefault();
+            renderCart();
+            if (p.slip_text) {
+              openPrintPreview(p.slip_text, null, {
+                print_text: p.slip_text,
+                nuikf: `PAPER-${p.serial_no || serialNo || ""}`,
+                total_amount: data.total,
+              });
+            } else if (data.printMessage) {
+              setMsg(msg, `Kuponi u ruajt · print: ${data.printMessage}`, true);
+            } else {
+              setMsg(
+                msg,
+                `Kuponi bllok letër u ruajt lokalisht (serik ${p.serial_no || serialNo}). Dërgohet te ATK kur rikthehet lidhja.`,
+                true
+              );
+            }
+            refreshPaperBlockUi().catch(() => {});
+            refreshOfflineQueueUi().catch(() => {});
+          };
+
+          const body0 = buildCheckoutBody(false);
+          body0.serial_no = serialNo;
+          body0.skip_print = false;
+          let data = await api("/api/fiscal/paper-block/checkout", {
+            method: "POST",
+            body: JSON.stringify(body0),
+          });
+          if (data.needs_confirm_over_1000) {
+            const ok = await askConfirm(
+              `Totali është ${euro(data.total)} (mbi 1000 €).\nKonfirmoni finalizimin e transaksionit?`
+            );
+            if (!ok) {
+              setMsg(msg, "Anuluar — mbi 1000€ pa konfirmim", false);
+              return;
+            }
+            const body1 = buildCheckoutBody(true);
+            body1.serial_no = serialNo;
+            body1.skip_print = false;
+            data = await api("/api/fiscal/paper-block/checkout", {
+              method: "POST",
+              body: JSON.stringify(body1),
+            });
+          }
+          finishPaperBlockCheckout(data);
+          return;
+        }
+
         const body0 = buildCheckoutBody(false);
         body0.skip_print = false;
         let data = await api("/api/checkout", {
@@ -5254,23 +5450,6 @@
             method: "POST",
             body: JSON.stringify(body1),
           });
-        }
-        if (data.paper_block) {
-          const p = data.paper || {};
-          setCouponStatus(msg, { is_local_only: true });
-          state.cart = [];
-          resetCartAdjustments();
-          resetPaymentToDefault();
-          renderCart();
-          if (p.slip_text) {
-            openPrintPreview(p.slip_text, null, {
-              print_text: p.slip_text,
-              nuikf: `PAPER-${p.serial_no || ""}`,
-              total_amount: data.total,
-            });
-          }
-          refreshOfflineQueueUi().catch(() => {});
-          return;
         }
         const f = data.fiscal || {};
         setCouponStatus(msg, f);
@@ -5550,14 +5729,29 @@
       }
     }
 
-    function renderPaperBlockStatus(status) {
+    function paperBlockRowStatusLabel(row, fiscalById) {
+      const fid = row.registered_fiscal_receipt_id;
+      if (!fid) {
+        return { icon: "🟡", label: "Në pritje — i ruajtur, ende pa shkuar te ATK" };
+      }
+      const fr = fiscalById && fiscalById.get(Number(fid));
+      const atkOk = !!(fr && (fr.atk_ok || Number(fr.sent_to_atk) === 1));
+      if (atkOk) {
+        return { icon: "🟢", label: "Dërguar — ka shkuar me sukses te ATK" };
+      }
+      return { icon: "🟡", label: "Në pritje — i ruajtur, ende pa shkuar te ATK" };
+    }
+
+    function renderPaperBlockStatus(status, allReceipts, fiscalById) {
       const box = document.getElementById("paper-block-box");
       const list = document.getElementById("paper-block-list");
       const btnCheckout = document.getElementById("btn-checkout");
       if (!box) return;
 
       state.paperBlockActive = !!(status && status.active);
-      if (btnCheckout) btnCheckout.textContent = "Paguaj";
+      if (btnCheckout) {
+        btnCheckout.textContent = state.paperBlockActive ? "Paguaj (bllok letër)" : "Paguaj";
+      }
 
       if (!status) {
         box.classList.add("hidden");
@@ -5610,15 +5804,17 @@
       }
 
       if (list) {
-        const pending = (status.pending || []).slice(0, 20);
-        if (!pending.length) {
-          list.innerHTML = "<li>Nuk ka kuponë në pritje për bllokimin e letrës.</li>";
+        const rows = Array.isArray(allReceipts)
+          ? allReceipts.slice().sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 30)
+          : (status.pending || []).slice(0, 20);
+        if (!rows.length) {
+          list.innerHTML = "<li>Nuk ka kuponë të regjistruar për bllokimin e letrës.</li>";
         } else {
-          list.innerHTML = pending
-            .map(
-              (p) =>
-                `<li>${p.serial_no} · ${p.fiscal_date} · ${Number(p.total_amount).toFixed(2)} €</li>`
-            )
+          list.innerHTML = rows
+            .map((p) => {
+              const st = paperBlockRowStatusLabel(p, fiscalById);
+              return `<li>${st.icon} <strong>${esc(String(p.serial_no || "—"))}</strong> · ${esc(String(p.fiscal_date || "—"))} · ${Number(p.total_amount || 0).toFixed(2)} € — ${esc(st.label)}</li>`;
+            })
             .join("");
         }
       }
@@ -5626,8 +5822,14 @@
 
     async function refreshPaperBlockUi() {
       try {
-        const data = await api("/api/fiscal/paper-block");
-        renderPaperBlockStatus(data.status);
+        const [data, receiptsData] = await Promise.all([
+          api("/api/fiscal/paper-block"),
+          api("/api/fiscal/receipts?_=" + Date.now()).catch(() => ({ receipts: [] })),
+        ]);
+        const fiscalById = new Map(
+          (receiptsData.receipts || []).map((r) => [Number(r.id), r])
+        );
+        renderPaperBlockStatus(data.status, data.receipts, fiscalById);
       } catch {
         /* ignore */
       }
@@ -6376,7 +6578,10 @@
         updateE2eSourceUi();
         loadE2eReceiptPicker().catch(console.error);
       }
-      if (name === "paper-block") refreshOfflineQueueUi().catch(console.error);
+      if (name === "paper-block") {
+        refreshPaperBlockUi().catch(console.error);
+        ensurePaperIssueFormReady();
+      }
       if (name === "licenca" && window.LicencaApp) {
         window.LicencaApp.init().catch(console.error);
       }
@@ -6421,6 +6626,7 @@
     });
     document.getElementById("btn-refresh-receipts").addEventListener("click", () => loadReceipts(true));
     document.getElementById("btn-cancel").addEventListener("click", () => doCorrection("cancel"));
+    document.getElementById("btn-storno").addEventListener("click", () => doCorrection("storno"));
     document.getElementById("btn-return-goods")?.addEventListener("click", () => openReturnPanel());
     document.getElementById("btn-return-confirm")?.addEventListener("click", () => confirmReturnGoods());
     document.getElementById("btn-return-close")?.addEventListener("click", closeReturnPanel);
@@ -6779,6 +6985,40 @@
         setMsg(msg, e.message, false);
       }
     });
+    async function ngarkoAutoBackupStatus() {
+      const el = document.getElementById("auto-backup-status-line");
+      if (!el) return;
+      try {
+        const s = await api("/api/auto-backup/status");
+        const at = s.last_backup_at ? new Date(s.last_backup_at).toLocaleString("sq-AL") : "—";
+        el.textContent = `Documents: ${s.backup_dir || "Revolution Backup/FISKALIZIMI"} · minutë: ${at} · ditorë: ${s.daily_count ?? "—"} · mujorë: ${s.monthly_count ?? "—"}`;
+      } catch {
+        el.textContent = "Documents auto-backup: statusi nuk u lexua.";
+      }
+    }
+    ngarkoAutoBackupStatus().catch(() => {});
+
+    document.getElementById("btn-restore-auto-backup-docs")?.addEventListener("click", async () => {
+      const msg = document.getElementById("settings-msg");
+      try {
+        const cat = await api("/api/auto-backup/catalog");
+        const items = cat.items || [];
+        if (!items.length) {
+          setMsg(msg, "Nuk ka backup në Documents.", false);
+          return;
+        }
+        const it = items[0];
+        if (!confirm(`Riktheni nga ${it.label}? Mbyllni dhe rinisni programin.`)) return;
+        const r = await api("/api/auto-backup/restore", {
+          method: "POST",
+          body: JSON.stringify({ source_type: it.source_type, source_id: it.source_id }),
+        });
+        setMsg(msg, r.message || "U rikthye — rinisni programin.", true);
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    });
+
     document.getElementById("btn-backup").addEventListener("click", async () => {
       const msg = document.getElementById("settings-msg");
       const btn = document.getElementById("btn-backup");
@@ -7092,6 +7332,346 @@
       ackCompliance("day10")
     );
 
+    function paperIssueVatOptions(selected) {
+      const letters = ["A", "C", "D", "E"];
+      return letters
+        .map(
+          (L) =>
+            `<option value="${L}" ${String(selected || "E").toUpperCase() === L ? "selected" : ""}>${L}</option>`
+        )
+        .join("");
+    }
+
+    function ensurePaperIssueFormReady() {
+      const wrap = document.getElementById("paper-block-issue-wrap");
+      if (wrap) {
+        wrap.querySelectorAll("input, select, textarea").forEach((el) => {
+          el.disabled = false;
+          el.readOnly = false;
+        });
+      }
+      prefillPaperIssueSaleDateTime();
+      hidePaperProductResults();
+      const search = document.getElementById("paper-product-search");
+      if (search) {
+        try {
+          search.focus({ preventScroll: true });
+        } catch {
+          search.focus();
+        }
+      }
+    }
+
+    function hidePaperProductResults() {
+      const box = document.getElementById("paper-product-results");
+      if (box) {
+        box.classList.add("hidden");
+        box.innerHTML = "";
+      }
+    }
+
+    function filterPaperCatalogProducts(query) {
+      const q = String(query || "").trim().toLowerCase();
+      const list = Array.isArray(state.allProducts) ? state.allProducts : [];
+      if (!q) return [];
+      if (/^\d+$/.test(q)) {
+        const id = Number(q);
+        const byId = list.filter((p) => Number(p.id) === id);
+        if (byId.length) return byId.slice(0, 12);
+      }
+      return list
+        .filter((p) => String(p.name || "").toLowerCase().includes(q))
+        .slice(0, 12);
+    }
+
+    function renderPaperProductResults(query) {
+      const box = document.getElementById("paper-product-results");
+      if (!box) return;
+      const hits = filterPaperCatalogProducts(query);
+      if (!String(query || "").trim() || !hits.length) {
+        hidePaperProductResults();
+        return;
+      }
+      box.innerHTML = hits
+        .map((p) => {
+          const L = String(p.vat_letter || "E").toUpperCase();
+          const unit = esc(String(p.unit_code || "EA"));
+          return `<button type="button" data-paper-pick-id="${Number(p.id)}" role="option">
+            ${esc(p.name)}
+            <span class="paper-pick-meta">${euro(p.price)} · ${esc(vatLabel(L))} · ${unit}</span>
+          </button>`;
+        })
+        .join("");
+      box.classList.remove("hidden");
+    }
+
+    function addPaperIssueItemFromProduct(productId, qtyOverride) {
+      const p = findProduct(Number(productId));
+      if (!p) return false;
+      addPaperIssueItemRow(
+        {
+          product_id: p.id,
+          name: p.name,
+          quantity: qtyOverride != null ? qtyOverride : 1,
+          unit_price: Number(p.price),
+          price: Number(p.price),
+          vat_norm: p.vat_letter,
+          vat_letter: p.vat_letter,
+          unit_code: p.unit_code || "EA",
+          category_code: p.category_code || "TT",
+        },
+        { catalog: true }
+      );
+      return true;
+    }
+
+    function addPaperIssueItemRow(prefill, opts = {}) {
+      const host = document.getElementById("paper-issue-items");
+      if (!host) return;
+      const catalog = !!opts.catalog;
+      const row = document.createElement("div");
+      row.className = "paper-issue-row";
+      row.dataset.source = catalog ? "catalog" : "manual";
+      row.style.cssText =
+        "display:grid;grid-template-columns:minmax(100px,1fr) 52px 72px 96px 64px 36px;gap:8px;align-items:center;margin-bottom:6px;max-width:780px";
+      const p = prefill && typeof prefill === "object" ? prefill : {};
+      if (catalog && p.product_id != null) {
+        row.dataset.productId = String(p.product_id);
+      }
+      if (p.unit_code) row.dataset.unitCode = String(p.unit_code);
+      if (p.category_code) row.dataset.categoryCode = String(p.category_code);
+      const vat = p.vat_norm || p.vat_letter || "E";
+      const ro = catalog ? " readonly" : "";
+      const disSel = catalog ? " disabled" : "";
+      row.innerHTML = `
+        <input type="text" data-field="name" placeholder="Emri" value="${String(p.name || "").replace(/"/g, "&quot;")}"${ro} />
+        <input type="text" data-field="unit" value="${String(p.unit_code || "EA").replace(/"/g, "&quot;")}" readonly tabindex="-1" title="Njësia ATK" style="text-align:center;font-size:0.78rem;padding:6px 4px" />
+        <input type="number" data-field="qty" min="0.0001" step="0.0001" value="${p.quantity != null ? p.quantity : p.qty != null ? p.qty : 1}" />
+        <input type="number" data-field="price" min="0" step="0.01" value="${p.unit_price != null ? p.unit_price : p.price != null ? p.price : ""}"${ro} />
+        <select data-field="vat"${disSel}>${paperIssueVatOptions(vat)}</select>
+        <button type="button" class="btn btn-ghost" data-act="remove-row" style="width:auto;padding:6px 8px;min-width:0" title="Hiq rreshtin">×</button>
+      `;
+      if (catalog) {
+        const vatEl = row.querySelector('[data-field="vat"]');
+        if (vatEl) vatEl.value = String(vat).toUpperCase();
+      }
+      host.appendChild(row);
+      row.querySelector('[data-act="remove-row"]')?.addEventListener("click", () => {
+        row.remove();
+        updatePaperIssueTotalHint();
+      });
+      row.querySelectorAll("input,select").forEach((el) => {
+        el.addEventListener("input", updatePaperIssueTotalHint);
+        el.addEventListener("change", updatePaperIssueTotalHint);
+      });
+      updatePaperIssueTotalHint();
+    }
+
+    function updatePaperIssueTotalHint() {
+      const hint = document.getElementById("paper-issue-total-hint");
+      if (!hint) return;
+      const items = collectPaperIssueItems({ allowEmpty: true });
+      if (!items.length) {
+        hint.textContent = "";
+        return;
+      }
+      const sum = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0), 0);
+      hint.textContent = `Nën-totali (bruto): ${sum.toFixed(2)} € · ${items.length} artikuj`;
+    }
+
+    function collectPaperIssueItems(opts = {}) {
+      const allowEmpty = !!opts.allowEmpty;
+      const rows = document.querySelectorAll("#paper-issue-items .paper-issue-row");
+      const items = [];
+      for (const row of rows) {
+        const name = String(row.querySelector('[data-field="name"]')?.value || "").trim();
+        const qty = Number(row.querySelector('[data-field="qty"]')?.value);
+        const unit_price = Number(row.querySelector('[data-field="price"]')?.value);
+        const vat_norm = String(row.querySelector('[data-field="vat"]')?.value || "E")
+          .trim()
+          .toUpperCase();
+        if (!name && allowEmpty) continue;
+        if (!name && !allowEmpty) continue;
+        if (!Number.isFinite(qty) || qty <= 0) {
+          if (!allowEmpty) throw new Error(`Sasia e pavlefshme për "${name || "artikull"}"`);
+          continue;
+        }
+        if (!Number.isFinite(unit_price) || unit_price < 0) {
+          if (!allowEmpty) throw new Error(`Çmimi i pavlefshëm për "${name}"`);
+          continue;
+        }
+        const vatLetter = /^[A-E]$/.test(vat_norm) ? vat_norm : "E";
+        const item = {
+          name,
+          quantity: qty,
+          qty,
+          unit_price,
+          price: unit_price,
+          vat_norm: vatLetter,
+          vat_letter: vatLetter,
+        };
+        const pid = row.dataset.productId;
+        if (pid) {
+          item.product_id = Number(pid);
+          item.menu_item_id = Number(pid);
+        }
+        const unitCode = row.dataset.unitCode || row.querySelector('[data-field="unit"]')?.value;
+        const catCode = row.dataset.categoryCode;
+        if (unitCode) item.unit_code = String(unitCode).trim();
+        if (catCode) item.category_code = String(catCode).trim();
+        items.push(item);
+      }
+      return items;
+    }
+
+    function prefillPaperIssueSaleDateTime() {
+      const dateEl = document.getElementById("paper-sale-date");
+      const timeEl = document.getElementById("paper-sale-time");
+      const d = new Date();
+      if (dateEl && !dateEl.value) {
+        dateEl.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+      if (timeEl && !timeEl.value) {
+        timeEl.value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      }
+    }
+
+    function paperIssueFiscalDateTimeFromInputs() {
+      prefillPaperIssueSaleDateTime();
+      const iso = String(document.getElementById("paper-sale-date")?.value || "").trim();
+      const tm = String(document.getElementById("paper-sale-time")?.value || "").trim();
+      if (!iso) {
+        throw new Error("Vendosni datën e shitjes fizike.");
+      }
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+      if (!m) {
+        throw new Error("Data e shitjes nuk është e vlefshme.");
+      }
+      const fiscal_date = `${m[3]}.${m[2]}.${m[1]}`;
+      let fiscal_time = "12:00";
+      if (tm) {
+        const t = /^(\d{1,2}):(\d{2})/.exec(tm);
+        if (!t) throw new Error("Ora e shitjes nuk është e vlefshme.");
+        fiscal_time = `${String(t[1]).padStart(2, "0")}:${t[2]}`;
+      }
+      return { fiscal_date, fiscal_time };
+    }
+
+    document.getElementById("tab-paper-block")?.addEventListener("mousedown", (e) => {
+      const t = e.target;
+      if (t && (t.matches("input, textarea, select") || t.closest(".paper-issue-row"))) {
+        if (t.matches("input, textarea, select") && !t.disabled && !t.readOnly) {
+          t.focus();
+        }
+      }
+    });
+
+    document.getElementById("paper-product-search")?.addEventListener("input", (e) => {
+      renderPaperProductResults(e.target.value);
+    });
+    document.getElementById("paper-product-search")?.addEventListener("keydown", (e) => {
+      const box = document.getElementById("paper-product-results");
+      const first = box?.querySelector("[data-paper-pick-id]");
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (first) {
+          addPaperIssueItemFromProduct(first.dataset.paperPickId);
+          e.target.value = "";
+          hidePaperProductResults();
+          updatePaperIssueTotalHint();
+          return;
+        }
+        const hits = filterPaperCatalogProducts(e.target.value);
+        if (hits.length === 1) {
+          addPaperIssueItemFromProduct(hits[0].id);
+          e.target.value = "";
+          hidePaperProductResults();
+        }
+      } else if (e.key === "Escape") {
+        hidePaperProductResults();
+      }
+    });
+    document.getElementById("paper-product-results")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-paper-pick-id]");
+      if (!btn) return;
+      addPaperIssueItemFromProduct(btn.dataset.paperPickId);
+      const inp = document.getElementById("paper-product-search");
+      if (inp) inp.value = "";
+      hidePaperProductResults();
+    });
+    document.addEventListener("click", (e) => {
+      if (e.target.closest("#paper-product-search") || e.target.closest("#paper-product-results")) return;
+      hidePaperProductResults();
+    });
+
+    document.getElementById("btn-paper-add-item")?.addEventListener("click", () => {
+      prefillPaperIssueSaleDateTime();
+      addPaperIssueItemRow({}, { catalog: false });
+    });
+
+    document.getElementById("btn-paper-issue-submit")?.addEventListener("click", async () => {
+      const msg = document.getElementById("paper-block-msg");
+      const serial = String(document.getElementById("paper-serial-no")?.value || "").trim();
+      if (!serial) {
+        setMsg(msg, "Numri serik i bllokut letër mungon.", false);
+        return;
+      }
+      let saleWhen;
+      try {
+        saleWhen = paperIssueFiscalDateTimeFromInputs();
+      } catch (e) {
+        setMsg(msg, e.message || String(e), false);
+        return;
+      }
+      let items;
+      try {
+        items = collectPaperIssueItems();
+      } catch (e) {
+        setMsg(msg, e.message || String(e), false);
+        return;
+      }
+      if (!items.length) {
+        setMsg(msg, "Shtoni të paktën një artikull me emër, sasi dhe çmim.", false);
+        return;
+      }
+      const btn = document.getElementById("btn-paper-issue-submit");
+      if (btn) btn.disabled = true;
+      try {
+        const data = await api("/api/fiscal/paper-block/issue", {
+          method: "POST",
+          body: JSON.stringify({
+            serial_no: serial,
+            items,
+            fiscal_date: saleWhen.fiscal_date,
+            fiscal_time: saleWhen.fiscal_time,
+            operator_name: currentOperator(),
+            operator_id: currentOperatorId(),
+            payment_method: "cash",
+          }),
+        });
+        const paper = data.paper || {};
+        setMsg(
+          msg,
+          `Kuponi u regjistrua: serik ${paper.serial_no || serial} · ${paper.fiscal_date || saleWhen.fiscal_date} ${paper.fiscal_time || saleWhen.fiscal_time} · totali ${Number(paper.total_amount || 0).toFixed(2)} €`,
+          true
+        );
+        document.getElementById("paper-serial-no").value = "";
+        prefillPaperIssueSaleDateTime();
+        const host = document.getElementById("paper-issue-items");
+        if (host) host.innerHTML = "";
+        const paperSearch = document.getElementById("paper-product-search");
+        if (paperSearch) paperSearch.value = "";
+        hidePaperProductResults();
+        updatePaperIssueTotalHint();
+        refreshPaperBlockUi().catch(() => {});
+        refreshOfflineQueueUi().catch(() => {});
+      } catch (e) {
+        setMsg(msg, e.message || String(e), false);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
     document.getElementById("btn-paper-enable")?.addEventListener("click", async () => {
       const msg = document.getElementById("paper-block-msg");
       const ok = window.confirm(
@@ -7104,7 +7684,7 @@
           body: JSON.stringify({ operator_name: currentOperator() }),
         });
         setMsg(msg, "Bllokimi i letrës u aktivizua.", true);
-        renderPaperBlockStatus(data.status);
+        refreshPaperBlockUi().catch(() => {});
         refreshOfflineQueueUi().catch(() => {});
       } catch (e) {
         setMsg(msg, e.message, false);
@@ -7120,7 +7700,7 @@
           body: JSON.stringify({ operator_name: currentOperator(), force: false }),
         });
         setMsg(msg, "Bllokimi i letrës u çaktivizua.", true);
-        renderPaperBlockStatus(data.status);
+        refreshPaperBlockUi().catch(() => {});
         refreshOfflineQueueUi().catch(() => {});
       } catch (e) {
         const forceOk = window.confirm(
@@ -7137,7 +7717,7 @@
             body: JSON.stringify({ operator_name: currentOperator(), force: true }),
           });
           setMsg(msg, "U çaktivizua me force — regjistroni kuponët sa më shpejt.", false);
-          renderPaperBlockStatus(data.status);
+          refreshPaperBlockUi().catch(() => {});
           refreshOfflineQueueUi().catch(() => {});
         } catch (e2) {
           setMsg(msg, e2.message, false);
