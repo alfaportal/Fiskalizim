@@ -635,6 +635,13 @@ app.whenReady().then(async () => {
   const licenseOk = await bootFiskalizimLicenseLayers();
   if (!licenseOk) return;
 
+  try {
+    const boot = require(path.join(__dirname, "auto-backup-boot.cjs"));
+    boot.ensureBackupHomeVisible(__dirname, { productName: "FISKALIZIMI" });
+  } catch (e) {
+    console.warn("[backup] visible home:", e.message || e);
+  }
+
   global.__fiskalizimiAutoRestoreMessage = "";
   try {
     const autoBackup = require(path.join(__dirname, "auto-backup"));
@@ -666,6 +673,26 @@ app.whenReady().then(async () => {
 
   try {
     await launchMainUi();
+    try {
+      const db = require(path.join(__dirname, "database"));
+      const boot = require(path.join(__dirname, "auto-backup-boot.cjs"));
+      const fiscalKeysPath = path.join(dbDir, "fiscal-keys");
+      boot.startDesktopAutoBackup(__dirname, {
+        getPersistedBackupDir: () => db.getSetting("auto_backup_dir", ""),
+        setPersistedBackupDir: (dir) => {
+          db.setSetting("auto_backup_dir", String(dir || "").trim());
+        },
+        dbPath: process.env.BIZNES_DB_PATH,
+        fiscalKeysPath,
+        flushSave:
+          typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
+        getSettingsSnapshot: () => ({
+          biz_name: db.getSetting("business_name", ""),
+        }),
+      });
+    } catch (e) {
+      console.warn("[backup] main auto-start:", e.message || e);
+    }
     if (global.__fiskalizimiAutoRestoreMessage) {
       try {
         dialog.showMessageBoxSync({

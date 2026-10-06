@@ -1,10 +1,17 @@
 /**
- * Backup automatik — %UserProfile%/Documents/Revolution Backup/MARKET/
+ * Backup automatik — Desktop\Revolution Backup\<PRODUKTI> (afër ikonës së programit).
  * Minutë (rotacion 3) + ditor (30 ditë) + mujor (12 muaj).
  */
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+let backupLoc;
+try {
+  backupLoc = require(path.join(__dirname, "auto-backup-location.cjs"));
+} catch (e) {
+  console.warn("[backup] auto-backup-location.cjs:", e.message || e);
+  backupLoc = require(path.join(__dirname, "scripts", "auto-backup-location.cjs"));
+}
 
 const PROJECT_NAME = "FISKALIZIMI";
 const DEFAULT_INTERVAL_MS = 60 * 1000;
@@ -28,17 +35,34 @@ const DENIED_BACKUP_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
   ".jsx",
+  ".vue",
   ".html",
   ".htm",
   ".css",
   ".scss",
   ".less",
   ".map",
+  ".exe",
+  ".dll",
+  ".asar",
+  ".bat",
+  ".cmd",
+  ".ps1",
+  ".sh",
+  ".py",
 ]);
 const DENIED_BACKUP_BASENAMES = new Set(["package.json", "package-lock.json", "node_modules"]);
 
 function getDefaultBackupDir(projectName = PROJECT_NAME) {
-  return path.join(os.homedir(), "Documents", "Revolution Backup", projectName);
+  return backupLoc.defaultBackupDirectory(projectName);
+}
+
+function resolveBackupDir(opts = {}) {
+  if (opts.backupDir) return path.resolve(opts.backupDir);
+  return backupLoc.resolveBackupDirectory({
+    projectName: PROJECT_NAME,
+    getPersistedDir: opts.getPersistedBackupDir,
+  });
 }
 
 function ensureDir(dir) {
@@ -307,7 +331,7 @@ function purgeOldMonthlyBackups(backupDir) {
 }
 
 function runDailyBackupIfNeeded(opts) {
-  const backupDir = path.resolve(opts.backupDir || getDefaultBackupDir());
+  const backupDir = resolveBackupDir(opts);
   const today = localDateYmd();
   const state = readState(backupDir);
   if (state.lastDailyBackupDate === today) {
@@ -325,7 +349,7 @@ function runDailyBackupIfNeeded(opts) {
 }
 
 function runMonthlyBackupIfNeeded(opts) {
-  const backupDir = path.resolve(opts.backupDir || getDefaultBackupDir());
+  const backupDir = resolveBackupDir(opts);
   const month = localMonthYm();
   const state = readState(backupDir);
   if (state.lastMonthlyBackupMonth === month) {
@@ -357,7 +381,7 @@ function runScheduledDailyMonthly(opts) {
 function runBackupCycle(opts = {}) {
   const dbPath = opts.dbPath ? assertDbPathForBackup(opts.dbPath) : "";
   const dataDir = dbPath ? path.dirname(dbPath) : "";
-  const backupDir = path.resolve(opts.backupDir || getDefaultBackupDir());
+  const backupDir = resolveBackupDir(opts);
   const fiscalKeysPath = dbPath ? resolveFiscalKeysPath(opts, dataDir) : "";
 
   runScheduledDailyMonthly({ ...opts, backupDir, dbPath, fiscalKeysPath });
@@ -415,10 +439,17 @@ let autoBackupOpts = null;
 
 function startAutoBackup(opts = {}) {
   stopAutoBackup();
+  const backupDir = resolveBackupDir(opts);
+  backupLoc.ensureVisibleBackupHome({
+    backupDir,
+    productName: PROJECT_NAME,
+    setPersistedDir: opts.setPersistedBackupDir,
+    revealExplorerOnce: opts.revealBackupFolder !== false,
+  });
   autoBackupOpts = {
     intervalMs: Number(opts.intervalMs) || DEFAULT_INTERVAL_MS,
     ...opts,
-    backupDir: opts.backupDir || getDefaultBackupDir(),
+    backupDir,
   };
   const tick = () => {
     try {
@@ -456,8 +487,11 @@ function readBundleBackedAt(bundleDir) {
   }
 }
 
-function listRestoreCatalog(backupDir = getDefaultBackupDir()) {
-  const dir = path.resolve(backupDir);
+function listRestoreCatalog(backupDirOrOpts = null) {
+  const dir =
+    backupDirOrOpts && typeof backupDirOrOpts === "object"
+      ? resolveBackupDir(backupDirOrOpts)
+      : path.resolve(backupDirOrOpts || getDefaultBackupDir());
   const items = [];
 
   const latestPath = path.join(dir, BACKUP_DB_NAMES[0]);
@@ -549,8 +583,11 @@ function resolveRestoreBundle(backupDir, sourceType, sourceId) {
   return null;
 }
 
-function getBackupStatus(backupDir = getDefaultBackupDir()) {
-  const dir = path.resolve(backupDir);
+function getBackupStatus(backupDirOrOpts = null) {
+  const dir =
+    backupDirOrOpts && typeof backupDirOrOpts === "object"
+      ? resolveBackupDir(backupDirOrOpts)
+      : path.resolve(backupDirOrOpts || getDefaultBackupDir());
   const state = readState(dir);
   const catalog = listRestoreCatalog(dir);
   const latest = path.join(dir, BACKUP_DB_NAMES[0]);
@@ -604,7 +641,7 @@ function restoreFromBackup(opts = {}) {
   const licenseBlock = enforceRestoreLicense(opts);
   if (licenseBlock) return licenseBlock;
 
-  const backupDir = path.resolve(opts.backupDir || getDefaultBackupDir());
+  const backupDir = resolveBackupDir(opts);
   const targetDbPath = path.resolve(String(opts.targetDbPath || ""));
   const targetKeysPath = opts.targetKeysPath
     ? path.resolve(opts.targetKeysPath)
@@ -678,6 +715,7 @@ function maybeRestoreOnStartup(opts = {}) {
 module.exports = {
   PROJECT_NAME,
   getDefaultBackupDir,
+  resolveBackupDir,
   runBackupCycle,
   runDailyBackupIfNeeded,
   runMonthlyBackupIfNeeded,

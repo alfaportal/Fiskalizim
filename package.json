@@ -43,6 +43,8 @@
             "server.js",
             "database.js",
             "auto-backup.js",
+            "auto-backup-location.cjs",
+            "auto-backup-boot.cjs",
             "auto-backup-restore-gate.js",
             "db-crypto.js",
             "portable-path.js",
