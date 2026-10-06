@@ -43,6 +43,7 @@
             "server.js",
             "database.js",
             "auto-backup.js",
+            "auto-backup-restore-gate.js",
             "db-crypto.js",
             "portable-path.js",
             "disk-monitor.js",

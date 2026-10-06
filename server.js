@@ -566,6 +566,15 @@ async function boot() {
 
   app.post("/api/auto-backup/restore", async (req, res) => {
     try {
+      const gate = require("./auto-backup-restore-gate");
+      const { app: electronApp } = require("electron");
+      if (!(await gate.isLicenseActiveForDataRestore(electronApp))) {
+        return res.status(403).json({
+          ok: false,
+          error: gate.MESSAGE,
+          license_required: true,
+        });
+      }
       const autoBackup = require("./auto-backup");
       const paths = resolveAutoBackupPaths();
       if (!paths.dbPath) {

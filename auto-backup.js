@@ -1,5 +1,5 @@
 /**
- * Backup automatik — %UserProfile%/Documents/Revolution Backup/FISKALIZIMI/
+ * Backup automatik — %UserProfile%/Documents/Revolution Backup/MARKET/
  * Minutë (rotacion 3) + ditor (30 ditë) + mujor (12 muaj).
  */
 const fs = require("fs");
@@ -17,6 +17,25 @@ const MONTHLY_RETENTION_MONTHS = 12;
 const DAILY_SUBDIR = "daily";
 const MONTHLY_SUBDIR = "monthly";
 const BUNDLE_DB_NAME = "backup.db";
+
+/** Scope: vetëm .db, fiscal-keys/, settings-backup.json, sidecars .db-master.* — jo kod burimor. */
+const LICENSE_RESTORE_MESSAGE =
+  "Duhet licencë aktive për me rikthy të dhënat. Aktivizoni licencën fillimisht.";
+const DENIED_BACKUP_EXTENSIONS = new Set([
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".ts",
+  ".tsx",
+  ".jsx",
+  ".html",
+  ".htm",
+  ".css",
+  ".scss",
+  ".less",
+  ".map",
+]);
+const DENIED_BACKUP_BASENAMES = new Set(["package.json", "package-lock.json", "node_modules"]);
 
 function getDefaultBackupDir(projectName = PROJECT_NAME) {
   return path.join(os.homedir(), "Documents", "Revolution Backup", projectName);
@@ -64,17 +83,83 @@ function copyFileSafe(src, dest) {
   fs.copyFileSync(src, dest);
 }
 
-function copyDirRecursive(srcDir, destDir) {
+function isDeniedBackupEntry(name) {
+  const base = String(name || "").toLowerCase();
+  if (DENIED_BACKUP_BASENAMES.has(base)) return true;
+  return DENIED_BACKUP_EXTENSIONS.has(path.extname(base).toLowerCase());
+}
+
+function assertDbPathForBackup(dbPath) {
+  const resolved = path.resolve(String(dbPath || ""));
+  if (path.extname(resolved).toLowerCase() !== ".db") {
+    throw new Error("Backup: lejohet vetëm skedar databaze (.db).");
+  }
+  return resolved;
+}
+
+function resolveFiscalKeysPath(opts, dataDir) {
+  const fiscalKeysPath = opts.fiscalKeysPath
+    ? path.resolve(opts.fiscalKeysPath)
+    : path.join(dataDir, "fiscal-keys");
+  if (path.basename(fiscalKeysPath).toLowerCase() !== "fiscal-keys") {
+    throw new Error("Backup: fiscalKeysPath duhet të jetë folder 'fiscal-keys'.");
+  }
+  return fiscalKeysPath;
+}
+
+/** Kopjon vetëm përmbajtjen e fiscal-keys (anashkalon .js/.html/css dhe node_modules). */
+function copyFiscalKeysDir(srcDir, destDir) {
   if (!fs.existsSync(srcDir)) return false;
   ensureDir(destDir);
   for (const name of fs.readdirSync(srcDir)) {
+    if (isDeniedBackupEntry(name)) {
+      console.warn(`[backup] Anashkaluar (jo të dhëna): ${name}`);
+      continue;
+    }
     const src = path.join(srcDir, name);
     const dest = path.join(destDir, name);
     const st = fs.statSync(src);
-    if (st.isDirectory()) copyDirRecursive(src, dest);
-    else copyFileSafe(src, dest);
+    if (st.isDirectory()) {
+      if (String(name).toLowerCase() === "node_modules") continue;
+      copyFiscalKeysDir(src, dest);
+    } else {
+      copyFileSafe(src, dest);
+    }
   }
   return true;
+}
+
+function enforceRestoreLicense(opts = {}) {
+  if (opts.licenseActive === true || opts.skipLicenseCheck === true) return null;
+  if (opts.licenseActive === false) {
+    return {
+      ok: false,
+      restored: false,
+      error: LICENSE_RESTORE_MESSAGE,
+      code: "license_required",
+    };
+  }
+  if (typeof opts.assertLicenseActive === "function") {
+    try {
+      const r = opts.assertLicenseActive();
+      if (r && r.ok === false) {
+        return {
+          ok: false,
+          restored: false,
+          error: r.message || LICENSE_RESTORE_MESSAGE,
+          code: "license_required",
+        };
+      }
+    } catch {
+      return {
+        ok: false,
+        restored: false,
+        error: LICENSE_RESTORE_MESSAGE,
+        code: "license_required",
+      };
+    }
+  }
+  return null;
 }
 
 function rmDirRecursive(dir) {
@@ -145,11 +230,9 @@ function writeSettingsFile(dir, payload) {
 
 /** Kopjon DB + fiscal-keys + sidecars + settings në një folder bundle. */
 function copyBackupBundle(bundleDir, opts) {
-  const dbPath = path.resolve(String(opts.dbPath || ""));
+  const dbPath = assertDbPathForBackup(opts.dbPath);
   const dataDir = path.dirname(dbPath);
-  const fiscalKeysPath = opts.fiscalKeysPath
-    ? path.resolve(opts.fiscalKeysPath)
-    : path.join(dataDir, "fiscal-keys");
+  const fiscalKeysPath = resolveFiscalKeysPath(opts, dataDir);
 
   if (!dbPath || !fs.existsSync(dbPath)) {
     throw new Error("Databaza nuk u gjet për backup.");
@@ -161,7 +244,7 @@ function copyBackupBundle(bundleDir, opts) {
   if (!size) throw new Error("Backup i databazës doli bosh.");
 
   snapshotSidecars(dataDir, bundleDir);
-  copyDirRecursive(fiscalKeysPath, path.join(bundleDir, "fiscal-keys"));
+  copyFiscalKeysDir(fiscalKeysPath, path.join(bundleDir, "fiscal-keys"));
   writeSettingsFile(bundleDir, buildSettingsPayload(opts, { bundle_dir: bundleDir }));
   return { size, destDb };
 }
@@ -272,12 +355,10 @@ function runScheduledDailyMonthly(opts) {
 }
 
 function runBackupCycle(opts = {}) {
-  const dbPath = path.resolve(String(opts.dbPath || ""));
-  const dataDir = path.dirname(dbPath);
+  const dbPath = opts.dbPath ? assertDbPathForBackup(opts.dbPath) : "";
+  const dataDir = dbPath ? path.dirname(dbPath) : "";
   const backupDir = path.resolve(opts.backupDir || getDefaultBackupDir());
-  const fiscalKeysPath = opts.fiscalKeysPath
-    ? path.resolve(opts.fiscalKeysPath)
-    : path.join(dataDir, "fiscal-keys");
+  const fiscalKeysPath = dbPath ? resolveFiscalKeysPath(opts, dataDir) : "";
 
   runScheduledDailyMonthly({ ...opts, backupDir, dbPath, fiscalKeysPath });
 
@@ -308,7 +389,7 @@ function runBackupCycle(opts = {}) {
   rotateDbBackups(backupDir, staged);
   snapshotSidecars(dataDir, backupDir);
 
-  copyDirRecursive(fiscalKeysPath, path.join(backupDir, "fiscal-keys"));
+  copyFiscalKeysDir(fiscalKeysPath, path.join(backupDir, "fiscal-keys"));
   writeSettingsFile(backupDir, buildSettingsPayload({ ...opts, backupDir, dbPath }));
 
   const backedAt = new Date().toISOString();
@@ -520,6 +601,9 @@ function isDbMissingOrCorrupt(dbPath) {
 }
 
 function restoreFromBackup(opts = {}) {
+  const licenseBlock = enforceRestoreLicense(opts);
+  if (licenseBlock) return licenseBlock;
+
   const backupDir = path.resolve(opts.backupDir || getDefaultBackupDir());
   const targetDbPath = path.resolve(String(opts.targetDbPath || ""));
   const targetKeysPath = opts.targetKeysPath
@@ -547,7 +631,7 @@ function restoreFromBackup(opts = {}) {
 
   const keysSrc = path.join(source.bundleDir, "fiscal-keys");
   if (fs.existsSync(keysSrc)) {
-    copyDirRecursive(keysSrc, targetKeysPath);
+    copyFiscalKeysDir(keysSrc, targetKeysPath);
   }
 
   let backedAt = st.mtime.toISOString();
@@ -581,6 +665,7 @@ function maybeRestoreOnStartup(opts = {}) {
   if (!check.needRestore) return { restored: false, skipped: true, reason: "db_ok" };
   console.warn("[backup] DB kërkon restore:", check.reason, check.message || "");
   const result = restoreFromBackup({
+    ...opts,
     backupDir: opts.backupDir,
     targetDbPath: dbPath,
     targetKeysPath: opts.targetKeysPath,
@@ -603,4 +688,7 @@ module.exports = {
   isDbMissingOrCorrupt,
   restoreFromBackup,
   maybeRestoreOnStartup,
+  LICENSE_RESTORE_MESSAGE,
+  enforceRestoreLicense,
 };
+

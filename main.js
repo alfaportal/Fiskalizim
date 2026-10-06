@@ -629,6 +629,12 @@ app.whenReady().then(async () => {
   process.env.BIZNES_DB_PATH = path.join(dbDir, "biznes.db");
   process.env.DB_PATH = process.env.BIZNES_DB_PATH;
 
+  registerAuditExportIpc();
+  registerLicenseIpc();
+
+  const licenseOk = await bootFiskalizimLicenseLayers();
+  if (!licenseOk) return;
+
   global.__fiskalizimiAutoRestoreMessage = "";
   try {
     const autoBackup = require(path.join(__dirname, "auto-backup"));
@@ -636,19 +642,27 @@ app.whenReady().then(async () => {
     const restore = autoBackup.maybeRestoreOnStartup({
       targetDbPath: process.env.BIZNES_DB_PATH,
       targetKeysPath: fiscalKeysPath,
+      licenseActive: app.isPackaged,
+      skipLicenseCheck: !app.isPackaged,
     });
     if (restore?.restored && restore.message) {
       global.__fiskalizimiAutoRestoreMessage = restore.message;
+    } else if (restore?.code === "license_required") {
+      try {
+        dialog.showMessageBoxSync({
+          type: "warning",
+          title: "Revolution Fiskalizim",
+          message: "Rikthim backup",
+          detail: restore.error || autoBackup.LICENSE_RESTORE_MESSAGE,
+          buttons: ["OK"],
+        });
+      } catch {
+        /* ignore */
+      }
     }
   } catch (e) {
     console.warn("[backup] startup restore:", e.message || e);
   }
-
-  registerAuditExportIpc();
-  registerLicenseIpc();
-
-  const licenseOk = await bootFiskalizimLicenseLayers();
-  if (!licenseOk) return;
 
   try {
     await launchMainUi();
