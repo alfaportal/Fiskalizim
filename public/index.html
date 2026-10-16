@@ -1207,6 +1207,49 @@
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; }
     th { color: var(--muted); font-weight: 600; }
+    #tab-products .mgmt-product-form.form-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      align-items: flex-end;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
+    }
+    #tab-products .mgmt-product-form.form-row > div {
+      flex: 1 1 0;
+      min-width: 92px;
+    }
+    #tab-products .mgmt-product-form.form-row > div.mgmt-form-barcode { min-width: 120px; flex: 1.2 1 0; }
+    #tab-products .mgmt-product-form.form-row > div.mgmt-form-name { min-width: 140px; flex: 1.4 1 0; }
+    #tab-products .mgmt-product-form.form-row > div.mgmt-form-actions {
+      flex: 0 0 auto;
+      min-width: 0;
+      display: flex;
+      gap: 6px;
+      align-items: flex-end;
+    }
+    #tab-products .mgmt-product-form.form-row label {
+      display: block;
+      color: #94a3b8;
+      font-size: 12px;
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+    #tab-products .mgmt-product-form.form-row input,
+    #tab-products .mgmt-product-form.form-row select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 0;
+      padding: 10px 8px;
+      font-size: 14px;
+    }
+    #tab-products .mgmt-product-form .mgmt-form-actions .btn { margin-bottom: 0; white-space: nowrap; }
+    #tab-products .mgmt-product-form #mgmt-auto-update-all {
+      margin-bottom: 0;
+      padding: 10px 12px;
+      min-width: 44px;
+    }
     input, select, textarea {
       width: 100%;
       background: #111827;
@@ -1602,7 +1645,10 @@
     <div class="payment-box">
       <h2 id="text-prompt-title">Fut vlerën</h2>
       <p class="sub" id="text-prompt-message"></p>
-      <input type="text" id="text-prompt-input" autocomplete="off" style="width:100%;margin:10px 0;padding:10px;font-size:16px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)" />
+      <div class="app-id-row" style="display:flex;gap:8px;align-items:stretch;margin:10px 0">
+        <input type="text" id="text-prompt-input" autocomplete="off" style="flex:1;margin:0;padding:10px;font-size:16px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text)" />
+        <button type="button" id="text-prompt-eye" class="app-id-eye hidden" aria-label="Shfaq fjalëkalimin" title="Shfaq / fsheh">👁</button>
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
         <button type="button" class="btn btn-primary" id="text-prompt-ok">Vazhdo</button>
         <button type="button" class="btn btn-ghost" id="text-prompt-cancel">Anulo</button>
@@ -1856,27 +1902,45 @@
     <!-- Produktet -->
     <section class="panel hidden" id="tab-products" style="grid-column: 1 / -1; padding: 15px">
       <h2>Menaxhimi i produkteve</h2>
-      <div style="display:flex;gap:15px;margin-bottom:15px;flex-wrap:wrap;align-items:flex-end">
-        <div>
-          <label style="color:#ccc;font-size:12px">Emri i produktit:</label>
-          <input type="text" id="mgmt-prod-name" placeholder="Shkruaj emrin..." style="padding:10px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px;width:200px" />
+      <form id="mgmt-product-form" class="mgmt-product-form form-row" autocomplete="off">
+        <div class="mgmt-form-barcode">
+          <label for="mgmt-prod-barcode">Barcode</label>
+          <input type="text" id="mgmt-prod-barcode" inputmode="numeric" autocomplete="off" placeholder="Skano ose shkruaj" />
+        </div>
+        <div class="mgmt-form-name">
+          <label for="mgmt-prod-name">Emri</label>
+          <input type="text" id="mgmt-prod-name" placeholder="Emri i artikullit" required />
         </div>
         <div>
-          <label style="color:#ccc;font-size:12px">Çmimi (€):</label>
-          <input type="number" id="mgmt-prod-price" step="0.01" placeholder="0.00" style="padding:10px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px;width:100px" />
-        </div>
-        <div>
-          <label style="color:#ccc;font-size:12px">Norma TVSH:</label>
-          <select id="mgmt-prod-vat" style="padding:10px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px">
-            <option value="E">E — 18%</option>
-            <option value="D">D — 8%</option>
-            <option value="C">C — 0% (lirime)</option>
-            <option value="A">A — 0% (eksport)</option>
+          <label for="mgmt-prod-pos-kat">Kategoria</label>
+          <select id="mgmt-prod-pos-kat">
+            <option value="Pije të ftohta">Pije të ftohta</option>
+            <option value="Pije të nxehta">Pije të nxehta</option>
+            <option value="Ushqime">Ushqime</option>
+            <option value="Embelsira">Ëmbëlsira</option>
+            <option value="Të tjera">Të tjera</option>
           </select>
         </div>
         <div>
-          <label style="color:#ccc;font-size:12px">Njësia matëse:</label>
-          <select id="mgmt-prod-unit" style="padding:10px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px">
+          <label for="mgmt-prod-qty">SASIA (copa)</label>
+          <input type="number" id="mgmt-prod-qty" min="1" step="1" value="1" />
+        </div>
+        <div>
+          <label for="mgmt-prod-price">Çmimi (€)</label>
+          <input type="number" id="mgmt-prod-price" step="0.01" min="0" value="0.00" placeholder="0.00" />
+        </div>
+        <div>
+          <label for="mgmt-prod-vat">TVSH</label>
+          <select id="mgmt-prod-vat">
+            <option value="E">18%</option>
+            <option value="D">8%</option>
+            <option value="C">0%</option>
+            <option value="A">0% (eksport)</option>
+          </select>
+        </div>
+        <div>
+          <label for="mgmt-prod-unit">Njësia matëse</label>
+          <select id="mgmt-prod-unit">
             <option value="EA">EA — Njësi</option>
             <option value="CP">CP — Copë</option>
             <option value="LTR">LTR — Litër</option>
@@ -1896,8 +1960,8 @@
           </select>
         </div>
         <div>
-          <label style="color:#ccc;font-size:12px">Kategoria ATK:</label>
-          <select id="mgmt-prod-category" style="padding:10px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px">
+          <label for="mgmt-prod-category">Kategoria ATK</label>
+          <select id="mgmt-prod-category">
             <option value="TT">TT — Të tjera</option>
             <option value="UR">UR — Ushqime restoranti</option>
             <option value="AU">AU — Artikuj ushqimorë</option>
@@ -1925,13 +1989,17 @@
             <option value="SHN">SHN — Shërbime ndërtimore</option>
           </select>
         </div>
-        <div>
-          <label style="color:#ccc;font-size:12px">&nbsp;</label>
-          <button type="button" id="mgmt-auto-update-all"
-            style="padding:10px;font-size:15px;background:transparent;color:#888;border:none;border-radius:0;cursor:pointer;line-height:1;min-width:0;width:auto;box-shadow:none;outline:none;-webkit-appearance:none;appearance:none">🔄</button>
+        <div class="mgmt-form-actions">
+          <div>
+            <label aria-hidden="true">&nbsp;</label>
+            <button type="submit" id="mgmt-add-product" class="btn btn-primary">Shto</button>
+          </div>
+          <div>
+            <label aria-hidden="true">&nbsp;</label>
+            <button type="button" id="mgmt-auto-update-all" class="btn btn-ghost" title="Auto-kategorizim ATK">🔄</button>
+          </div>
         </div>
-        <button type="button" id="mgmt-add-product" class="btn btn-primary" style="padding:10px 20px;font-size:14px">+ Shto produkt</button>
-      </div>
+      </form>
       <div style="margin-bottom:10px">
         <input type="text" id="mgmt-search" placeholder="Kërko produkt..." style="padding:10px;width:300px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
       </div>
@@ -2373,6 +2441,7 @@
     </section>
   </main>
 
+  <script src="/js/sensitive-tab-gate.js"></script>
   <script>
     const state = {
       byLetter: { A: [], C: [], D: [], E: [] },
@@ -2901,6 +2970,7 @@
         const overlay = document.getElementById("text-prompt-overlay");
         const msgEl = document.getElementById("text-prompt-message");
         const input = document.getElementById("text-prompt-input");
+        const eyeBtn = document.getElementById("text-prompt-eye");
         const okBtn = document.getElementById("text-prompt-ok");
         const cancelBtn = document.getElementById("text-prompt-cancel");
         if (!overlay || !msgEl || !input || !okBtn || !cancelBtn) {
@@ -2910,17 +2980,41 @@
         msgEl.textContent = String(message || "");
         input.value = "";
         input.placeholder = placeholder || "";
-        input.type = options.password ? "password" : "text";
-        input.autocomplete = options.password ? "off" : "off";
+        const isPassword = !!options.password;
+        input.type = isPassword ? "password" : "text";
+        input.autocomplete = isPassword ? "off" : "off";
+        let eyeRevealed = false;
+        if (eyeBtn) {
+          if (isPassword && options.hideEye !== true) {
+            eyeBtn.classList.remove("hidden");
+            eyeBtn.classList.remove("revealed");
+            eyeBtn.disabled = false;
+          } else {
+            eyeBtn.classList.add("hidden");
+          }
+        }
+        function toggleEye() {
+          if (!isPassword) return;
+          eyeRevealed = !eyeRevealed;
+          input.type = eyeRevealed ? "text" : "password";
+          eyeBtn?.classList.toggle("revealed", eyeRevealed);
+        }
         overlay.classList.remove("hidden");
         setTimeout(() => input.focus(), 50);
 
         function cleanup() {
           overlay.classList.add("hidden");
           input.type = "text";
+          eyeRevealed = false;
+          eyeBtn?.classList.add("hidden");
+          eyeBtn?.classList.remove("revealed");
+          eyeBtn?.removeEventListener("click", toggleEye);
           okBtn.removeEventListener("click", onOk);
           cancelBtn.removeEventListener("click", onCancel);
           input.removeEventListener("keydown", onKey);
+        }
+        if (eyeBtn && isPassword && options.hideEye !== true) {
+          eyeBtn.addEventListener("click", toggleEye);
         }
         function onOk() {
           const v = input.value.trim();
@@ -2944,6 +3038,17 @@
         cancelBtn.addEventListener("click", onCancel);
         input.addEventListener("keydown", onKey);
       });
+    }
+
+    async function promptTabGate(tab, message) {
+      const gate = window.SensitiveTabGate;
+      if (!gate) return false;
+      if (gate.isUnlocked(tab)) return true;
+      const pwd = await askText(message, "", { password: true });
+      if (!pwd) return false;
+      const ok = await gate.verify(tab, pwd);
+      if (ok) gate.unlock(tab);
+      return ok;
     }
 
     /** Zëvendëson window.confirm — pas confirm() native, input në Electron shpesh nuk merr fokus. */
@@ -4788,9 +4893,16 @@
       loadMgmtProducts().catch(console.error);
     });
 
-    document.getElementById("mgmt-add-product").addEventListener("click", async () => {
+    document.getElementById("mgmt-product-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
       if (state.diskBlocksRecords) {
         alert("Disku i mbushur — lironi hapësirë");
+        return;
+      }
+      const qtyEl = document.getElementById("mgmt-prod-qty");
+      const qty = Math.max(1, parseInt(String(qtyEl?.value || "1"), 10) || 1);
+      if (qtyEl && String(qtyEl.value || "").trim() && qty < 1) {
+        alert("SASIA (copa) duhet të jetë së paku 1.");
         return;
       }
       const name = document.getElementById("mgmt-prod-name").value.trim();
@@ -4799,7 +4911,7 @@
       const unit = document.getElementById("mgmt-prod-unit").value;
       const cat = document.getElementById("mgmt-prod-category").value;
       if (!name) {
-        alert("Shkruaj emrin e produktit");
+        alert("Shkruaj emrin e artikullit");
         return;
       }
       try {
@@ -4814,12 +4926,16 @@
           }),
         });
         document.getElementById("mgmt-prod-name").value = "";
-        document.getElementById("mgmt-prod-price").value = "";
+        document.getElementById("mgmt-prod-price").value = "0.00";
+        const bc = document.getElementById("mgmt-prod-barcode");
+        if (bc) bc.value = "";
+        if (qtyEl) qtyEl.value = "1";
         await loadMgmtProducts();
         await loadProducts();
-      } catch (e) {
-        alert(e.message || "Shtimi dështoi");
-        if (e.disk_full) applyDiskUi({ disk: e.disk, blocks_new_records: true });
+        bc?.focus();
+      } catch (err) {
+        alert(err.message || "Shtimi dështoi");
+        if (err.disk_full) applyDiskUi({ disk: err.disk, blocks_new_records: true });
       }
     });
 
@@ -6550,7 +6666,10 @@
       );
     }
 
+    let activeTabName = "pos";
+
     function showTab(name) {
+      activeTabName = name;
       document.querySelectorAll(".tabs button").forEach((b) => {
         b.classList.toggle("active", b.dataset.tab === name);
       });
@@ -6593,8 +6712,35 @@
       }
     }
 
+    async function requestTab(name) {
+      if (name === "audit") {
+        const ok = await promptTabGate(
+          "audit",
+          "Fjalëkalimi i hyrjes në Audit (vetëm i autorizuar):",
+        );
+        if (!ok) {
+          setMsg(document.getElementById("audit-msg"), "❌ Fjalëkalimi i gabuar ose u anulua.", false);
+          return;
+        }
+      }
+      if (name === "settings") {
+        const ok = await promptTabGate(
+          "settings",
+          "Fjalëkalimi i hyrjes në Cilësimet SEF (vetëm i autorizuar):",
+        );
+        if (!ok) {
+          const el = document.getElementById("settings-msg");
+          if (el) setMsg(el, "❌ Fjalëkalimi i gabuar ose u anulua.", false);
+          return;
+        }
+      }
+      showTab(name);
+    }
+
     document.querySelectorAll(".tabs button").forEach((b) => {
-      b.addEventListener("click", () => showTab(b.dataset.tab));
+      b.addEventListener("click", () => {
+        requestTab(b.dataset.tab).catch(console.error);
+      });
     });
     document.querySelectorAll(".letter-bar button").forEach((b) => {
       b.addEventListener("click", () => {
@@ -6720,19 +6866,15 @@
     );
     async function exportAudit(format) {
       const msg = document.getElementById("audit-msg");
-      const code = await askText(
-        "Fut kodin e instaluesit për eksportin e audit log (vetëm ATK / instaluesi):",
-        "",
-        { password: true }
-      );
-      if (!code) {
-        setMsg(msg, "Eksporti u anulua.", null);
-        msg.classList.remove("ok", "err");
-        return;
-      }
-      if (code.trim() !== "REV2026ATK") {
-        setMsg(msg, "❌ Kodi i instaluesit nuk është i saktë.", false);
-        return;
+      if (!window.SensitiveTabGate?.isUnlocked("audit")) {
+        const ok = await promptTabGate(
+          "audit",
+          "Fjalëkalimi i hyrjes në Audit (për eksport):",
+        );
+        if (!ok) {
+          setMsg(msg, "❌ Fjalëkalimi i gabuar ose u anulua.", false);
+          return;
+        }
       }
       msg.textContent = "Zgjidhni vendin e ruajtjes…";
       msg.classList.remove("ok", "err");
