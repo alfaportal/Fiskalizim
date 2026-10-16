@@ -17,6 +17,7 @@ const INSTALL_SALT_BASENAME = ".install-salt";
 const TRIAL_USED_BASENAME = ".hw-trial-used";
 const GRACE_BASENAME = ".hw-grace.json";
 const AUDIT_BASENAME = ".hw-audit.log";
+const PENDING_EMAIL_BASENAME = ".activation-contact.json";
 const CONTACT_PHONE = "+383 48707880";
 const CONTACT_WHATSAPP = "38348707880";
 
@@ -25,9 +26,9 @@ function buildWhatsAppActivationUrl(hardwareId, email) {
   const em = String(email || "").trim();
   const lines = [
     "Pershendetje Revolution Invest,",
-    `ID pajisje per aktivizim: ${hw}`,
+    `ID pajisje per aktivizim Fiskalizim: ${hw}`,
     em ? `Email: ${em}` : null,
-    "Ju lutem me dergoni kodin e licences. Mund te dergoj edhe foto te ketij ekrani.",
+    "Ju lutem me aktivizoni licencen per kete ID (foto e ekranit). Nuk me duhet te shkruaj çelësin ne PC.",
   ].filter(Boolean);
   return `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(lines.join("\n"))}`;
 }
@@ -87,6 +88,44 @@ function trialUsedPath(app) {
 
 function gracePath(app) {
   return path.join(licenseStorageRoot(app), GRACE_BASENAME);
+}
+
+function pendingContactPath(app) {
+  return path.join(licenseStorageRoot(app), PENDING_EMAIL_BASENAME);
+}
+
+function writePendingActivationContact(app, email) {
+  const em = String(email || "")
+    .trim()
+    .toLowerCase();
+  if (!em) return;
+  try {
+    fs.writeFileSync(
+      pendingContactPath(app),
+      JSON.stringify({ email: em, hardware_id: formatHardwareId(getHardwareId(app)), updated_at: new Date().toISOString() }),
+      "utf8",
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+async function tryFinishCloudHardwareClaim(app, finish) {
+  const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
+  const claimed = await cloud.claimByHardwareId(app);
+  if (!claimed || !claimed.valid || !(claimed.celesi || claimed.license_key)) {
+    return { ok: false };
+  }
+  const ck = claimed.celesi || claimed.license_key;
+  writeStoredLicenseKey(app, ck, { source: "cloud" });
+  if (isPackagedApp(app) && !cloud.hasServerConfirmedActivation(app)) {
+    return {
+      ok: false,
+      message: "Licenca u gjet por nuk u ruajt siç duhet. Provoni përsëri ose rinisni programin.",
+    };
+  }
+  if (typeof finish === "function") finish(true);
+  return { ok: true };
 }
 
 /** YYYYMMDD (UTC) */
@@ -673,7 +712,7 @@ function promptHardwareActivation(app, opts = {}) {
       subText = "Jeni jashtë internetit më shumë se 7 ditë. Lidhu online dhe riaktivizo.";
     } else if (reason === "revoked" || reason === "no_license") {
       subText =
-        "Licenca u hoq ose nuk është aktive. Dërgoni ID-në (16 shifra) te admini dhe futni çelësin që ju jepet.";
+        "Dërgoni ID-në (16 shifra) te admini — ai e aktivizon nga paneli. Ju nuk shkruani çelësin këtu; ekrani mbyllet vetë kur licenca lidhet.";
     }
     let settled = false;
 
@@ -752,18 +791,15 @@ function promptHardwareActivation(app, opts = {}) {
       <div class="row"><button type="button" class="btn-wa" id="wa">Dërgo në WhatsApp</button></div>
       <p class="label">Email (i detyrueshëm)</p>
       <input id="email" type="email" placeholder="p.sh. emri@email.com" autocomplete="email" spellcheck="false">
-      <p class="label">Çelësi i licencës</p>
-      <input id="k" class="key" type="text" placeholder="Shkruaj ose ngjit çelësin" autocomplete="off" spellcheck="false" inputmode="text" autocapitalize="characters">
       <div class="err" id="e"></div>
-      <button type="button" class="primary" id="b">Aktivizo</button>
+      <button type="button" class="primary" id="b">Ruaj email dhe prit aktivizimin</button>
       <button type="button" class="ghost" id="c">Mbyll</button>
-      <p class="phone">WhatsApp / tel: <b>${CONTACT_PHONE}</b><br>Dërgoni foto të ID-së (këto numra) për aktivizim.<br>Duke pritur regjistrimin nga admini…</p>
+      <p class="phone">WhatsApp / tel: <b>${CONTACT_PHONE}</b><br>Dërgoni foto të ID-së — admini regjistron licencën; ju <b>mos</b> shkruani çelësin këtu.<br>Duke kontrolluar cloud çdo 3 sek…</p>
     </div></div>
     <script>
       const { ipcRenderer } = require('electron');
       const btn = document.getElementById('b');
       const err = document.getElementById('e');
-      const input = document.getElementById('k');
       const emailEl = document.getElementById('email');
       function isEmail(v) { return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(v||'').trim()); }
       function quitApp() {
@@ -779,24 +815,22 @@ function promptHardwareActivation(app, opts = {}) {
       };
       async function submit() {
         const email = String(emailEl.value || '').trim();
-        const v = String(input.value || '').trim();
         if (!isEmail(email)) { err.textContent = 'Shkruani email të vlefshëm për regjistrim.'; emailEl.focus(); return; }
-        if (!v) { err.textContent = 'Shkruani çelësin e licencës.'; return; }
         btn.disabled = true;
-        btn.textContent = 'Duke verifikuar...';
+        btn.textContent = 'Duke kontrolluar cloud…';
         err.textContent = '';
         try {
-          const r = await ipcRenderer.invoke('hw-lic-try', { key: v, email });
+          const r = await ipcRenderer.invoke('hw-lic-try', { email });
           if (r && r.ok) return;
-          err.textContent = (r && r.message) || 'Çelësi nuk është i vlefshëm.';
+          err.textContent = (r && r.message) || 'Duke pritur aktivizimin nga admini…';
         } catch (e) {
           err.textContent = e.message || String(e);
         }
         btn.disabled = false;
-        btn.textContent = 'Aktivizo';
+        btn.textContent = 'Ruaj email dhe prit aktivizimin';
       }
       btn.onclick = submit;
-      input.addEventListener('keydown', (e) => {
+      emailEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !btn.disabled) submit();
         if (e.key === 'Escape') quitApp();
       });
@@ -824,16 +858,8 @@ function promptHardwareActivation(app, opts = {}) {
 
     ipcMain.handle("hw-lic-poll-cloud", async () => {
       try {
-        const cloud = require(path.join(PROTECTION_DIR, "cloud-license"));
-        const claimed = await cloud.claimByHardwareId(app);
-        if (claimed && claimed.valid && (claimed.celesi || claimed.license_key)) {
-          const ck = claimed.celesi || claimed.license_key;
-          writeStoredLicenseKey(app, ck, { source: "cloud" });
-          cloud.writeStoredLicense(app, ck);
-          finish(true);
-          return { ok: true };
-        }
-        return { ok: false };
+        const r = await tryFinishCloudHardwareClaim(app, finish);
+        return { ok: !!r.ok };
       } catch {
         return { ok: false };
       }
@@ -847,14 +873,25 @@ function promptHardwareActivation(app, opts = {}) {
             : String(payload?.key || "").trim();
         const email =
           typeof payload === "object" ? String(payload?.email || "").trim().toLowerCase() : "";
-        if (!raw) return { ok: false, message: "Shkruani çelësin e licencës." };
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           return { ok: false, message: "Shkruani email të vlefshëm për regjistrim." };
         }
+        writePendingActivationContact(app, email);
 
         const hwFormattedNow = formatHardwareId(getHardwareId(app));
 
-        // 1) Çelës hardware (trial / annual / legacy)
+        if (!raw) {
+          const claimedNow = await tryFinishCloudHardwareClaim(app, finish);
+          if (claimedNow.ok) return { ok: true };
+          return {
+            ok: false,
+            message:
+              claimedNow.message ||
+              "Duke pritur aktivizimin nga admini. Ekrani mbyllet vetë kur licenca lidhet me këtë ID.",
+          };
+        }
+
+        // 1) Çelës hardware (trial / annual / legacy) — vetëm nëse jepet manual (dev)
         const match = matchLicenseKey(raw, app);
         if (match.ok) {
           if (match.licenseType === "trial" && hasTrialBeenUsed(app)) {
