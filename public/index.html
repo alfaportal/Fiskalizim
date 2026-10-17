@@ -27,6 +27,11 @@
       --dock-h: 48px;
       --pos-cart-min: 200px;
       --pos-pay-min: 158px;
+      /* Arka — gjerësi: 14 | 45 | 15 | 15 (fr); lartësi: të gjitha kolonat 100% */
+      --pos-col-cat: 14fr;
+      --pos-col-shop: 45fr;
+      --pos-col-cart: 15fr;
+      --pos-col-pay: 15fr;
     }
     * { box-sizing: border-box; }
     html { height: 100%; }
@@ -193,15 +198,16 @@
       box-shadow: 0 6px 18px #0ea5e955;
     }
     /* FISKALIZIME — Arka: vetëm produkte E, pa norma / pa etiketa TVSH */
-    #tab-pos-left .letter-bar { display: none !important; }
+    #tab-pos-categories .letter-bar,
+    #tab-pos-shop .letter-bar { display: none !important; }
     #tab-pos-cart .vat-row-pos-hidden { display: none !important; }
-    #tab-pos-left .tag,
+    #tab-pos-shop .tag,
     #tab-pos-cart .tag,
     .cart-row .tag,
-    #tab-pos-left .card .meta .tag { display: none !important; }
+    #tab-pos-shop .card .meta .tag { display: none !important; }
     #edit-product-modal.fiskalizim-price-only .edit-prod-field-hide { display: none !important; }
     #tab-pos-pay.checkout-panel {
-      max-width: 248px;
+      max-width: none;
     }
     #tab-pos-pay .pay-method-card {
       padding: 7px 6px;
@@ -296,11 +302,14 @@
     }
     main.pos-layout {
       grid-template-columns:
-        minmax(280px, 2.5fr)
-        minmax(var(--pos-cart-min), 1fr)
-        minmax(var(--pos-pay-min), 0.72fr);
+        var(--pos-col-cat)
+        var(--pos-col-shop)
+        var(--pos-col-cart)
+        var(--pos-col-pay);
+      align-items: stretch;
     }
-    #tab-pos-left,
+    #tab-pos-categories,
+    #tab-pos-shop,
     #tab-pos-cart,
     #tab-pos-pay {
       overflow: auto;
@@ -308,32 +317,18 @@
       min-width: 0;
     }
     @media (max-width: 1280px) {
-      main.pos-layout {
-        grid-template-columns:
-          minmax(240px, 1.65fr)
-          minmax(200px, 1fr)
-          minmax(200px, 1fr);
+      :root {
+        --pos-col-cat: 13fr;
+        --pos-col-shop: 46fr;
+        --pos-col-cart: 15fr;
+        --pos-col-pay: 15fr;
       }
     }
     @media (max-width: 1024px) {
       :root { --pos-cart-min: 180px; --pos-pay-min: 180px; }
-      main.pos-layout {
-        grid-template-columns:
-          minmax(220px, 1.5fr)
-          minmax(180px, 1fr)
-          minmax(180px, 1fr);
-      }
-      #tab-pos-left .grid {
-        grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-      }
-    }
-    @media (max-width: 820px) {
-      :root { --pos-cart-min: 120px; --pos-pay-min: 120px; }
-      main.pos-layout {
-        grid-template-columns:
-          minmax(180px, 1.25fr)
-          minmax(120px, 1fr)
-          minmax(120px, 1fr);
+      :root {
+        --pos-col-cat: 12fr;
+        --pos-col-shop: 47fr;
       }
     }
     @media (max-width: 860px) {
@@ -342,11 +337,13 @@
         grid-template-rows: minmax(200px, 1.2fr) minmax(240px, 1fr);
         overflow-y: auto;
       }
-      #tab-pos-left {
+      #tab-pos-categories,
+      #tab-pos-shop {
         grid-column: 1 / -1;
         grid-row: 1;
-        max-height: 42vh;
       }
+      #tab-pos-categories { max-height: 28vh; }
+      #tab-pos-shop { max-height: 52vh; }
       #tab-pos-cart { grid-column: 1; grid-row: 2; }
       #tab-pos-pay { grid-column: 2; grid-row: 2; }
     }
@@ -355,7 +352,7 @@
         grid-template-columns: 1fr;
         grid-template-rows: auto;
       }
-      #tab-pos-left { max-height: 38vh; }
+      #tab-pos-shop { max-height: 38vh; }
       #tab-pos-cart, #tab-pos-pay { grid-column: 1; max-height: none; }
     }
     @media (pointer: coarse) {
@@ -371,7 +368,8 @@
     }
     .panel { padding: 8px 10px; min-height: 0; }
     .panel + .panel { border-left: 1px solid var(--line); background: #0f172a66; }
-    #tab-pos-left,
+    #tab-pos-categories,
+    #tab-pos-shop,
     #tab-pos-cart.checkout-panel,
     #tab-pos-pay.checkout-panel {
       overflow: hidden;
@@ -384,24 +382,252 @@
     #tab-pos-pay.checkout-panel {
       padding: .45rem .5rem .4rem;
     }
-    section.panel:not(#tab-pos-left):not(#tab-pos-cart):not(#tab-pos-pay) {
+    section.panel:not(#tab-pos-categories):not(#tab-pos-shop):not(#tab-pos-cart):not(#tab-pos-pay) {
       overflow: auto;
       grid-column: 1 / -1;
     }
-    #tab-pos-left {
+    #tab-pos-categories {
+      padding: 8px 6px 8px 10px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #tab-pos-categories .pos-cat-home {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #tab-pos-categories .pos-arka-cat-list {
+      flex: 1 1 auto;
+      max-height: none;
+    }
+    #tab-pos-categories.pos-cat-prod-open .pos-cat-home {
+      display: none !important;
+    }
+    #tab-pos-categories .pos-cat-prod-wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pos-cat-prod-wrap.hidden {
+      display: none !important;
+    }
+    .pos-cat-prod-toolbar {
+      flex-shrink: 0;
+      margin-bottom: 6px;
+    }
+    .pos-cat-back-btn {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #1e293b;
+      color: #7dd3fc;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-align: left;
+    }
+    .pos-cat-back-btn:hover {
+      background: #243044;
+      border-color: #38bdf8;
+    }
+    main.pos-layout.pos-arka-prod-page {
+      --pos-col-cat: 45fr;
+      --pos-col-shop: 45fr;
+    }
+    #tab-pos-shop {
       padding: 8px 10px;
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
+      min-width: 0;
     }
-    #tab-pos-left .grid {
+    .pos-arka-cat-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      overflow-y: auto;
       flex: 1 1 auto;
       min-height: 0;
+      align-content: start;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pos-arka-cat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      align-self: start;
+      justify-self: stretch;
+      padding: 8px 6px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #1e293b;
+      color: #e2e8f0;
+      font-weight: 650;
+      font-size: 0.7rem;
+      line-height: 1.15;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 2px 0 #ffffff06 inset;
+    }
+    .pos-arka-cat-btn > span:first-child {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .pos-arka-cat-btn:hover {
+      border-color: #475569;
+      background: #243044;
+    }
+    .pos-arka-cat-btn.on {
+      background: linear-gradient(180deg, #f97316, #ea580c);
+      border-color: #fb923c;
+      color: #fff;
+    }
+    .pos-arka-cat-btn .pos-arka-cat-count { display: none; }
+    .pos-arka-prod-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .pos-arka-prod-head {
+      flex-shrink: 0;
+      font-size: 0.92rem;
+      font-weight: 750;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    #pos-prod-search {
+      flex-shrink: 0;
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 8px 10px;
+      font-size: 0.88rem;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #111827;
+      color: var(--text);
+    }
+    #pos-prod-search:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+    .pos-arka-prod-panel {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Produktet — faqe e veçantë në kolonën e kategorive (pas klikimit) */
+    #tab-pos-categories .pos-arka-grid.pos-arka-mode-prod {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-auto-rows: minmax(52px, auto);
+      grid-auto-flow: row;
+      gap: 6px;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-x: hidden;
       overflow-y: auto;
       align-content: start;
-      grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-      gap: 6px;
+    }
+    @media (max-width: 1280px) {
+      #tab-pos-categories .pos-arka-grid.pos-arka-mode-prod {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 900px) {
+      #tab-pos-categories .pos-arka-grid.pos-arka-mode-prod {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    .pos-arka-cat-label {
+      flex-shrink: 0;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .pos-arka-basket {
+      flex: 1 1 auto;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .pos-basket-head {
+      flex-shrink: 0;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 2px;
+      margin-bottom: 0.35rem;
+    }
+    .pos-basket-head .basket-label {
+      display: block;
+      font-size: 1.05rem;
+      letter-spacing: 0.06em;
+      color: var(--text);
+    }
+    .pos-basket-head .cart-head-meta {
+      display: block;
+      margin-top: 0.15rem;
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .pos-basket-head .cart-head-meta strong {
+      color: var(--accent);
+      font-size: 0.95rem;
+    }
+    #pos-scan {
+      flex-shrink: 0;
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto 0.5rem;
+      display: block;
+      padding: 0.75rem 0.85rem;
+      font-size: 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #111827;
+      color: var(--text);
+      text-align: center;
+    }
+    #pos-scan:focus {
+      outline: none;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+    #tab-pos-shop .pos-basket-list.sale-list {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #tab-pos-shop .pos-basket-list .cart-list {
+      flex: 1 1 0;
+      min-height: 0;
+      overflow-y: auto;
     }
     .checkout-head {
       flex-shrink: 0;
@@ -1610,7 +1836,6 @@
           <p style="margin:0">Kyçu si operator</p>
         </div>
       </div>
-      <p>Regjistrohet në audit log (emri, ora, IP) para përdorimit të SEF.</p>
       <div id="login-pin-wrap" class="hidden">
         <label for="login-pin">Kodi i hyrjes</label>
         <input id="login-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="4–6 shifra" />
@@ -1686,7 +1911,6 @@
   <div id="payment-overlay" class="payment-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
     <div class="payment-box">
       <h2 id="payment-modal-title">Mënyra e pagesës</h2>
-      <p class="sub">Zgjidhni mënyrën e pagesës para mbylljes. Mund të zgjidhni një ose më shumë.</p>
       <div class="pay-modal-total">Totali: <strong id="pay-modal-total-amt">0.00 €</strong></div>
       <div id="pay-modal-chips" class="pay-selected-chips"></div>
       <div class="pay-modal-scroll">
@@ -1725,21 +1949,49 @@
   <div class="disk-banner" id="disk-banner" role="alert" aria-live="polite"></div>
 
   <div class="topbar-status hidden" id="topbar-status" aria-hidden="true">
-    <span class="pill" id="pill-atk"><span class="dot"></span> ATK: —</span>
+    <span class="pill hidden" id="pill-atk" aria-hidden="true"><span class="dot"></span> Lidhja: —</span>
     <span class="pill" id="pill-keys"><span class="dot"></span> Çelësat: —</span>
     <span class="pill" id="pill-fiscal"><span class="dot"></span> Fiskalizimi: —</span>
   </div>
 
   <main>
     <!-- POS -->
-    <section class="panel" id="tab-pos-left">
+    <section class="panel pos-col-categories" id="tab-pos-categories">
       <div class="letter-bar">
         <button type="button" class="A on" data-letter="A">A · 0%</button>
         <button type="button" class="C" data-letter="C">C · 0%</button>
         <button type="button" class="D" data-letter="D">D · 8%</button>
         <button type="button" class="E" data-letter="E">E · 18%</button>
       </div>
-      <div class="grid" id="product-grid"></div>
+      <div class="pos-cat-home" id="pos-cat-home">
+        <div class="pos-arka-cat-label" id="pos-arka-cat-label">Kategoritë</div>
+        <div class="pos-arka-cat-list" id="pos-arka-cat-list"></div>
+      </div>
+      <div class="pos-cat-prod-wrap hidden" id="pos-cat-prod-wrap">
+        <div class="pos-cat-prod-toolbar">
+          <button type="button" class="pos-cat-back-btn" id="pos-cat-back" aria-label="Kthehu te kategoritë">← Kategoritë</button>
+        </div>
+        <div class="pos-arka-prod-head" id="pos-arka-prod-title">Zgjidh kategori</div>
+        <input type="search" id="pos-prod-search" autocomplete="off" placeholder="Kërko produkt..." aria-label="Kërko produkt" />
+        <div class="pos-arka-prod-panel" id="pos-arka-prod-panel">
+          <div class="grid pos-arka-grid pos-arka-mode-prod" id="product-grid"></div>
+        </div>
+      </div>
+    </section>
+    <section class="panel pos-col-shop" id="tab-pos-shop">
+      <div class="pos-arka-basket" id="pos-arka-basket">
+        <header class="checkout-head pos-basket-head">
+          <span class="basket-label">SHPORTA</span>
+          <span class="cart-head-meta"><strong id="cart-head-count">0</strong> prod. · <span id="cart-head-qty">0</span> copë</span>
+        </header>
+        <input id="pos-scan" type="text" inputmode="numeric" autocomplete="off"
+          placeholder="Skano ose kërko emrin" aria-label="Skano barkodin ose kërko emrin" />
+        <div class="sale-list pos-basket-list">
+          <div class="cart-list" id="cart">
+            <div class="cart-empty-inline">Lista është bosh — shtoni produkte.</div>
+          </div>
+        </div>
+      </div>
     </section>
     <div id="edit-product-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;justify-content:center;align-items:center">
       <div style="background:#1a2332;padding:20px;border-radius:10px;border:2px solid #ffc107;max-width:400px;width:90%">
@@ -1823,14 +2075,7 @@
       </div>
     </div>
     <section class="panel checkout-panel col-cart" id="tab-pos-cart">
-      <div class="checkout-head">
-        <span class="basket-label">Shporta</span>
-        <span class="cart-head-meta"><strong id="cart-head-count">0</strong> prod. · <span id="cart-head-qty">0</span> copë</span>
-      </div>
       <div class="checkout-mid">
-        <div class="sale-list">
-          <div class="cart-list" id="cart"></div>
-        </div>
         <div class="cart-discount-bar">
           <label for="cart-disc-type">Zbritje në shportë</label>
           <div class="disc-grid">
@@ -2039,9 +2284,6 @@
           <button type="button" class="btn btn-primary" id="btn-return-confirm" style="width:auto" disabled>Konfirmo kthimin</button>
         </div>
       </div>
-      <p id="ex-return-hint" style="margin:0 0 10px;font-size:0.82rem;color:var(--muted);line-height:1.45">
-        Vendos NUIKF lart → «Kthim malli» shfaq tabelën e kuponit. Te kolona «Kthe» shkruaj sasinë (ose shëno checkbox) — vetëm rreshtat me sasi &gt; 0 dërgohen te ATK.
-      </p>
       <div class="receipts-toolbar receipts-reason-row">
         <label for="storno-reason-btn">Arsyeja</label>
         <div class="receipts-reason-picker" id="storno-reason-picker">
@@ -2069,14 +2311,11 @@
           <button type="button" class="btn btn-primary" id="btn-exchange-confirm" style="width:auto" disabled>Konfirmo ndërrimin</button>
         </div>
       </div>
-      <p id="ex-exchange-hint" style="margin:0 0 12px;font-size:0.82rem;color:var(--muted);line-height:1.45">
-        Vendos NUIKF lart → «Ndërrim artikulli» shfaq tabelën e kuponit. Zgjidh artikujt, sasinë dhe produktin e ri për secilin rresht — diferenca llogaritet menjëherë.
-      </p>
       <table>
         <thead>
           <tr>
             <th>ID</th><th>NUIKF</th><th>Tipi</th><th>Ditor</th><th>Total</th>
-            <th>Data</th><th>Pagesa</th><th>ATK</th><th></th>
+            <th>Data</th><th>Pagesa</th><th>Status</th><th></th>
           </tr>
         </thead>
         <tbody id="receipts-body"></tbody>
@@ -2087,10 +2326,6 @@
     <!-- X (Modi X) -->
     <section class="panel hidden" id="tab-x" style="grid-column: 1 / -1">
       <h2>Raporti X (Modi X)</h2>
-      <p style="color:var(--muted)">
-        Gjendja aktuale e ditës (kuponë, total, TVSH) — mund të printohet shumë herë.
-        Nuk reseton numrin ditor dhe nuk është mbyllje zyrtare.
-      </p>
       <button type="button" class="btn btn-primary" id="btn-x" style="max-width:320px">Printo / shiko Raportin X</button>
       <div class="msg" id="x-msg"></div>
     </section>
@@ -2098,7 +2333,6 @@
     <!-- Z -->
     <section class="panel hidden" id="tab-z" style="grid-column: 1 / -1">
       <h2>Raporti Fiskal Ditor (Z-report)</h2>
-      <p style="color:var(--muted)">Mbyll ditën fiskale: logon Z, reset numrin ditor (1× në ditë), printon përmbledhjen.</p>
       <button type="button" class="btn btn-warn" id="btn-z" style="max-width:320px">Printo Raportin Z</button>
       <div class="msg" id="z-msg"></div>
     </section>
@@ -2106,10 +2340,6 @@
     <!-- Periodik -->
     <section class="panel hidden" id="tab-periodic" style="grid-column: 1 / -1">
       <h2>Raportet periodike</h2>
-      <p style="color:var(--muted)">
-        Zgjidh periudhën (Nga–Deri). Tre opsione të veçanta: Periodik (detajuar),
-        i shkurtër (përmbledhur), mujor i memories ATK.
-      </p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <div><label>Nga</label><input type="date" id="per-from" /></div>
         <div><label>Deri</label><input type="date" id="per-to" /></div>
@@ -2117,30 +2347,46 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         <button type="button" class="btn btn-primary" id="btn-periodic" style="width:auto">Raporti Periodik</button>
         <button type="button" class="btn btn-warn" id="btn-short-periodic" style="width:auto">Raport i shkurtër periodik</button>
-        <button type="button" class="btn btn-ghost" id="btn-monthly-memory" style="width:auto">Raporti mujor (memoria ATK)</button>
+        <button type="button" class="btn btn-ghost" id="btn-monthly-memory" style="width:auto">Raporti mujor</button>
       </div>
       <div class="msg" id="periodic-msg"></div>
     </section>
 
     <!-- Audit -->
     <section class="panel hidden" id="tab-audit" style="grid-column: 1 / -1">
-      <h2>Eksporti i log-eve</h2>
+      <h2>Audit — kuponët fiskalë (ATK)</h2>
+      <p style="margin:0 0 0.65rem;font-size:0.88rem;color:var(--muted)">Vetëm kuponët fiskalë (print / storno) — për inspektimin ATK.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <div><label>Nga</label><input type="date" id="audit-from" /></div>
         <div><label>Deri</label><input type="date" id="audit-to" /></div>
         <button type="button" class="btn btn-primary" id="btn-audit-csv" style="width:auto">Eksporto CSV</button>
         <button type="button" class="btn btn-ghost" id="btn-audit-pdf" style="width:auto">Eksporto PDF</button>
+        <button type="button" class="btn btn-ghost" id="btn-admin-audit-log-refresh" style="width:auto">Rifresko listën</button>
+      </div>
+      <p class="msg" id="admin-audit-log-status" style="min-height:1.2em;margin:0 0 0.5rem"></p>
+      <div style="overflow-x:auto;max-height:420px;border:1px solid var(--line);border-radius:8px;margin-bottom:10px">
+        <table style="width:100%;font-size:0.85rem;border-collapse:collapse" id="admin-audit-log-table">
+          <thead>
+            <tr style="color:var(--muted);text-align:left">
+              <th style="padding:0.35rem 0.5rem">Data/Ora</th>
+              <th style="padding:0.35rem 0.5rem">Nr. Kuponit</th>
+              <th style="padding:0.35rem 0.5rem">Shuma</th>
+              <th style="padding:0.35rem 0.5rem">Pagesa</th>
+              <th style="padding:0.35rem 0.5rem">Kodi Fiskal</th>
+              <th style="padding:0.35rem 0.5rem">Veprimi</th>
+            </tr>
+          </thead>
+          <tbody id="admin-audit-log-body">
+            <tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Hapni tab-in Audit për të ngarkuar…</td></tr>
+          </tbody>
+        </table>
       </div>
       <div class="msg" id="audit-msg"></div>
     </section>
 
     <!-- Test ATK (field 8 discount) -->
     <section class="panel hidden" id="tab-atk-test" style="grid-column: 1 / -1">
-      <h2>Test ATK — field 8 (discount)</h2>
-      <p style="color:var(--muted);max-width:720px;line-height:1.45">
-        Preview lokal (pa dërgim) ose dërgim i vetëm te <strong>ATK TEST</strong> me konfirmim.
-        Burimi: shporta aktuale, kupon ekzistues (NUIKF / lista), ose shembull statik.
-      </p>
+      <h2>Test zbritje</h2>
       <div style="display:flex;flex-direction:column;gap:6px;margin:0 0 10px;font-size:0.88rem">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted)">
           <input type="radio" name="e2e-source" value="cart" checked style="width:auto;margin:0" />
@@ -2174,7 +2420,7 @@
       <p id="e2e-cart-hint" style="color:var(--muted);font-size:0.82rem;margin:0 0 10px;line-height:1.4"></p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn btn-ghost" id="btn-discount-e2e-preview" style="width:auto">Preview field 8 (lokal)</button>
-        <button type="button" class="btn btn-warn" id="btn-discount-e2e-send" style="width:auto">Dërgo te ATK TEST (E2E)</button>
+        <button type="button" class="btn btn-warn" id="btn-discount-e2e-send" style="width:auto">Dërgo test (E2E)</button>
       </div>
       <pre id="discount-e2e-box" class="msg hidden" style="margin-top:10px;white-space:pre-wrap;font-size:0.82rem;line-height:1.45;max-height:320px;overflow:auto"></pre>
       <div class="msg" id="atk-test-msg"></div>
@@ -2183,11 +2429,6 @@
     <!-- Bllokimi i letrës -->
     <section class="panel hidden" id="tab-paper-block" style="grid-column: 1 / -1">
       <h2>Bllokimi i letrës</h2>
-      <p style="color:var(--muted);max-width:720px;line-height:1.45">
-        Kur SEF ndalon plotësisht, aktivizohet automatikisht (ose manualisht).
-        Lëshoni kupon nga blloku fizik me numër serik, regjistroni këtu,
-        pastaj fiskalizoni në SEF kur pajisja rikthehet.
-      </p>
       <div id="paper-block-box" class="msg hidden" style="white-space:pre-wrap;line-height:1.45"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button type="button" class="btn btn-warn" id="btn-paper-enable" style="width:auto">Aktivizo bllokimin e letrës</button>
@@ -2199,10 +2440,6 @@
         style="margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);max-width:920px"
       >
         <h3 style="margin:0 0 10px;font-size:1rem">Regjistro kupon bllok letër</h3>
-        <p style="margin:0 0 12px;color:var(--muted);font-size:0.82rem;line-height:1.45">
-          Modaliteti bllok letër duhet të jetë aktiv. Numri serik dhe artikujt ruhen në databazë për regjistrim
-          në SEF më vonë.
-        </p>
         <label for="paper-serial-no">Numri serik i bllokut</label>
         <input
           id="paper-serial-no"
@@ -2211,10 +2448,7 @@
           autocomplete="off"
           style="max-width:280px"
         />
-        <p style="margin:10px 0 6px;font-size:0.78rem;color:var(--muted)">
-          Data dhe ora e shitjes fizike (si në bllokun letër) — përdoren si koha e kuponit kur shkon te ATK.
-        </p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;max-width:420px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;max-width:420px;margin-top:10px">
           <div>
             <label for="paper-sale-date" style="font-size:0.78rem">Data e shitjes</label>
             <input id="paper-sale-date" type="date" style="display:block;margin-top:4px" />
@@ -2264,8 +2498,8 @@
       <div id="offline-compliance-actions" class="hidden" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button type="button" class="btn btn-ghost" id="btn-comp-export-48h" style="width:auto">Eksporto raport 48h</button>
         <button type="button" class="btn btn-ghost" id="btn-comp-export-day10" style="width:auto">Eksporto raport ditë 10</button>
-        <button type="button" class="btn btn-primary" id="btn-comp-ack-48h" style="width:auto">Konfirmo — e njoftova ATK-në</button>
-        <button type="button" class="btn btn-primary" id="btn-comp-ack-day10" style="width:auto">Konfirmo — i dorëzova ATK-së</button>
+        <button type="button" class="btn btn-primary" id="btn-comp-ack-48h" style="width:auto">Konfirmo njoftimin (48h)</button>
+        <button type="button" class="btn btn-primary" id="btn-comp-ack-day10" style="width:auto">Konfirmo dorëzimin (ditë 10)</button>
       </div>
       <div class="msg" id="paper-block-msg"></div>
     </section>
@@ -2273,12 +2507,6 @@
     <!-- Printer -->
     <section class="panel hidden" id="tab-printer" style="grid-column: 1 / -1">
       <h2>Printeri termik — Tysso</h2>
-      <p style="color:var(--muted);max-width:640px">
-        Zgjidh printerin nga lista dhe kliko <strong>Ruaj printerin</strong>.
-        Për Tysso zgjidh <strong>Tysso Thermal Receipt Printer</strong> ose <strong>(Copy 1)</strong> — çfarë shfaqet në listë.
-        Printimi funksionon vetëm kur app-i niset si <strong>Revolution Fiskalizim</strong> (Electron),
-        jo nga browser i jashtëm.
-      </p>
       <div id="printer-electron-hint" class="msg" style="margin-bottom:10px"></div>
       <label>Printeri</label>
       <select id="printer-select" style="max-width:520px"></select>
@@ -2299,10 +2527,6 @@
     <!-- Punonjësit -->
     <section class="panel hidden" id="tab-punonjes" style="grid-column: 1 / -1">
       <h2 style="margin-top:8px">Punonjësit</h2>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 14px">
-        Herën e parë regjistroni pronarin ose punonjësit dhe vendosni PIN-in (4–6 shifra). Pas regjistrimit,
-        hyrja bëhet vetëm me PIN. PIN-i shkon te ATK si <code>operatorId</code>.
-      </p>
       <div id="owner-self-panel" style="margin-bottom:16px;padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--panel)">
         <h3 style="margin:0 0 8px;font-size:1rem">Pronari / operatori i kyçur</h3>
         <p id="owner-self-hint" style="margin:0 0 10px;color:var(--muted);font-size:13px">—</p>
@@ -2343,7 +2567,7 @@
 
     <!-- Settings -->
     <section class="panel hidden" id="tab-settings" style="grid-column: 1 / -1">
-      <h2 style="margin-top:8px">1) Biznesi (nga EDI / ATK)</h2>
+      <h2 style="margin-top:8px">Biznesi</h2>
       <div class="form-grid">
         <div>
           <label>Emri ligjor i biznesit *</label>
@@ -2371,10 +2595,10 @@
         </div>
       </div>
 
-      <h2>2) Lidhja me ATK</h2>
+      <h2>Lidhja fiskale</h2>
       <div class="form-grid">
         <div>
-          <label>URL e ATK (TEST ose PROD)</label>
+          <label>URL (TEST ose PROD)</label>
           <select id="s-atk-url">
             <option value="https://fiskalizimi-test.atk-ks.org">TEST — fiskalizimi-test.atk-ks.org</option>
             <option value="https://fiskalizimi.atk-ks.org">PROD — fiskalizimi.atk-ks.org</option>
@@ -2388,7 +2612,7 @@
             Application ID ▼
           </button>
           <div id="app-id-panel" class="app-id-panel hidden">
-            <label for="s-app-id">Application ID (pas certifikimit të SEF nga ATK)</label>
+            <label for="s-app-id">Application ID</label>
             <div class="app-id-field-wrap">
               <input id="s-app-id" placeholder="p.sh. 987654321098" autocomplete="new-password" inputmode="numeric" spellcheck="false" autocapitalize="off" data-form-type="other" />
               <button type="button" id="btn-app-id-eye" class="app-id-eye" aria-label="Shfaq numrin" title="Shfaq / fsheh numrin" disabled>👁</button>
@@ -2404,7 +2628,7 @@
           <label>Folderi i çelësave / certifikatës</label>
           <input id="s-keys-dir" readonly />
           <button id="btn-onboard-atk" class="btn btn-success" style="margin-bottom:10px; width:100%; font-size:16px; padding:12px;">
-            🔗 Lidhu me ATK — Regjistro këtë POS
+            🔗 Lidhu — regjistro këtë POS
           </button>
           <div id="onboard-status" style="margin-bottom:10px; display:none; padding:10px; border-radius:5px;"></div>
           <button type="button" class="btn btn-ghost" id="btn-open-keys" style="width:auto;margin-bottom:10px">Hap folderin e çelësave</button>
@@ -2414,18 +2638,13 @@
       <p id="atk-auto-hint" class="hidden" aria-hidden="true"></p>
       <div style="margin-bottom:10px;">
         <input type="checkbox" id="s-atk-auto" class="hidden" aria-hidden="true" tabindex="-1" />
-        <p id="atk-local-hint" style="color:var(--muted);font-size:13px;margin:6px 0 0">
-          <strong>Modalitet LOKAL aktiv</strong> — kuponët ruhen vetëm në këtë kompjuter; asgjë nuk shkon te ATK.
-        </p>
+        <p id="atk-local-hint" class="hidden" style="margin:0" aria-hidden="true"></p>
       </div>
       <div class="settings-decrypt-alert" id="settings-decrypt-alert" role="alert" aria-live="assertive">
         <strong style="display:block;margin-bottom:4px;color:#fecaca;">Databaza nuk lexohet — duhet rikthyer nga backup-i</strong>
         <span style="color:#fca5a5;">Shitjet janë bllokuar. Përdorni butonin «Kthe nga backup-i» më poshtë.</span>
       </div>
       <div style="margin-bottom:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);">
-        <p style="margin:0 0 8px;font-size:13px;color:var(--muted);">
-          <strong>Backup automatik: aktiv</strong>
-        </p>
         <p id="auto-backup-status-line" class="sub" style="margin:0 0 8px;font-size:12px"></p>
         <button type="button" class="btn btn-ghost settings-btn-hidden" id="btn-open-backup-folder" style="width:auto;min-width:220px;margin-bottom:0">Hap folderin e backup-it</button>
         <button type="button" class="btn btn-ghost" id="btn-restore-auto-backup-docs" style="width:auto;min-width:220px;margin-left:8px">Rikthe backup (Documents)</button>
@@ -2435,7 +2654,7 @@
         <button type="button" class="btn btn-ghost" id="btn-backup" style="width:auto;min-width:220px">Backup në USB / Folder</button>
         <button type="button" class="btn btn-warn" id="btn-restore-backup" style="width:auto;min-width:220px">Kthe nga backup-i</button>
         <button type="button" class="btn btn-ghost settings-btn-hidden" id="btn-self-test" style="width:auto;min-width:200px">Testo SEF-in</button>
-        <button type="button" class="btn btn-warn" id="btn-send-pending" style="display:none;width:auto;min-width:200px" aria-hidden="true">Dërgo kuponët në pritje te ATK</button>
+        <button type="button" class="btn btn-warn" id="btn-send-pending" style="display:none;width:auto;min-width:200px" aria-hidden="true">Dërgo kuponët në pritje</button>
       </div>
       <div class="msg" id="settings-msg"></div>
     </section>
@@ -2463,7 +2682,11 @@
       allProducts: [],
       catalogLookup: null,
       catalogTokenLookup: null,
+      barcodeLookup: null,
       mgmtProducts: [],
+      posArkaCategory: null,
+      posArkaProdOpen: false,
+      posProdSearch: "",
       payment: {
         active: ["cash"],
         amounts: { cash: 0 },
@@ -4342,12 +4565,122 @@
       }
     }
 
+    const POS_AR_KATEGORITE = [
+      "Pije të ftohta",
+      "Pije të nxehta",
+      "Ushqime",
+      "Embelsira",
+      "Të tjera",
+    ];
+
+    function posCategoryLabel(stored) {
+      const s = String(stored || "").trim();
+      if (s === "Embelsira") return "Ëmbëlsira";
+      return s || "Të tjera";
+    }
+
+    function productPosCategory(p) {
+      const raw = String(p?.pos_category || "").trim();
+      if (raw) return raw === "Ëmbëlsira" ? "Embelsira" : raw;
+      return "Të tjera";
+    }
+
+    function arkaProductsE() {
+      return state.byLetter.E || [];
+    }
+
+    function posCategoryCounts() {
+      const counts = new Map(POS_AR_KATEGORITE.map((c) => [c, 0]));
+      for (const p of arkaProductsE()) {
+        const c = productPosCategory(p);
+        counts.set(c, (counts.get(c) || 0) + 1);
+      }
+      return counts;
+    }
+
+    function renderPosCategoryList() {
+      const listEl = document.getElementById("pos-arka-cat-list");
+      if (!listEl) return;
+      const counts = posCategoryCounts();
+      listEl.innerHTML = POS_AR_KATEGORITE.map(
+        (c) =>
+          `<button type="button" class="pos-arka-cat-btn${state.posArkaCategory === c ? " on" : ""}" data-pos-cat="${esc(c)}">` +
+          `<span>${esc(posCategoryLabel(c))}</span>` +
+          `<span class="pos-arka-cat-count">${counts.get(c) || 0} art.</span>` +
+          `</button>`
+      ).join("");
+      if (listEl.dataset.catBound !== "1") {
+        listEl.dataset.catBound = "1";
+        listEl.addEventListener("click", (e) => {
+          const btn = e.target.closest(".pos-arka-cat-btn[data-pos-cat]");
+          if (!btn) return;
+          const next = btn.dataset.posCat || null;
+          state.posArkaCategory = next;
+          state.posArkaProdOpen = true;
+          state.posProdSearch = "";
+          const searchEl = document.getElementById("pos-prod-search");
+          if (searchEl) searchEl.value = "";
+          syncPosCatProdPanel();
+          renderProducts();
+          focusPosScan();
+        });
+      }
+    }
+
+    function closePosCatProductPage() {
+      state.posArkaProdOpen = false;
+      state.posProdSearch = "";
+      const searchEl = document.getElementById("pos-prod-search");
+      if (searchEl) searchEl.value = "";
+      syncPosCatProdPanel();
+      renderProducts();
+      focusPosScan();
+    }
+
+    function syncPosCatProdPanel() {
+      const wrap = document.getElementById("pos-cat-prod-wrap");
+      const col = document.getElementById("tab-pos-categories");
+      const mainEl = document.querySelector("main.pos-layout");
+      const open = !!(state.posArkaProdOpen && state.posArkaCategory);
+      wrap?.classList.toggle("hidden", !open);
+      col?.classList.toggle("pos-cat-prod-open", open);
+      mainEl?.classList.toggle("pos-arka-prod-page", open);
+    }
+
     function renderProducts() {
       const grid = document.getElementById("product-grid");
-      const list = state.byLetter.E || [];
-      if (!list.length) {
+      const prodTitle = document.getElementById("pos-arka-prod-title");
+      if (!grid) return;
+      const all = arkaProductsE();
+      syncPosCatProdPanel();
+      renderPosCategoryList();
+
+      if (!all.length) {
+        if (prodTitle) prodTitle.textContent = "Produktet";
         grid.innerHTML =
-          '<div style="color:var(--muted);padding:1rem 0.25rem">Nuk ka produkte në arkë.</div>';
+          '<div style="color:var(--muted);padding:0.75rem 0.25rem;grid-column:1/-1">Nuk ka produkte në arkë.</div>';
+        return;
+      }
+
+      if (!state.posArkaCategory || !state.posArkaProdOpen) {
+        grid.innerHTML = "";
+        return;
+      }
+
+      const cat = state.posArkaCategory;
+      const q = String(state.posProdSearch || "").trim().toLowerCase();
+      let list = all.filter((p) => productPosCategory(p) === cat);
+      if (q) {
+        list = list.filter((p) => String(p.name || "").toLowerCase().includes(q));
+      }
+      if (prodTitle) prodTitle.textContent = posCategoryLabel(cat);
+      grid.className = "grid pos-arka-grid pos-arka-mode-prod";
+      if (!list.length) {
+        const emptyMsg = q
+          ? "Nuk u gjet produkt për këtë kërkim."
+          : `Nuk ka produkte në «${esc(posCategoryLabel(cat))}».`;
+        grid.innerHTML =
+          `<div style="color:var(--muted);padding:1rem 0.25rem;grid-column:1/-1">${emptyMsg}</div>`;
         return;
       }
       grid.innerHTML = list
@@ -4360,7 +4693,7 @@
           </div>`
         )
         .join("");
-      grid.querySelectorAll(".card").forEach((card) => {
+      grid.querySelectorAll(".card[data-id]").forEach((card) => {
         let clickTimer = null;
         card.addEventListener("click", () => {
           if (clickTimer) return;
@@ -4427,8 +4760,13 @@
       const list = Array.isArray(products) ? products : [];
       state.catalogLookup = new Map();
       state.catalogTokenLookup = new Map();
+      state.barcodeLookup = new Map();
       const phrases = [];
       for (const p of list) {
+        const bc = String(p.barcode || "").trim().toLowerCase();
+        if (bc && !state.barcodeLookup.has(bc)) {
+          state.barcodeLookup.set(bc, Number(p.id));
+        }
         const key = normalizeProdName(p.name);
         if (!key) continue;
         const meta = sanitizeDetectedFields({
@@ -4746,6 +5084,46 @@
       return null;
     }
 
+    function focusPosScan() {
+      const el = document.getElementById("pos-scan");
+      if (el && activeTabName === "pos" && !state.dbDecryptFailed) {
+        try {
+          el.focus({ preventScroll: true });
+        } catch {
+          el.focus();
+        }
+      }
+    }
+
+    function matchPosScanProduct(raw) {
+      const q = String(raw || "").trim();
+      if (!q) return null;
+      let code = q;
+      if (q.startsWith("{")) {
+        try {
+          const data = JSON.parse(q);
+          code = String(data.kodi || data.barcode || data.code || "").trim() || q;
+        } catch {
+          /* QR jo-JSON */
+        }
+      }
+      const needle = code.toLowerCase().replace(/\s+/g, "");
+      const idFromBc = state.barcodeLookup?.get(needle);
+      if (idFromBc) return findProduct(idFromBc);
+      const list = state.allProducts || [];
+      const exactBc = list.find((x) => String(x.barcode || "").trim().toLowerCase() === needle);
+      if (exactBc) return exactBc;
+      const norm = normalizeProdName(code);
+      if (norm) {
+        const byName = list.find((x) => normalizeProdName(x.name) === norm);
+        if (byName) return byName;
+      }
+      if (needle.length >= 2) {
+        return list.find((x) => String(x.name || "").toLowerCase().includes(needle)) || null;
+      }
+      return null;
+    }
+
     function closeEditProductModal() {
       const modal = document.getElementById("edit-product-modal");
       modal.style.display = "none";
@@ -4849,7 +5227,11 @@
       rebuildCatalogLookup(products);
       const search = (document.getElementById("mgmt-search").value || "").toLowerCase();
       const filtered = search
-        ? products.filter((p) => String(p.name || "").toLowerCase().includes(search))
+        ? products.filter(
+            (p) =>
+              String(p.name || "").toLowerCase().includes(search) ||
+              String(p.barcode || "").toLowerCase().includes(search)
+          )
         : products;
       const tbody = document.getElementById("mgmt-product-list");
       if (!tbody) return;
@@ -4910,6 +5292,10 @@
       const vat = document.getElementById("mgmt-prod-vat").value;
       const unit = document.getElementById("mgmt-prod-unit").value;
       const cat = document.getElementById("mgmt-prod-category").value;
+      const barcodeEl = document.getElementById("mgmt-prod-barcode");
+      const barcode = barcodeEl ? String(barcodeEl.value || "").trim() : "";
+      const posKatEl = document.getElementById("mgmt-prod-pos-kat");
+      const pos_category = posKatEl ? String(posKatEl.value || "").trim() : "Të tjera";
       if (!name) {
         alert("Shkruaj emrin e artikullit");
         return;
@@ -4923,6 +5309,8 @@
             vat_letter: vat,
             unit_code: unit,
             category_code: cat,
+            barcode,
+            pos_category,
           }),
         });
         document.getElementById("mgmt-prod-name").value = "";
@@ -4989,6 +5377,7 @@
         const i = state.cart.indexOf(existing);
         updateCartLinePrice(i);
         updateCartTotals();
+        focusPosScan();
         return;
       }
       const L = String(p.vat_letter || "E").toUpperCase();
@@ -5011,6 +5400,7 @@
       });
       renderCartRows();
       updateCartTotals();
+      focusPosScan();
     }
 
     function updateCartTotals() {
@@ -5144,7 +5534,7 @@
       const box = document.getElementById("cart");
       if (!state.cart.length) {
         box.innerHTML =
-          '<div class="cart-empty-inline">Shto produkte</div>';
+          '<div class="cart-empty-inline">Lista është bosh — shtoni produkte.</div>';
         return;
       }
       state.cart.forEach((c) => ensureCartItemShape(c));
@@ -5275,7 +5665,7 @@
           '<option value="">— zgjidh nga lista —</option>' +
           rows
             .map((r) => {
-              const atk = r.atk_ok || Number(r.sent_to_atk) === 1 ? "ATK OK" : "në pritje";
+              const atk = r.atk_ok || Number(r.sent_to_atk) === 1 ? "OK" : "Në pritje";
               const label = `#${r.id} · ${r.nuikf} · ${euro(r.total_amount)} · ${r.fiscal_date} · ${atk}`;
               return `<option value="${r.id}" data-nuikf="${esc(r.nuikf)}">${esc(label)}</option>`;
             })
@@ -5630,7 +6020,9 @@
         .map((r) => {
           const sentDisplay = formatSentAtLocal(r.sent_at, r.fiscal_date, r.fiscal_time);
           const atkOk = !!r.atk_ok || Number(r.sent_to_atk) === 1;
-          const atkLbl = esc(r.atk_label || (atkOk ? "ATK OK" : "Në pritje"));
+          const atkLbl = esc(
+            String(r.atk_label || (atkOk ? "OK" : "Në pritje")).replace(/^ATK\s*:?\s*/i, "")
+          );
           const atkColor = atkOk ? "#3dd68c" : "#f0b429";
           return `<tr>
             <td>${r.id}</td>
@@ -6052,7 +6444,8 @@
       }
       const localHint = document.getElementById("atk-local-hint");
       if (localHint) {
-        localHint.style.display = blocked ? "" : "none";
+        localHint.style.display = "none";
+        localHint.textContent = "";
       }
       const headerBadge = document.getElementById("header-env-badge");
       if (headerBadge) {
@@ -6089,7 +6482,7 @@
 
     function renderAtkStatus(atk) {
       if (!atk) {
-        setPill("pill-atk", "ATK: —", "");
+        setPill("pill-atk", "Lidhja: —", "");
         setPill("pill-keys", "Çelësat: —", "");
         setPill("pill-fiscal", "Fiskalizimi: —", "");
         renderOnboardAtkButton(null);
@@ -6108,7 +6501,7 @@
         keysLabel = "Çelësat: nuk lexohen";
         keysClass = "bad";
       }
-      setPill("pill-atk", ui.pill_text || (blocked ? "ATK: LOKAL" : "SEF: aktiv"), ui.pill_class || (blocked ? "warn" : keysReadable ? "ok" : "warn"));
+      setPill("pill-atk", ui.pill_text || (blocked ? "Lokal" : "SEF: aktiv"), ui.pill_class || (blocked ? "warn" : keysReadable ? "ok" : "warn"));
       setPill("pill-keys", keysLabel, keysClass);
       setPill(
         "pill-fiscal",
@@ -6675,7 +7068,8 @@
       });
       const pos = name === "pos";
       document.querySelector("main")?.classList.toggle("pos-layout", pos);
-      document.getElementById("tab-pos-left").classList.toggle("hidden", !pos);
+      document.getElementById("tab-pos-categories").classList.toggle("hidden", !pos);
+      document.getElementById("tab-pos-shop").classList.toggle("hidden", !pos);
       document.getElementById("tab-pos-cart").classList.toggle("hidden", !pos);
       document.getElementById("tab-pos-pay").classList.toggle("hidden", !pos);
       document.getElementById("tab-receipts").classList.toggle("hidden", name !== "receipts");
@@ -6701,6 +7095,9 @@
         refreshPaperBlockUi().catch(console.error);
         ensurePaperIssueFormReady();
       }
+      if (name === "audit") {
+        ngarkoAdminAuditLog().catch(console.error);
+      }
       if (name === "licenca" && window.LicencaApp) {
         window.LicencaApp.init().catch(console.error);
       }
@@ -6709,6 +7106,9 @@
       }
       if (name === "punonjes") {
         loadOperatorsList().catch(console.error);
+      }
+      if (name === "pos") {
+        setTimeout(focusPosScan, 0);
       }
     }
 
@@ -6816,6 +7216,44 @@
     initPaymentUi();
     showTab("pos");
     ensureCartDelegation();
+    document.getElementById("pos-cat-back")?.addEventListener("click", () => {
+      closePosCatProductPage();
+    });
+    document.getElementById("pos-prod-search")?.addEventListener("input", (e) => {
+      state.posProdSearch = String(e.target.value || "");
+      renderProducts();
+    });
+    document.getElementById("pos-scan")?.addEventListener("keydown", async (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const raw = String(e.target.value || "").trim();
+      e.target.value = "";
+      if (!raw) return;
+      if (state.dbDecryptFailed) {
+        setMsg(document.getElementById("pos-msg"), "Databaza nuk lexohet — duhet rikthyer nga backup-i", false);
+        return;
+      }
+      let p = matchPosScanProduct(raw);
+      if (!p) {
+        try {
+          await loadProducts();
+        } catch {
+          /* */
+        }
+        p = matchPosScanProduct(raw);
+      }
+      const msg = document.getElementById("pos-msg");
+      if (!p) {
+        setMsg(msg, "Produkti nuk u gjet.", false);
+        focusPosScan();
+        return;
+      }
+      if (msg?.textContent === "Produkti nuk u gjet.") {
+        msg.textContent = "";
+        msg.classList.remove("err", "ok", "pending");
+      }
+      addProduct(Number(p.id));
+    });
     [
       ["cart-disc-type", "cart-disc-val", "discount"],
       ["cart-sur-type", "cart-sur-val", "surcharge"],
@@ -6915,6 +7353,64 @@
     }
     document.getElementById("btn-audit-csv").addEventListener("click", () => exportAudit("csv"));
     document.getElementById("btn-audit-pdf").addEventListener("click", () => exportAudit("pdf"));
+
+    async function ngarkoAdminAuditLog() {
+      const body = document.getElementById("admin-audit-log-body");
+      const status = document.getElementById("admin-audit-log-status");
+      if (!body) return;
+      if (status) status.textContent = "Duke ngarkuar kuponët fiskalë…";
+      body.innerHTML = '<tr><td colspan="6" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
+      try {
+        const from = document.getElementById("audit-from")?.value || "";
+        const to = document.getElementById("audit-to")?.value || "";
+        const q = new URLSearchParams({ limit: "250" });
+        if (from) q.set("from", from);
+        if (to) q.set("to", to);
+        const data = await api(`/api/admin/audit-log?${q.toString()}`);
+        const entries = Array.isArray(data.entries) ? data.entries : [];
+        if (!entries.length) {
+          body.innerHTML =
+            '<tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka kuponë fiskal për këtë periudhë.</td></tr>';
+          if (status) status.textContent = "Lista e zbrazët për intervalin e zgjedhur.";
+          return;
+        }
+        body.innerHTML = entries
+          .map((e) => {
+            const dtRaw = e.created_at ? String(e.created_at).replace("T", " ") : "";
+            const dt = dtRaw ? esc(dtRaw.slice(0, 19)) : "—";
+            const amt = Number(e.total_amount);
+            const shuma = Number.isFinite(amt) ? `${amt.toFixed(2)} €` : "—";
+            return (
+              `<tr>`
+              + `<td style="padding:0.35rem 0.5rem">${dt}</td>`
+              + `<td style="padding:0.35rem 0.5rem">${esc(e.receipt_number || "—")}</td>`
+              + `<td style="padding:0.35rem 0.5rem">${esc(shuma)}</td>`
+              + `<td style="padding:0.35rem 0.5rem">${esc(e.payment_label || e.payment_method || "—")}</td>`
+              + `<td style="padding:0.35rem 0.5rem;max-width:200px;word-break:break-word">${esc(e.fiscal_code || "—")}</td>`
+              + `<td style="padding:0.35rem 0.5rem">${esc(e.veprim || "Print")}</td>`
+              + `</tr>`
+            );
+          })
+          .join("");
+        if (status) {
+          status.textContent = `${entries.length} kuponë fiskal (deri në 250 në interval).`;
+        }
+      } catch (err) {
+        body.innerHTML = `<tr><td colspan="6" style="padding:0.5rem;color:#ef4444">${esc(err.message || "Gabim gjatë ngarkimit")}</td></tr>`;
+        if (status) status.textContent = "";
+      }
+    }
+
+    document.getElementById("btn-admin-audit-log-refresh")?.addEventListener("click", () => {
+      ngarkoAdminAuditLog().catch(console.error);
+    });
+    document.getElementById("audit-from")?.addEventListener("change", () => {
+      if (activeTabName === "audit") ngarkoAdminAuditLog().catch(console.error);
+    });
+    document.getElementById("audit-to")?.addEventListener("change", () => {
+      if (activeTabName === "audit") ngarkoAdminAuditLog().catch(console.error);
+    });
+
     const today = new Date().toISOString().slice(0, 10);
     ["per-from", "per-to", "audit-from", "audit-to"].forEach((id) => {
       const el = document.getElementById(id);

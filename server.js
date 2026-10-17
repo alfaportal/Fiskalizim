@@ -530,10 +530,20 @@ async function boot() {
     }
   }
 
+  function autoBackupPersistOpts(extra = {}) {
+    return {
+      getPersistedBackupDir: () => db.getSetting("auto_backup_dir", ""),
+      setPersistedBackupDir: (dir) => {
+        db.setSetting("auto_backup_dir", String(dir || "").trim());
+      },
+      ...extra,
+    };
+  }
+
   app.get("/api/auto-backup/status", (_req, res) => {
     try {
       const autoBackup = require("./auto-backup");
-      res.json({ ok: true, ...autoBackup.getBackupStatus() });
+      res.json({ ok: true, ...autoBackup.getBackupStatus(autoBackupPersistOpts()) });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
@@ -542,7 +552,7 @@ async function boot() {
   app.get("/api/auto-backup/catalog", (_req, res) => {
     try {
       const autoBackup = require("./auto-backup");
-      res.json(autoBackup.listRestoreCatalog());
+      res.json(autoBackup.listRestoreCatalog(autoBackupPersistOpts()));
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
@@ -552,12 +562,14 @@ async function boot() {
     try {
       const autoBackup = require("./auto-backup");
       const paths = resolveAutoBackupPaths();
-      const result = autoBackup.runBackupCycle({
-        dbPath: paths.dbPath,
-        fiscalKeysPath: paths.fiscalKeysPath,
-        flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
-        getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
-      });
+      const result = autoBackup.runBackupCycle(
+        autoBackupPersistOpts({
+          dbPath: paths.dbPath,
+          fiscalKeysPath: paths.fiscalKeysPath,
+          flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
+          getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
+        }),
+      );
       res.json({ ok: !!result.ok, ...result });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
@@ -582,12 +594,14 @@ async function boot() {
       }
       const sourceType = String(req.body?.source_type || req.body?.sourceType || "latest").trim();
       const sourceId = String(req.body?.source_id || req.body?.sourceId || "latest").trim();
-      const result = autoBackup.restoreFromBackup({
-        targetDbPath: paths.dbPath,
-        targetKeysPath: paths.fiscalKeysPath,
-        source_type: sourceType,
-        source_id: sourceId,
-      });
+      const result = autoBackup.restoreFromBackup(
+        autoBackupPersistOpts({
+          targetDbPath: paths.dbPath,
+          targetKeysPath: paths.fiscalKeysPath,
+          source_type: sourceType,
+          source_id: sourceId,
+        }),
+      );
       if (!result.restored) {
         return res.status(400).json({ ok: false, error: result.error || "Restore dështoi." });
       }
@@ -1094,13 +1108,16 @@ async function boot() {
     try {
       const blocked = recordsGuardResponse(res);
       if (blocked) return blocked;
-      const { name, price, vat_letter, unit_code, category_code } = req.body || {};
+      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category } =
+        req.body || {};
       const product = db.updateProduct(req.params.id, {
         name,
         price,
         vat_letter,
         unit_code: unit_code || "EA",
         category_code: category_code || "TT",
+        barcode,
+        pos_category,
       });
       res.json({ ok: true, success: true, product });
     } catch (e) {
@@ -2141,6 +2158,24 @@ async function boot() {
     }
   });
 
+  /** Lista kuponësh fiskalë për tab-in Audit (ATK) — vetëm fiscal_receipts. */
+  app.get("/api/admin/audit-log", (req, res) => {
+    try {
+      const { getAdminFiscalReceiptEntries } = require("./fiscal/fiscal-audit");
+      const from = req.query.from || req.query.fromDate || null;
+      const to = req.query.to || req.query.toDate || null;
+      const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 250));
+      const entries =
+        getAdminFiscalReceiptEntries(from, to, {
+          includeWhenDisabled: true,
+          limit,
+        }) || [];
+      res.json({ ok: true, entries, count: entries.length });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
   /** Eksport audit log CSV/PDF (Neni 26 / 7) — Save As në Electron */
   app.post("/api/fiscal/audit/export", (req, res) => {
     try {
@@ -2664,13 +2699,15 @@ async function boot() {
     const autoBackup = require("./auto-backup");
     const paths = resolveAutoBackupPaths();
     if (paths.dbPath) {
-      autoBackup.startAutoBackup({
-        dbPath: paths.dbPath,
-        fiscalKeysPath: paths.fiscalKeysPath,
-        intervalMs: 60 * 1000,
-        flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
-        getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
-      });
+      autoBackup.startAutoBackup(
+        autoBackupPersistOpts({
+          dbPath: paths.dbPath,
+          fiscalKeysPath: paths.fiscalKeysPath,
+          intervalMs: 60 * 1000,
+          flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
+          getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
+        }),
+      );
     }
   } catch (e) {
     console.warn("[backup] auto-start:", e.message);

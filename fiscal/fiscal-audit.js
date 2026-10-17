@@ -127,6 +127,153 @@ function filterFiscalExportRows(rows) {
   return (rows || []).filter((r) => isFiscalExportAction(r.action));
 }
 
+const STORNO_RECEIPT_TYPES = Object.freeze(
+  new Set([
+    "cancel",
+    "return",
+    "storno",
+    "corrective",
+    "credit",
+    "debit",
+    "credit_note",
+    "debit_note",
+  ]),
+);
+
+function fiscalReceiptsTableExists(sqlite) {
+  try {
+    const row = sqlite
+      .prepare(
+        "SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'fiscal_receipts' LIMIT 1",
+      )
+      .get();
+    return !!row;
+  } catch {
+    return false;
+  }
+}
+
+function mapReceiptTypeToVeprim(receiptType) {
+  const t = String(receiptType || "regular").toLowerCase();
+  if (STORNO_RECEIPT_TYPES.has(t)) return "Storno";
+  return "Print";
+}
+
+function formatAtkPaymentLabel(method) {
+  const m = String(method || "cash").toLowerCase();
+  if (m === "karte" || m === "card") return "Kartë";
+  if (m === "cash") return "Para";
+  if (m === "mixed") return "Kombinuar";
+  return String(method || "—");
+}
+
+function formatReceiptNumberForAtk(row) {
+  const daily = row?.daily_number;
+  const total = row?.total_number;
+  if (daily != null && total != null && Number(total) > 0) {
+    return `${daily}/${total}`;
+  }
+  if (daily != null && daily !== "") return String(daily);
+  return "—";
+}
+
+function formatFiscalCodeForAtk(row) {
+  const nuikf = String(row?.nuikf || "").trim();
+  const sef = String(row?.sef_id || "").trim();
+  if (nuikf && sef && sef !== nuikf) return `${nuikf} · ${sef}`;
+  return nuikf || sef || "—";
+}
+
+function mapFiscalReceiptRowToAtkEntry(row) {
+  const dt =
+    `${row.fiscal_date || ""} ${row.fiscal_time || ""}`.trim() ||
+    String(row.created_at || "").replace("T", " ");
+  const amount = Number(row.total_amount);
+  return {
+    id: row.id,
+    created_at: dt,
+    receipt_number: formatReceiptNumberForAtk(row),
+    total_amount: Number.isFinite(amount) ? amount : 0,
+    payment_method: row.payment_method,
+    payment_label: formatAtkPaymentLabel(row.payment_method),
+    fiscal_code: formatFiscalCodeForAtk(row),
+    veprim: mapReceiptTypeToVeprim(row.receipt_type),
+    receipt_type: row.receipt_type,
+  };
+}
+
+function getAdminFiscalReceiptEntries(fromDate, toDate, opts = {}) {
+  const includeWhenDisabled = !!opts.includeWhenDisabled;
+  if (!includeWhenDisabled && !isFiscalEnabled()) return [];
+
+  const fromDay = fromDate ? String(fromDate).trim().slice(0, 10) : null;
+  const toDay = toDate ? String(toDate).trim().slice(0, 10) : null;
+  const limit = Math.min(500, Math.max(1, Number(opts.limit) || 250));
+
+  if (isFiscalMemoryOnly()) {
+    const { memListReceiptSummaries } = require("./fiscal-test-mode-store");
+    let rows = memListReceiptSummaries(2000) || [];
+    if (fromDay && /^\d{4}-\d{2}-\d{2}$/.test(fromDay)) {
+      rows = rows.filter((r) => String(r.fiscal_date || "") >= fromDay);
+    }
+    if (toDay && /^\d{4}-\d{2}-\d{2}$/.test(toDay)) {
+      rows = rows.filter((r) => String(r.fiscal_date || "") <= toDay);
+    }
+    return rows.slice(0, limit).map(mapFiscalReceiptRowToAtkEntry);
+  }
+
+  const sqlite = getSqlite();
+  if (!fiscalReceiptsTableExists(sqlite)) return [];
+
+  let sql = `SELECT id, nuikf, sef_id, daily_number, total_number, total_amount,
+                    payment_method, fiscal_date, fiscal_time, receipt_type, created_at
+             FROM fiscal_receipts WHERE 1=1`;
+  const params = [];
+  if (fromDay && /^\d{4}-\d{2}-\d{2}$/.test(fromDay)) {
+    sql += ` AND fiscal_date >= ?`;
+    params.push(fromDay);
+  }
+  if (toDay && /^\d{4}-\d{2}-\d{2}$/.test(toDay)) {
+    sql += ` AND fiscal_date <= ?`;
+    params.push(toDay);
+  }
+  sql += ` ORDER BY id DESC LIMIT ?`;
+  params.push(limit);
+
+  const rows = sqlite.prepare(sql).all(...params);
+  return rows.map(mapFiscalReceiptRowToAtkEntry);
+}
+
+function buildAtkReceiptExportLines(entries, fromDate, toDate) {
+  const rule = "-".repeat(90);
+  const lines = [
+    `Kuponët fiskalë — ${fromDate || "..."} deri ${toDate || "..."}`,
+    rule,
+    padEndText("Data/Ora", 20) +
+      padEndText("Nr. Kuponit", 14) +
+      padEndText("Shuma", 10) +
+      padEndText("Pagesa", 12) +
+      padEndText("Kodi Fiskal", 22) +
+      "Veprimi",
+    rule,
+  ];
+  for (const e of entries) {
+    const amt = Number(e.total_amount);
+    const shuma = Number.isFinite(amt) ? amt.toFixed(2) : "0.00";
+    lines.push(
+      padEndText(String(e.created_at || "").slice(0, 19), 20) +
+        padEndText(String(e.receipt_number || "—"), 14) +
+        padEndText(shuma, 10) +
+        padEndText(String(e.payment_label || "—"), 12) +
+        padEndText(String(e.fiscal_code || "—"), 22) +
+        String(e.veprim || "Print"),
+    );
+  }
+  lines.push(rule);
+  lines.push(`Totali: ${entries.length} kuponë`);
+  return lines;
+}
+
 function reinstallAuditWriteOnceTriggers(sqlite) {
   sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_audit_block_update`);
   sqlite.exec(`
@@ -279,25 +426,28 @@ function pickAuditSaveDialog(format, parentWindow) {
 function exportAuditCSV(fromDate, toDate, targetPath) {
   if (!isFiscalEnabled()) return null;
 
-  const rows = getAuditLog(fromDate, toDate) || [];
+  const entries =
+    getAdminFiscalReceiptEntries(fromDate, toDate, { limit: 5000 }) || [];
   const header = [
-    "id",
-    "created_at",
-    "action",
-    "operator_name",
-    "operator_id",
-    "details_json",
+    "Data/Ora",
+    "Nr. Kuponit",
+    "Shuma",
+    "Pagesa",
+    "Kodi Fiskal",
+    "Veprimi",
   ];
   const lines = [header.join(",")];
-  for (const r of rows) {
+  for (const e of entries) {
+    const amt = Number(e.total_amount);
+    const shuma = Number.isFinite(amt) ? amt.toFixed(2) : "0.00";
     lines.push(
       [
-        r.id,
-        r.created_at,
-        r.action,
-        r.operator_name,
-        r.operator_id,
-        r.details_json || JSON.stringify(r.details || {}),
+        String(e.created_at || "").slice(0, 19),
+        e.receipt_number,
+        shuma,
+        e.payment_label,
+        e.fiscal_code,
+        e.veprim,
       ]
         .map(csvEscape)
         .join(",")
@@ -737,8 +887,9 @@ function buildSimplePdf(lines) {
 function exportAuditPDF(fromDate, toDate, targetPath) {
   if (!isFiscalEnabled()) return null;
 
-  const rows = getAuditLog(fromDate, toDate) || [];
-  const lines = buildAuditPdfLines(rows, fromDate, toDate);
+  const entries =
+    getAdminFiscalReceiptEntries(fromDate, toDate, { limit: 5000 }) || [];
+  const lines = buildAtkReceiptExportLines(entries, fromDate, toDate);
 
   const filePath = targetPath ? String(targetPath).trim() : "";
   if (!filePath) return null;
@@ -753,6 +904,7 @@ module.exports = {
   FISCAL_AUDIT_EXPORT_ACTIONS,
   logFiscalAction,
   getAuditLog,
+  getAdminFiscalReceiptEntries,
   exportAuditCSV,
   exportAuditPDF,
   pickAuditSaveDialog,
