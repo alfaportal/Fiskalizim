@@ -275,8 +275,8 @@ function insertProductsFromCatalogList(list) {
   const rows = Array.isArray(list) ? list : [];
   if (!rows.length) return 0;
   const ins = sqlite.prepare(
-    `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code)
-     VALUES (?, ?, ?, ?, 1, ?, ?, ?)`
+    `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, pos_category)
+     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)`
   );
   let sort = 0;
   for (const p of rows) {
@@ -288,6 +288,9 @@ function insertProductsFromCatalogList(list) {
     const unitCode = String(p.unit_code || "EA").trim().toUpperCase() || "EA";
     const categoryCode = String(p.category_code || "TT").trim().toUpperCase() || "TT";
     sort += 1;
+    const posCat = normalizePosCategoryLabel(
+      p.pos_category || inferPosCategoryForProduct({ name, category_code: categoryCode })
+    );
     ins.run(
       name,
       Number(p.price) || 0,
@@ -295,7 +298,8 @@ function insertProductsFromCatalogList(list) {
       cat,
       Number(p.sort_order) || sort,
       unitCode,
-      categoryCode
+      categoryCode,
+      posCat
     );
   }
   return sort;
@@ -322,6 +326,59 @@ function resyncAllProductsFromBundledCatalog() {
     if (counts[L] != null) counts[L] += 1;
   }
   return { total: n, counts };
+}
+
+const POS_CATEGORY_VALUES = [
+  "Pije të ftohta",
+  "Pije të nxehta",
+  "Ushqime",
+  "Embelsira",
+  "Të tjera",
+];
+
+function normalizePosCategoryLabel(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "Të tjera";
+  if (s === "Embelsira" || s === "Ëmbëlsira") return "Embelsira";
+  if (POS_CATEGORY_VALUES.includes(s)) return s;
+  return "Të tjera";
+}
+
+/** Kategoria POS (Arka) — nga emri / category_code ATK. */
+function inferPosCategoryForProduct(p) {
+  const n = String(p?.name || "")
+    .toLowerCase()
+    .replace(/[ëé]/g, "e")
+    .replace(/[çč]/g, "c");
+  const atk = String(p?.category_code || "").trim().toUpperCase();
+  if (/kafe|caj|espresso|turke|filter/.test(n)) return "Pije të nxehta";
+  if (/sandvic|pica|ushqim|gatsh/.test(n)) return "Ushqime";
+  if (/akullore|snack|cips|embelsir/.test(n)) return "Embelsira";
+  if (/cigare|duhan/.test(n) || atk === "DUH") return "Të tjera";
+  if (atk === "PAL" || atk === "PJA") return "Pije të ftohta";
+  if (atk === "UR" || atk === "AU") {
+    if (/kafe|caj/.test(n)) return "Pije të nxehta";
+    if (/akullore|snack|cips/.test(n)) return "Embelsira";
+    return "Ushqime";
+  }
+  return "Të tjera";
+}
+
+function migrateFiskalizimPosCategory() {
+  const marker = "fiskalizim_pos_category_v2";
+  if (getSetting(marker) === "1") return null;
+  const rows = sqlite.prepare("SELECT id, name, category_code, pos_category FROM products").all();
+  const upd = sqlite.prepare("UPDATE products SET pos_category = ? WHERE id = ?");
+  let n = 0;
+  for (const p of rows) {
+    const next = inferPosCategoryForProduct(p);
+    upd.run(next, p.id);
+    n += 1;
+  }
+  setSetting(marker, "1");
+  setSetting("fiskalizim_pos_category_v1", "1");
+  console.log(`[fiskalizim] pos_category: ${n} produkte`);
+  return n;
 }
 
 /** Migrim FISKALIZIME — vetëm 26 produkte E (Coca-Cola → Akullore), pa A/C/D. */
@@ -604,7 +661,8 @@ function initSchema() {
       active INTEGER NOT NULL DEFAULT 1,
       sort_order INTEGER NOT NULL DEFAULT 0,
       unit_code TEXT NOT NULL DEFAULT 'EA',
-      category_code TEXT NOT NULL DEFAULT 'TT'
+      category_code TEXT NOT NULL DEFAULT 'TT',
+      pos_category TEXT NOT NULL DEFAULT 'Të tjera'
     );
     CREATE TABLE IF NOT EXISTS menu_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -642,6 +700,16 @@ function initSchema() {
     /* kolona ekziston */
   }
   try {
+    sqlite.prepare(`ALTER TABLE products ADD COLUMN barcode TEXT DEFAULT ''`).run();
+  } catch {
+    /* kolona ekziston */
+  }
+  try {
+    sqlite.prepare(`ALTER TABLE products ADD COLUMN pos_category TEXT DEFAULT 'Të tjera'`).run();
+  } catch {
+    /* kolona ekziston */
+  }
+  try {
     sqlite.prepare(`ALTER TABLE menu_items ADD COLUMN unit_code TEXT DEFAULT 'EA'`).run();
   } catch {
     /* kolona ekziston */
@@ -666,6 +734,11 @@ function initSchema() {
       migrateFiskalizimArkaCatalog();
     } catch (e) {
       console.warn("[fiskalizim] migrateFiskalizimArkaCatalog:", e.message);
+    }
+    try {
+      migrateFiskalizimPosCategory();
+    } catch (e) {
+      console.warn("[fiskalizim] migrateFiskalizimPosCategory:", e.message);
     }
     ensureProductsPerVatLetter();
     try {
@@ -1128,7 +1201,9 @@ async function reloadDatabaseFromDisk() {
 function listProducts() {
   const rows = sqlite
     .prepare(
-      `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code
+      `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
+              COALESCE(barcode, '') AS barcode,
+              COALESCE(pos_category, 'Të tjera') AS pos_category
        FROM products WHERE active = 1
        ORDER BY vat_letter ASC, sort_order ASC, id ASC`
     )
@@ -1169,21 +1244,54 @@ function updateProduct(id, fields) {
   const cat = vatCategoryForLetter(L);
   const unitCode = String(fields.unit_code || "EA").trim().toUpperCase() || "EA";
   const categoryCode = String(fields.category_code || "TT").trim().toUpperCase() || "TT";
-  sqlite
-    .prepare(
-      `UPDATE products SET name = ?, price = ?, vat_letter = ?, vat_category = ?,
-       unit_code = ?, category_code = ? WHERE id = ?`
-    )
-    .run(n, p, L, cat, unitCode, categoryCode, pid);
+  const posCategory =
+    fields.pos_category != null
+      ? normalizePosCategoryLabel(fields.pos_category)
+      : undefined;
+  const barcode =
+    fields.barcode != null ? String(fields.barcode).trim().replace(/\s+/g, "") : undefined;
+  if (barcode !== undefined || posCategory !== undefined) {
+    const row = sqlite
+      .prepare("SELECT barcode, pos_category FROM products WHERE id = ?")
+      .get(pid);
+    const bc = barcode !== undefined ? barcode : String(row?.barcode || "");
+    const pc =
+      posCategory !== undefined
+        ? posCategory
+        : normalizePosCategoryLabel(row?.pos_category);
+    sqlite
+      .prepare(
+        `UPDATE products SET name = ?, price = ?, vat_letter = ?, vat_category = ?,
+         unit_code = ?, category_code = ?, barcode = ?, pos_category = ? WHERE id = ?`
+      )
+      .run(n, p, L, cat, unitCode, categoryCode, bc, pc, pid);
+  } else {
+    sqlite
+      .prepare(
+        `UPDATE products SET name = ?, price = ?, vat_letter = ?, vat_category = ?,
+         unit_code = ?, category_code = ? WHERE id = ?`
+      )
+      .run(n, p, L, cat, unitCode, categoryCode, pid);
+  }
   syncMenuItemsFromProducts();
   return sqlite
     .prepare(
-      "SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code FROM products WHERE id = ?"
+      `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
+              COALESCE(barcode, '') AS barcode,
+              COALESCE(pos_category, 'Të tjera') AS pos_category FROM products WHERE id = ?`
     )
     .get(pid);
 }
 
-function createProduct({ name, price, vat_letter, unit_code, category_code }) {
+function createProduct({
+  name,
+  price,
+  vat_letter,
+  unit_code,
+  category_code,
+  barcode,
+  pos_category,
+}) {
   const n = String(name || "").trim();
   if (!n) throw new Error("Emri i produktit është i detyrueshëm.");
   const p = round2(price);
@@ -1197,17 +1305,23 @@ function createProduct({ name, price, vat_letter, unit_code, category_code }) {
   const categoryCode = String(category_code || "TT").trim().toUpperCase() || "TT";
   const maxSort = sqlite.prepare("SELECT COALESCE(MAX(sort_order), 0) AS m FROM products").get();
   const sort = (Number(maxSort?.m) || 0) + 1;
+  const bc = String(barcode || "").trim().replace(/\s+/g, "");
+  const posCat = normalizePosCategoryLabel(
+    pos_category || inferPosCategoryForProduct({ name: n, category_code: categoryCode })
+  );
   const result = sqlite
     .prepare(
-      `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?)`
+      `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, barcode, pos_category)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
     )
-    .run(n, p, L, cat, sort, unitCode, categoryCode);
+    .run(n, p, L, cat, sort, unitCode, categoryCode, bc, posCat);
   const id = Number(result.lastInsertRowid);
   syncMenuItemsFromProducts();
   return sqlite
     .prepare(
-      "SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code FROM products WHERE id = ?"
+      `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
+              COALESCE(barcode, '') AS barcode,
+              COALESCE(pos_category, 'Të tjera') AS pos_category FROM products WHERE id = ?`
     )
     .get(id);
 }

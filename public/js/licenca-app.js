@@ -41,9 +41,6 @@ const LicencaApp = {
     const active = !!st.has_key && !st.revoked;
     root.innerHTML = `
       <h2 style="margin-top:8px">Licenca e aplikacionit</h2>
-      <p class="hint" style="margin-bottom:16px;opacity:.85">
-        Heartbeat ~60s · offline max 7 ditë · poll 3s gjatë aktivizimit (dialog i errët).
-      </p>
       <div class="form-grid" style="max-width:560px">
         <div><strong>Statusi:</strong> ${active ? "✅ Aktive" : "❌ Jo aktive / prit regjistrim"}${st.offline_ok ? " (cache offline)" : ""}</div>
         <div><strong>Hardware ID:</strong> <code style="user-select:all">${this.esc(st.hardware_id || "—")}</code></div>
@@ -55,7 +52,7 @@ const LicencaApp = {
         <button type="button" class="btn btn-primary" id="lic-btn-refresh">Rifresko</button>
         ${b?.openLicenseDialog ? '<button type="button" class="btn btn-ghost" id="lic-btn-dialog">Hap dialogun e aktivizimit</button>' : ""}
       </div>
-      <p class="hint" style="margin-top:16px">WhatsApp: +383 48707880</p>`;
+      `;
 
     document.getElementById("lic-btn-refresh")?.addEventListener("click", () => this.render());
     document.getElementById("lic-btn-dialog")?.addEventListener("click", async () => {

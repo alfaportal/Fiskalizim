@@ -565,7 +565,7 @@ async function enforceRevokedBlock(app) {
         } catch {
           /* ignore */
         }
-        return { blocked: false, code: online.code };
+        return { blocked: true, code: online.code };
       }
       return {
         blocked: true,

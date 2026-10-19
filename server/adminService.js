@@ -10,6 +10,7 @@ const {
   findLicenseByHardwareId,
 } = require("./licenseService");
 const { compactHardwareId, formatHardwareId, hardwareIdsEqual } = require("./hardwareId");
+const { deleteLicenseRow } = require("./licenseDeletePurge");
 
 async function genUniqueLicenseKey(db) {
   for (let i = 0; i < 8; i += 1) {
@@ -77,9 +78,7 @@ async function dedupeLicensesByHardware() {
       return new Date(a.created_at || 0) - new Date(b.created_at || 0);
     });
     for (const extra of list.slice(1)) {
-      await db.from("terminalet_e_licences").delete().eq("license_id", extra.id);
-      const { error: delErr } = await db.from("licenses").delete().eq("id", extra.id);
-      if (delErr) throw delErr;
+      await deleteLicenseRow(db, extra.id);
       removed += 1;
     }
   }
@@ -324,11 +323,7 @@ async function deleteLicense(id) {
   if (!existing) throw new Error("Licenca nuk u gjet.");
 
   await db.from("licenses").update({ status: "revoked" }).eq("id", id);
-  const { error: termErr } = await db.from("terminalet_e_licences").delete().eq("license_id", id);
-  if (termErr) throw termErr;
-
-  const { error } = await db.from("licenses").delete().eq("id", id);
-  if (error) throw error;
+  await deleteLicenseRow(db, id);
   return { ok: true, id, license_key: existing.license_key, client_id: existing.client_id || null };
 }
 

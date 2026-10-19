@@ -1,6 +1,6 @@
 {
     "name": "revolution-fiskalizim",
-    "version": "1.1.6",
+    "version": "1.1.8",
     "description": "Revolution Fiskalizim — modul fiskal ATK (TEST)",
     "main": "main.js",
     "author": "Revolution Invest SH.P.K.",
@@ -12,7 +12,7 @@
         "local": "node server.js",
         "electron": "electron .",
         "reset-atk-test": "node scripts/reset-atk-test.js",
-        "build": "electron-builder --win nsis",
+        "build": "node scripts/build-for-railway.js",
         "build:sef": "node scripts/build-sef.js",
         "build:protected": "node scripts/obfuscate-build.mjs",
         "dist": "electron-builder --win nsis",

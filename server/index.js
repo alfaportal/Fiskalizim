@@ -31,6 +31,7 @@ function healthPayload() {
     app_type: "fiskalizim",
     license_api: true,
     version: pkgVersion,
+    site_version: "2026-10-16-license-terminals-purge-fix",
     git_commit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || null,
     git_branch: process.env.RAILWAY_GIT_BRANCH || process.env.GIT_BRANCH || null,
     supabase_url: process.env.SUPABASE_URL || "https://oqquiuisreztzcyehpiq.supabase.co",

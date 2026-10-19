@@ -19,6 +19,7 @@ const { attachChainToFiscalData } = require("./fiscal-hash-chain");
 const { ATK_CORRECTION_REF_ERROR } = require("./atk-model-builder");
 
 const CORRECTION_TYPES = Object.freeze(["cancel", "return", "storno"]);
+const CORRECTABLE_ORIGINAL_TYPES = Object.freeze(["regular", "paper_block"]);
 
 function getSqlite() {
   const database = require("../database");
@@ -179,23 +180,47 @@ function rowToReceipt(row) {
 }
 
 /**
- * Kupon origjinal sipas NUIKF.
+ * NUIKF ose numër serik bllok letër (pas regjistrimit në SEF) → NUIKF origjinal.
  */
-function getOriginalReceipt(nuikf) {
+function resolveOriginalNuikfInput(input) {
   assertFiscalOn();
-  const key = String(nuikf || "")
-    .trim()
-    .toUpperCase();
-  if (!key) return null;
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const key = raw.toUpperCase();
+  if (/^[A-Z0-9]{16}$/.test(key)) return key;
 
   const sqlite = getSqlite();
-  const row = sqlite
+  const paper = sqlite
     .prepare(
-      `SELECT * FROM fiscal_receipts
-       WHERE UPPER(nuikf) = ? AND receipt_type = 'regular'
+      `SELECT registered_fiscal_receipt_id FROM paper_block_receipts
+       WHERE UPPER(serial_no) = ?
        LIMIT 1`
     )
     .get(key);
+  const fid = Number(paper?.registered_fiscal_receipt_id) || 0;
+  if (!fid) return null;
+  const fr = sqlite.prepare(`SELECT nuikf FROM fiscal_receipts WHERE id = ? LIMIT 1`).get(fid);
+  const nuikf = String(fr?.nuikf || "").trim().toUpperCase();
+  return nuikf || null;
+}
+
+/**
+ * Kupon origjinal sipas NUIKF (regular ose paper_block pas regjistrimit në SEF).
+ */
+function getOriginalReceipt(nuikf) {
+  assertFiscalOn();
+  const key = resolveOriginalNuikfInput(nuikf);
+  if (!key) return null;
+
+  const sqlite = getSqlite();
+  const placeholders = CORRECTABLE_ORIGINAL_TYPES.map(() => "?").join(",");
+  const row = sqlite
+    .prepare(
+      `SELECT * FROM fiscal_receipts
+       WHERE UPPER(nuikf) = ? AND receipt_type IN (${placeholders})
+       LIMIT 1`
+    )
+    .get(key, ...CORRECTABLE_ORIGINAL_TYPES);
   return rowToReceipt(row);
 }
 
@@ -258,7 +283,7 @@ function createCorrectionReceipt(originalNuikf, correctionType, items, reason, o
 
   const original = getOriginalReceipt(originalNuikf);
   if (!original) {
-    throw new Error("Kuponi origjinal nuk u gjet (vetëm kuponë regular)");
+    throw new Error("Kuponi origjinal nuk u gjet (regular / paper_block ose NUIKF / serik)");
   }
 
   const origCouponRef = Number(original.total_number) || 0;
@@ -515,6 +540,8 @@ function buildExchangeCorrectionReason(selectedOld, saleItems) {
 
 module.exports = {
   CORRECTION_TYPES,
+  CORRECTABLE_ORIGINAL_TYPES,
+  resolveOriginalNuikfInput,
   getOriginalReceipt,
   hasCorrection,
   getCorrectionHistory,
