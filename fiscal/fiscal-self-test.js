@@ -1022,18 +1022,21 @@ function testWriteOnce() {
 function testAudit() {
   const name = "10. AUDIT";
   try {
-    if (FISCAL_AUDIT_EXPORT_ACTIONS.length !== ALLOWED_ACTIONS.length) {
-      return fail(
-        name,
-        `eksporti ${FISCAL_AUDIT_EXPORT_ACTIONS.length} ≠ ${ALLOWED_ACTIONS.length} veprime`
-      );
+    if (FISCAL_AUDIT_EXPORT_ACTIONS.includes("login")) {
+      return fail(name, "hyrja (login) nuk duhet në eksport audit");
     }
     for (const action of ALLOWED_ACTIONS) {
+      if (action === "login") continue;
       if (!FISCAL_AUDIT_EXPORT_ACTIONS.includes(action)) {
         return fail(name, `veprim jo i eksportueshëm: ${action}`);
       }
     }
-    return ok(name, `${ALLOWED_ACTIONS.length} veprime — krejt audit log`);
+    for (const action of FISCAL_AUDIT_EXPORT_ACTIONS) {
+      if (!ALLOWED_ACTIONS.includes(action)) {
+        return fail(name, `veprim eksporti i panjohur: ${action}`);
+      }
+    }
+    return ok(name, `${FISCAL_AUDIT_EXPORT_ACTIONS.length} veprime eksport — pa hyrje login`);
   } catch (e) {
     return fail(name, e.message);
   }

@@ -43,8 +43,13 @@ const SYSTEM_ACTIONS = Object.freeze(
   new Set(["backup_created", "backup_restored", "disk_space_warning", "disk_space_critical"])
 );
 
-/** Veprimet që shfaqen në eksport/UI audit (ATK Neni 26) — krejt veprimet e lejuara. */
-const FISCAL_AUDIT_EXPORT_ACTIONS = Object.freeze([...ALLOWED_ACTIONS]);
+/** Veprime të regjistruara por jo për listë/eksport Audit (ATK) — p.sh. hyrja në program. */
+const AUDIT_ACTIONS_HIDDEN_FROM_ATK = Object.freeze(new Set(["login"]));
+
+/** Veprimet që shfaqen në eksport audit teknik (jo tab-i kuponësh fiskalë). */
+const FISCAL_AUDIT_EXPORT_ACTIONS = Object.freeze(
+  ALLOWED_ACTIONS.filter((a) => !AUDIT_ACTIONS_HIDDEN_FROM_ATK.has(a)),
+);
 
 const AUDIT_PURGE_FLAG = "audit_legacy_noise_purged_v2";
 
@@ -124,7 +129,11 @@ function isFiscalExportAction(action) {
 }
 
 function filterFiscalExportRows(rows) {
-  return (rows || []).filter((r) => isFiscalExportAction(r.action));
+  return (rows || []).filter((r) => {
+    const act = String(r?.action || "").toLowerCase();
+    if (AUDIT_ACTIONS_HIDDEN_FROM_ATK.has(act)) return false;
+    return isFiscalExportAction(r.action);
+  });
 }
 
 const STORNO_RECEIPT_TYPES = Object.freeze(
@@ -184,6 +193,28 @@ function formatFiscalCodeForAtk(row) {
   return nuikf || sef || "—";
 }
 
+/** Kupon jo-fiskal / termik — nuk shfaqet në Audit ATK. */
+const NON_FISCAL_RECEIPT_TYPES = Object.freeze(
+  new Set(["thermal", "non_fiscal", "non-fiscal", "proforma"]),
+);
+
+/** Vetëm kupon fiskal me NUIKF të vlefshëm (16 shifra) — jo POS-/termik. */
+function isAtkFiscalReceiptRow(row) {
+  const nuikf = String(row?.nuikf || "")
+    .trim()
+    .toUpperCase();
+  if (!/^[A-Z0-9]{16}$/.test(nuikf)) return false;
+  const rt = String(row?.receipt_type || "regular")
+    .trim()
+    .toLowerCase();
+  if (NON_FISCAL_RECEIPT_TYPES.has(rt)) return false;
+  return true;
+}
+
+function filterAtkFiscalReceiptRows(rows) {
+  return (rows || []).filter(isAtkFiscalReceiptRow);
+}
+
 function mapFiscalReceiptRowToAtkEntry(row) {
   const dt =
     `${row.fiscal_date || ""} ${row.fiscal_time || ""}`.trim() ||
@@ -219,29 +250,37 @@ function getAdminFiscalReceiptEntries(fromDate, toDate, opts = {}) {
     if (toDay && /^\d{4}-\d{2}-\d{2}$/.test(toDay)) {
       rows = rows.filter((r) => String(r.fiscal_date || "") <= toDay);
     }
-    return rows.slice(0, limit).map(mapFiscalReceiptRowToAtkEntry);
+    return filterAtkFiscalReceiptRows(rows)
+      .slice(0, limit)
+      .map(mapFiscalReceiptRowToAtkEntry);
   }
 
   const sqlite = getSqlite();
   if (!fiscalReceiptsTableExists(sqlite)) return [];
 
-  let sql = `SELECT id, nuikf, sef_id, daily_number, total_number, total_amount,
-                    payment_method, fiscal_date, fiscal_time, receipt_type, created_at
-             FROM fiscal_receipts WHERE 1=1`;
+  const fetchLimit = Math.min(500, Math.max(limit, limit * 4));
+  let sql = `SELECT fr.id, fr.nuikf, fr.sef_id, fr.daily_number, fr.total_number, fr.total_amount,
+                    fr.payment_method, fr.fiscal_date, fr.fiscal_time, fr.receipt_type, fr.created_at
+             FROM fiscal_receipts fr
+             INNER JOIN orders o ON o.id = fr.sale_id AND COALESCE(o.is_fiscalized, 0) = 1
+             WHERE LENGTH(TRIM(fr.nuikf)) = 16
+               AND LOWER(COALESCE(fr.receipt_type, 'regular')) NOT IN ('thermal', 'non_fiscal', 'non-fiscal', 'proforma')`;
   const params = [];
   if (fromDay && /^\d{4}-\d{2}-\d{2}$/.test(fromDay)) {
-    sql += ` AND fiscal_date >= ?`;
+    sql += ` AND fr.fiscal_date >= ?`;
     params.push(fromDay);
   }
   if (toDay && /^\d{4}-\d{2}-\d{2}$/.test(toDay)) {
-    sql += ` AND fiscal_date <= ?`;
+    sql += ` AND fr.fiscal_date <= ?`;
     params.push(toDay);
   }
-  sql += ` ORDER BY id DESC LIMIT ?`;
-  params.push(limit);
+  sql += ` ORDER BY fr.id DESC LIMIT ?`;
+  params.push(fetchLimit);
 
   const rows = sqlite.prepare(sql).all(...params);
-  return rows.map(mapFiscalReceiptRowToAtkEntry);
+  return filterAtkFiscalReceiptRows(rows)
+    .slice(0, limit)
+    .map(mapFiscalReceiptRowToAtkEntry);
 }
 
 function buildAtkReceiptExportLines(entries, fromDate, toDate) {

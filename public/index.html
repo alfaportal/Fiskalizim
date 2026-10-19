@@ -1125,6 +1125,72 @@
     }
     .checkout-pay-actions .btn-primary { flex: none; }
     .checkout-pay-actions .btn-ghost { flex: none; }
+    #tab-pos-pay #btn-kupon-termik {
+      background: linear-gradient(180deg, #38bdf8, #0284c7);
+      color: #0c4a6e;
+      border: none;
+    }
+    .pos-post-pay-thermal-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .pos-post-pay-thermal-modal[hidden] { display: none !important; }
+    .pos-post-pay-thermal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    .pos-post-pay-thermal-content {
+      position: relative;
+      z-index: 1;
+      width: min(420px, 100%);
+      background: var(--card, #1e293b);
+      border: 1px solid var(--line, #334155);
+      border-radius: 12px;
+      padding: 1.25rem 1.1rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+    .pos-post-pay-thermal-content h2 { margin: 0; font-size: 1.15rem; }
+    #pos-post-pay-thermal-msg {
+      margin-top: 0.75rem;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      background: #422006;
+      color: #fde68a;
+      font-size: 0.85rem;
+    }
+    #pos-post-pay-thermal-msg[hidden] { display: none !important; }
+    .pos-post-pay-thermal-content .btn-coupon-thermal {
+      width: 100%;
+      min-height: 46px;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem;
+      font-size: 0.92rem;
+      cursor: pointer;
+      background: linear-gradient(180deg, #38bdf8, #0284c7);
+      color: #0c4a6e;
+      font-family: inherit;
+    }
+    .pos-post-pay-thermal-content .btn-post-pay-vazhdo {
+      width: 100%;
+      min-height: 46px;
+      font-weight: 800;
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem;
+      font-size: 0.92rem;
+      cursor: pointer;
+      background: linear-gradient(180deg, #4ade80, #16a34a);
+      color: #052e16;
+      font-family: inherit;
+    }
     .btn-pay-main {
       border: 1px solid #22c55e88;
       border-radius: 8px;
@@ -1908,6 +1974,21 @@
     </div>
   </div>
 
+  <div id="modal-pos-post-pay-thermal" class="pos-post-pay-thermal-modal" hidden>
+    <div class="pos-post-pay-thermal-backdrop" id="pos-post-pay-thermal-backdrop"></div>
+    <div class="pos-post-pay-thermal-content" role="dialog" aria-modal="true" aria-labelledby="pos-post-pay-thermal-title">
+      <h2 id="pos-post-pay-thermal-title">Pagesa u krye</h2>
+      <p style="margin:0.35rem 0 0;color:var(--muted);font-size:0.88rem">
+        Mund të shtypni kuponin termik (jo fiskal) edhe një herë para se të vazhdoni.
+      </p>
+      <div id="pos-post-pay-thermal-msg" hidden></div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:1rem">
+        <button type="button" class="btn-coupon-thermal" id="pos-btn-shtyp-kupon-termik">Shtyp Kuponin</button>
+        <button type="button" class="btn-post-pay-vazhdo" id="pos-btn-post-pay-vazhdo">Vazhdo</button>
+      </div>
+    </div>
+  </div>
+
   <div id="payment-overlay" class="payment-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
     <div class="payment-box">
       <h2 id="payment-modal-title">Mënyra e pagesës</h2>
@@ -2138,6 +2219,7 @@
         </div>
         <div class="checkout-pay-actions">
           <button type="button" class="btn btn-primary" id="btn-checkout">Paguaj</button>
+          <button type="button" class="btn" id="btn-kupon-termik">Kupon Termik</button>
           <button type="button" class="btn btn-ghost" id="btn-clear">Pastro shportën</button>
         </div>
         <div class="msg" id="pos-msg" aria-live="polite"></div>
@@ -2355,7 +2437,7 @@
     <!-- Audit -->
     <section class="panel hidden" id="tab-audit" style="grid-column: 1 / -1">
       <h2>Audit — kuponët fiskalë (ATK)</h2>
-      <p style="margin:0 0 0.65rem;font-size:0.88rem;color:var(--muted)">Vetëm kuponët fiskalë (print / storno) — për inspektimin ATK.</p>
+      <p style="margin:0 0 0.65rem;font-size:0.88rem;color:var(--muted)">Vetëm kuponët fiskalë me NUIKF (print / storno) — jo kupon termik / shitje pa fiskalizim.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <div><label>Nga</label><input type="date" id="audit-from" /></div>
         <div><label>Deri</label><input type="date" id="audit-to" /></div>
@@ -2694,6 +2776,7 @@
         lastEdited: null,
         autoFillMethod: "cash",
       },
+      postPayCtx: null,
     };
 
     /** 7 mënyrat e pagesës sipas ATK / fiscal-payment.js */
@@ -2956,17 +3039,22 @@
           bar.textContent = "";
         }
       }
+      const termikBtn = document.getElementById("btn-kupon-termik");
+      const payDisabled = !status.ok || !state.cart.length || invoiceTotal <= 0;
       if (btn && !state.diskBlocksRecords && !state.dbDecryptFailed) {
-        btn.disabled = !status.ok || !state.cart.length || invoiceTotal <= 0;
+        btn.disabled = payDisabled;
         btn.title = !status.ok
           ? formatPaymentError(status)
           : invoiceTotal <= 0 && state.cart.length
             ? "Totali duhet > 0 — kontrolloni zbritjen në total ose artikujt"
             : "";
       }
+      if (termikBtn && !state.diskBlocksRecords && !state.dbDecryptFailed) {
+        termikBtn.disabled = payDisabled;
+        termikBtn.title = btn?.title || "";
+      }
       const cashBtn = document.getElementById("btn-pay-cash-submit");
       const cardBtn = document.getElementById("btn-pay-card");
-      const payDisabled = !status.ok || !state.cart.length || invoiceTotal <= 0;
       if (cashBtn && !state.diskBlocksRecords && !state.dbDecryptFailed) {
         cashBtn.disabled = payDisabled;
       }
@@ -5811,15 +5899,87 @@
       return lines.join("\n");
     }
 
-    async function checkout() {
+    function hidePosPostPayThermalModal() {
+      const m = document.getElementById("modal-pos-post-pay-thermal");
+      if (m) m.hidden = true;
+    }
+
+    function showPosPostPayThermalModal(ctx) {
+      state.postPayCtx = ctx;
+      const msgEl = document.getElementById("pos-post-pay-thermal-msg");
+      if (msgEl) {
+        msgEl.hidden = true;
+        msgEl.textContent = "";
+      }
+      const m = document.getElementById("modal-pos-post-pay-thermal");
+      if (m) m.hidden = false;
+    }
+
+    function finalizePosPostPaySuccess() {
+      state.postPayCtx = null;
+      hidePosPostPayThermalModal();
+      state.cart = [];
+      resetCartAdjustments();
+      resetPaymentToDefault();
+      renderCart();
+    }
+
+    function applyPosThermalPrintFeedback(thermal, msgEl) {
+      if (thermal?.printed) {
+        if (msgEl) {
+          msgEl.hidden = true;
+          msgEl.textContent = "";
+        }
+        return;
+      }
+      const pmsg =
+        thermal?.printMessage ||
+        (thermal?.skipped ? "Printimi termik u anashkalua." : "Printeri termik nuk u gjet.");
+      if (msgEl) {
+        msgEl.hidden = false;
+        msgEl.textContent = pmsg;
+      }
+    }
+
+    async function shtypPosKuponTermikPasPagese() {
+      const ctx = state.postPayCtx;
+      const gabimEl = document.getElementById("pos-post-pay-thermal-msg");
+      const orderId = ctx?.order_id;
+      if (!orderId) return;
+      const btn = document.getElementById("pos-btn-shtyp-kupon-termik");
+      if (btn) btn.disabled = true;
+      try {
+        const data = await api("/api/checkout/print-thermal", {
+          method: "POST",
+          body: JSON.stringify({ order_id: orderId, language: fiscalUiLang() }),
+        });
+        applyPosThermalPrintFeedback(data.thermal, gabimEl);
+      } catch (e) {
+        if (gabimEl) {
+          gabimEl.hidden = false;
+          gabimEl.textContent = e.message || "Printimi dështoi";
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function checkout(opts = {}) {
+      const thermal = opts.thermal === true;
       const msg = document.getElementById("pos-msg");
       const btn = document.getElementById("btn-checkout");
+      const btnTermik = document.getElementById("btn-kupon-termik");
       if (state.dbDecryptFailed) {
         setMsg(msg, "Databaza nuk lexohet — duhet rikthyer nga backup-i", false);
         return;
       }
       const atk = state.atkStatus || {};
-      if (!state.paperBlockActive && atk.has_private_key && atk.private_key_readable === false) {
+      if (
+        !thermal &&
+        !state.paperBlockActive &&
+        atk.has_private_key &&
+        atk.private_key_readable === false
+      ) {
         setMsg(
           msg,
           atk.private_key_error ||
@@ -5828,7 +5988,7 @@
         );
         return;
       }
-      if (!state.paperBlockActive && atk.fiscal_enabled && !atk.ready_for_atk) {
+      if (!thermal && !state.paperBlockActive && atk.fiscal_enabled && !atk.ready_for_atk) {
         setMsg(msg, "Bëni onboarding (Lidhu me ATK) para se të shtypni kupon fiskal.", false);
         return;
       }
@@ -5861,9 +6021,13 @@
         document.querySelector("#tab-pos-pay")?.scrollIntoView({ behavior: "auto", block: "nearest" });
         return;
       }
-      btn.disabled = true;
+      if (btn) btn.disabled = true;
+      if (btnTermik) btnTermik.disabled = true;
       try {
-        if (state.paperBlockActive) {
+        if (thermal) {
+          setMsg(msg, "Duke paguar dhe printuar termik…", null);
+        }
+        if (!thermal && state.paperBlockActive) {
           let serialNo = null;
           const titleEl = document.getElementById("text-prompt-title");
           const prevTitle = titleEl ? titleEl.textContent : "";
@@ -5938,6 +6102,10 @@
 
         const body0 = buildCheckoutBody(false);
         body0.skip_print = false;
+        if (thermal) {
+          body0.coupon_type = "thermal";
+          body0.print_thermal = true;
+        }
         let data = await api("/api/checkout", {
           method: "POST",
           body: JSON.stringify(body0),
@@ -5952,10 +6120,24 @@
           }
           const body1 = buildCheckoutBody(true);
           body1.skip_print = false;
+          if (thermal) {
+            body1.coupon_type = "thermal";
+            body1.print_thermal = true;
+          }
           data = await api("/api/checkout", {
             method: "POST",
             body: JSON.stringify(body1),
           });
+        }
+        if (thermal) {
+          const th = data.thermal || {};
+          const nr = data.receipt_number || `POS-${data.order_id || "—"}`;
+          let line = `Pagesa u krye · ${euro(data.total)} · ${nr}`;
+          if (th.printed) line += " · kupon termik u printua";
+          else if (th.printMessage) line += ` · Print: ${th.printMessage}`;
+          setMsg(msg, line, th.printed !== false && !th.printMessage);
+          showPosPostPayThermalModal({ order_id: data.order_id, receipt_number: nr });
+          return;
         }
         const f = data.fiscal || {};
         setCouponStatus(msg, f);
@@ -5991,7 +6173,8 @@
         }
         if (e.disk_full) applyDiskUi({ disk: e.disk, blocks_new_records: true });
       } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
+        if (btnTermik) btnTermik.disabled = false;
         updateMixedPaymentBar();
       }
     }
@@ -7150,7 +7333,17 @@
         renderProducts();
       });
     });
-    document.getElementById("btn-checkout").addEventListener("click", checkout);
+    document.getElementById("btn-checkout").addEventListener("click", () => checkout());
+    document.getElementById("btn-kupon-termik")?.addEventListener("click", () => checkout({ thermal: true }));
+    document.getElementById("pos-btn-shtyp-kupon-termik")?.addEventListener("click", () => {
+      shtypPosKuponTermikPasPagese();
+    });
+    document.getElementById("pos-btn-post-pay-vazhdo")?.addEventListener("click", () => {
+      finalizePosPostPaySuccess();
+    });
+    document.getElementById("pos-post-pay-thermal-backdrop")?.addEventListener("click", () => {
+      finalizePosPostPaySuccess();
+    });
     document.getElementById("btn-pay-cash-submit")?.addEventListener("click", async () => {
       setQuickPayment("cash");
       syncPayReceivedToTotal(true);
@@ -7367,7 +7560,15 @@
         if (from) q.set("from", from);
         if (to) q.set("to", to);
         const data = await api(`/api/admin/audit-log?${q.toString()}`);
-        const entries = Array.isArray(data.entries) ? data.entries : [];
+        const entries = (Array.isArray(data.entries) ? data.entries : []).filter((e) => {
+          const veprim = String(e.veprim || e.receipt_type || "").toLowerCase();
+          if (veprim === "login") return false;
+          const code = String(e.fiscal_code || "")
+            .split("·")[0]
+            .trim()
+            .toUpperCase();
+          return /^[A-Z0-9]{16}$/.test(code);
+        });
         if (!entries.length) {
           body.innerHTML =
             '<tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka kuponë fiskal për këtë periudhë.</td></tr>';
@@ -8779,8 +8980,8 @@
         return;
       }
       try {
-        const data = await finishSessionLogin(name, id);
-        setMsg(msg, `Kyçur · audit #${data.audit_id || "—"} · IP ${data.ip || "—"}`, true);
+        await finishSessionLogin(name, id);
+        setMsg(msg, "Kyçur.", true);
       } catch (e) {
         setMsg(msg, e.message, false);
       }

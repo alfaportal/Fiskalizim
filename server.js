@@ -795,39 +795,16 @@ async function boot() {
     }
   });
 
-  /** Login operatori — audit write-once (kush / kur / IP). */
+  /** Login operatori — vetëm sesion lokal (pa regjistrim hyrjeje në audit ATK). */
   app.post("/api/auth/login", (req, res) => {
     try {
       const operatorName = String(req.body?.operator_name || req.body?.name || "").trim();
       const operatorId = String(req.body?.operator_id || req.body?.id || "POS").trim() || "POS";
       if (!operatorName) throw new Error("Emri i operatorit është i detyrueshëm");
-      const ip =
-        String(req.headers["x-forwarded-for"] || "")
-          .split(",")[0]
-          .trim() ||
-        req.socket?.remoteAddress ||
-        req.ip ||
-        "";
-      const { logFiscalAction } = require("./fiscal/fiscal-audit");
-      const entry = logFiscalAction(
-        "login",
-        {
-          event: "login",
-          operator_name: operatorName,
-          operator_id: operatorId,
-          ip: ip || null,
-          user_agent: String(req.headers["user-agent"] || "").slice(0, 180) || null,
-          at: new Date().toISOString(),
-        },
-        operatorName,
-        operatorId
-      );
       res.json({
         ok: true,
         operator_name: operatorName,
         operator_id: operatorId,
-        ip: ip || null,
-        audit_id: entry?.id || null,
       });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
@@ -1582,14 +1559,95 @@ async function boot() {
     }
   });
 
+  function posThermalPaymentLabel(method) {
+    const m = String(method || "cash").toLowerCase();
+    if (m === "credit_card" || m === "debit_card") return "Kartelë";
+    if (m === "bank_account") return "Transfer bankar";
+    if (m === "mixed") return "E përzier";
+    if (m === "cash") return "Cash";
+    return method || "Cash";
+  }
+
+  function saleSnapshotFromOrderRow(order) {
+    if (!order) return null;
+    let payload = {};
+    try {
+      payload = JSON.parse(order.items_json || "{}");
+    } catch {
+      payload = {};
+    }
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const splits = Array.isArray(payload.payment_splits) ? payload.payment_splits : [];
+    return {
+      id: order.id,
+      items,
+      total: order.total,
+      subtotal: order.subtotal,
+      discount_total: order.discount_total,
+      surcharge_total: Number(payload.cart_surcharge_amount) || 0,
+      payment_method: order.payment_method,
+      payment_splits: splits,
+      operator_name: order.waiter_name || "Operator",
+    };
+  }
+
+  async function printPosThermalReceipt(sale, lang) {
+    syncReportLanguage(db.getFiscalSettingsRow());
+    if (lang) syncLanguageFromSettings(lang);
+
+    const settings = db.getFiscalSettingsRow();
+    const { buildReceiptText, finalizeReceiptText, pad, paperChars } = require("./receipt-text");
+    const printer = require("./printer");
+    const paper = "80mm";
+    const w = paperChars(paper);
+    const receiptNumber = `POS-${String(sale.id).padStart(6, "0")}`;
+    const nfHeader = pad(t("receipt_non_fiscal"), w, "center");
+    const body = buildReceiptText({
+      restaurantName: settings.taxpayer_legal_name || "Revolution Fiskalizim",
+      phone: settings.unit_phone || "",
+      address: settings.taxpayer_address || "",
+      cashierName: sale.operator_name || "",
+      items: sale.items,
+      total: sale.total,
+      receiptNumber,
+      closedAt: new Date().toISOString(),
+      paymentMethod: posThermalPaymentLabel(sale.payment_method),
+      slipKind: "final",
+      paper,
+      discountTotal: sale.discount_total || 0,
+      subtotalBeforeDiscount:
+        sale.subtotal != null ? Number(sale.subtotal) + Number(sale.discount_total || 0) : sale.total,
+      markedTotal: false,
+    });
+    const text = finalizeReceiptText(`${nfHeader}\n${body}`, paper);
+    try {
+      await printer.printPlainTextReceipt(text, db);
+      return { printed: true, printMessage: "", text, receipt_number: receiptNumber };
+    } catch (e) {
+      return {
+        printed: false,
+        printMessage: e.message || "Printimi dështoi",
+        text,
+        receipt_number: receiptNumber,
+      };
+    }
+  }
+
   /** Checkout: regjistron shitjen + emeton kupon fiskal + print */
   app.post("/api/checkout", async (req, res) => {
     try {
       const blocked = recordsGuardResponse(res);
       if (blocked) return blocked;
 
+      const couponType = String(
+        req.body?.coupon_type || (req.body?.print_thermal === true ? "thermal" : "fiscal")
+      )
+        .trim()
+        .toLowerCase();
+      const isThermal = couponType === "thermal";
+
       const { isFiscalEnabled } = require("./fiscal/fiscal-config");
-      if (isFiscalEnabled()) {
+      if (!isThermal && isFiscalEnabled()) {
         const { verifyPrivateKeyReadable } = require("./fiscal/fiscal-crypto");
         const keyCheck = verifyPrivateKeyReadable();
         if (!keyCheck.ok && !keyCheck.skipped) {
@@ -1628,6 +1686,26 @@ async function boot() {
         payment_splits: req.body?.payment_splits || null,
       });
 
+      if (isThermal) {
+        const thermal =
+          req.body?.skip_print === true
+            ? { printed: false, skipped: true, printMessage: "skip_print" }
+            : await printPosThermalReceipt(sale, req.body?.language);
+        return res.json({
+          ok: true,
+          order_id: sale.id,
+          total: sale.total,
+          subtotal: sale.subtotal,
+          discount_total: sale.discount_total,
+          surcharge_total: sale.surcharge_total,
+          payment_method: sale.payment_method,
+          payment_splits: sale.payment_splits,
+          coupon_type: "thermal",
+          thermal,
+          receipt_number: thermal.receipt_number || `POS-${String(sale.id).padStart(6, "0")}`,
+        });
+      }
+
       const { processFiscalReceipt } = require("./fiscal/fiscal-main");
       const fiscal = await processFiscalReceipt(sale.id, sale.payment_method, {
         items: sale.items,
@@ -1655,6 +1733,21 @@ async function boot() {
       });
     } catch (e) {
       console.error("[checkout]", e);
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  /** Riprint kupon termik pas pagesës (pa kupon fiskal). */
+  app.post("/api/checkout/print-thermal", async (req, res) => {
+    try {
+      const orderId = Number(req.body?.order_id);
+      if (!orderId) throw new Error("order_id mungon");
+      const order = db.getOrder(orderId);
+      if (!order) throw new Error("Shitja nuk u gjet");
+      const sale = saleSnapshotFromOrderRow(order);
+      const thermal = await printPosThermalReceipt(sale, req.body?.language);
+      res.json({ ok: true, order_id: orderId, thermal, coupon_type: "thermal" });
+    } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
     }
   });
