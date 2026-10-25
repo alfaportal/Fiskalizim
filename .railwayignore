@@ -1,0 +1,9 @@
+node_modules/
+build/
+dist/
+dist-atk-v2/
+.protected-build/
+data/
+*.db
+*.db-*
+.cursor/

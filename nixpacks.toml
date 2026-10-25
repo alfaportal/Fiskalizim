@@ -1,0 +1,12 @@
+# Railway — vetëm license API (server/), jo Electron desktop build.
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["cd server && npm install"]
+
+[phases.build]
+cmds = ["echo fiskalizim-license-server-only"]
+
+[start]
+cmd = "cd server && node index.js"
