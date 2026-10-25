@@ -1,0 +1,1212 @@
+{
+  "version": 1,
+  "count": 134,
+  "products": [
+    {
+      "name": "Tekstil i eksportuar",
+      "price": 30,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 101
+    },
+    {
+      "name": "Ushqim i eksportuar",
+      "price": 40,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 102
+    },
+    {
+      "name": "Pajisje elektronike për eksport",
+      "price": 100,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 103
+    },
+    {
+      "name": "Transport ndërkombëtar i mallrave",
+      "price": 80,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "UDH",
+      "category_code": "STR",
+      "sort_order": 104
+    },
+    {
+      "name": "Transport transit i mallrave",
+      "price": 150,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "UDH",
+      "category_code": "STR",
+      "sort_order": 105
+    },
+    {
+      "name": "Shërbim i transportit ekspres ndërkombëtar",
+      "price": 60,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "UDH",
+      "category_code": "STR",
+      "sort_order": 106
+    },
+    {
+      "name": "Furnizim me mallra për bordin e fluturimit",
+      "price": 200,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "ST",
+      "sort_order": 107
+    },
+    {
+      "name": "Furnizim organizatë ndërkombëtare",
+      "price": 1500,
+      "vat_letter": "A",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "ST",
+      "sort_order": 108
+    },
+    {
+      "name": "Kontroll i syve",
+      "price": 10,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SM",
+      "sort_order": 153
+    },
+    {
+      "name": "Fizioterapi",
+      "price": 25,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SM",
+      "sort_order": 154
+    },
+    {
+      "name": "Regjistrim shkollor",
+      "price": 50,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SEA",
+      "sort_order": 155
+    },
+    {
+      "name": "Kurs kompjuteri",
+      "price": 30,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SEA",
+      "sort_order": 156
+    },
+    {
+      "name": "Mësim privat",
+      "price": 15,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SEA",
+      "sort_order": 157
+    },
+    {
+      "name": "Kurs i parë ndihme",
+      "price": 20,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SEA",
+      "sort_order": 158
+    },
+    {
+      "name": "Gazetë ditore",
+      "price": 1,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 159
+    },
+    {
+      "name": "Revistë javore",
+      "price": 2.5,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 160
+    },
+    {
+      "name": "Biletë autobusi",
+      "price": 1,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "STR",
+      "sort_order": 161
+    },
+    {
+      "name": "Kujdes ditor për fëmijë",
+      "price": 8,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SM",
+      "sort_order": 162
+    },
+    {
+      "name": "Shërbim kujdesi social",
+      "price": 12,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "SM",
+      "sort_order": 163
+    },
+    {
+      "name": "Pullë postare",
+      "price": 0.5,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 164
+    },
+    {
+      "name": "Shërbim postar",
+      "price": 2,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "ST",
+      "sort_order": 165
+    },
+    {
+      "name": "Shërbim kulturor",
+      "price": 10,
+      "vat_letter": "C",
+      "vat_category": "0",
+      "unit_code": "EA",
+      "category_code": "ST",
+      "sort_order": 166
+    },
+    {
+      "name": "Miell 1kg",
+      "price": 0.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 212
+    },
+    {
+      "name": "Miell misri 1kg",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 213
+    },
+    {
+      "name": "Grurë 1kg",
+      "price": 0.9,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 214
+    },
+    {
+      "name": "Elb 1kg",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 215
+    },
+    {
+      "name": "Misër 1kg",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 216
+    },
+    {
+      "name": "Tërshërë 500g",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 217
+    },
+    {
+      "name": "Oriz 1kg",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 218
+    },
+    {
+      "name": "Oriz basmati 1kg",
+      "price": 2.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 219
+    },
+    {
+      "name": "Bollgur 500g",
+      "price": 1.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 220
+    },
+    {
+      "name": "Bukë e bardhë 500g",
+      "price": 0.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 221
+    },
+    {
+      "name": "Bukë integrale",
+      "price": 0.9,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 222
+    },
+    {
+      "name": "Bukë misri",
+      "price": 0.7,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 223
+    },
+    {
+      "name": "Bukë thekre",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 224
+    },
+    {
+      "name": "Makarona 500g",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 225
+    },
+    {
+      "name": "Makarona spageti 500g",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 226
+    },
+    {
+      "name": "Makarona penne 500g",
+      "price": 1.1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 227
+    },
+    {
+      "name": "Petë",
+      "price": 0.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 228
+    },
+    {
+      "name": "Brumë gatimi 1kg",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 229
+    },
+    {
+      "name": "Tortellini 500g",
+      "price": 2.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 230
+    },
+    {
+      "name": "Lazanja 500g",
+      "price": 2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 231
+    },
+    {
+      "name": "Qumësht 1L",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 232
+    },
+    {
+      "name": "Qumësht 0.5L",
+      "price": 0.7,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 233
+    },
+    {
+      "name": "Qumësht pa laktoz 1L",
+      "price": 1.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 234
+    },
+    {
+      "name": "Kos 500g",
+      "price": 0.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 235
+    },
+    {
+      "name": "Kos 1kg",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 236
+    },
+    {
+      "name": "Jogurt 500ml",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 237
+    },
+    {
+      "name": "Jogurt me fruta 200ml",
+      "price": 0.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 238
+    },
+    {
+      "name": "Djathë i bardhë 1kg",
+      "price": 4.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 239
+    },
+    {
+      "name": "Djathë kaçkavall 1kg",
+      "price": 7,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 240
+    },
+    {
+      "name": "Djathë i topur 500g",
+      "price": 3.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 241
+    },
+    {
+      "name": "Gjizë 500g",
+      "price": 2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 242
+    },
+    {
+      "name": "Gjalpë 200g",
+      "price": 2.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 243
+    },
+    {
+      "name": "Gjalpë 500g",
+      "price": 5.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 244
+    },
+    {
+      "name": "Ajran 500ml",
+      "price": 0.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 245
+    },
+    {
+      "name": "Krem djathi 200g",
+      "price": 1.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 246
+    },
+    {
+      "name": "Pavlakë 200ml",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 247
+    },
+    {
+      "name": "Vaj luledielli 1L",
+      "price": 2.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 248
+    },
+    {
+      "name": "Vaj luledielli 5L",
+      "price": 10,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 249
+    },
+    {
+      "name": "Vaj ulliri 1L",
+      "price": 8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 250
+    },
+    {
+      "name": "Vaj ulliri 0.5L",
+      "price": 4.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 251
+    },
+    {
+      "name": "Vaj misri 1L",
+      "price": 3,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 252
+    },
+    {
+      "name": "Vaj soje 1L",
+      "price": 2.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "LTR",
+      "category_code": "AU",
+      "sort_order": 253
+    },
+    {
+      "name": "Vezë (6 copë)",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "CP",
+      "category_code": "AU",
+      "sort_order": 254
+    },
+    {
+      "name": "Vezë (10 copë)",
+      "price": 2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "CP",
+      "category_code": "AU",
+      "sort_order": 255
+    },
+    {
+      "name": "Vezë (30 copë)",
+      "price": 5.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "CP",
+      "category_code": "AU",
+      "sort_order": 256
+    },
+    {
+      "name": "Kripë 1kg",
+      "price": 0.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 257
+    },
+    {
+      "name": "Kripë deti 500g",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 258
+    },
+    {
+      "name": "Kripë e jodizuar 1kg",
+      "price": 0.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 259
+    },
+    {
+      "name": "Sheqer 1kg",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 260
+    },
+    {
+      "name": "Sheqer pluhur 500g",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 261
+    },
+    {
+      "name": "Sheqer kaf 1kg",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "AU",
+      "sort_order": 262
+    },
+    {
+      "name": "Mish viçi 1kg",
+      "price": 9,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 263
+    },
+    {
+      "name": "Mish pule 1kg",
+      "price": 5.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 264
+    },
+    {
+      "name": "Mish qingji 1kg",
+      "price": 12,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 265
+    },
+    {
+      "name": "Mish lope 1kg",
+      "price": 8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 266
+    },
+    {
+      "name": "Sallam 200g",
+      "price": 2.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 267
+    },
+    {
+      "name": "Sallam 1kg",
+      "price": 8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 268
+    },
+    {
+      "name": "Suxhuk 500g",
+      "price": 4.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 269
+    },
+    {
+      "name": "Proshutë 200g",
+      "price": 3.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 270
+    },
+    {
+      "name": "Bacon 200g",
+      "price": 3,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 271
+    },
+    {
+      "name": "Hamburger mishi 500g",
+      "price": 4,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 272
+    },
+    {
+      "name": "Kotoletë pule 1kg",
+      "price": 6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 273
+    },
+    {
+      "name": "File pule 1kg",
+      "price": 7.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 274
+    },
+    {
+      "name": "Krahë pule 1kg",
+      "price": 4,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "KGN",
+      "category_code": "MPM",
+      "sort_order": 275
+    },
+    {
+      "name": "Libër shkollor",
+      "price": 4.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 276
+    },
+    {
+      "name": "Tekst shkollor",
+      "price": 6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 277
+    },
+    {
+      "name": "Libër leximi",
+      "price": 5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 278
+    },
+    {
+      "name": "Fletore",
+      "price": 0.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 279
+    },
+    {
+      "name": "Libër profesional",
+      "price": 15,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 280
+    },
+    {
+      "name": "Fjalor",
+      "price": 8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 281
+    },
+    {
+      "name": "Enciklopedi",
+      "price": 20,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "sort_order": 282
+    },
+    {
+      "name": "Coca-Cola 0.5L",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 283
+    },
+    {
+      "name": "Fanta 0.5L",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 284
+    },
+    {
+      "name": "Sprite 0.5L",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 285
+    },
+    {
+      "name": "Pepsi 0.5L",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 286
+    },
+    {
+      "name": "Red Bull 250ml",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 287
+    },
+    {
+      "name": "Hell 250ml",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 288
+    },
+    {
+      "name": "Lëng frutash 1L",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 289
+    },
+    {
+      "name": "Nektar 0.5L",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 290
+    },
+    {
+      "name": "Ujë i gazuar 0.5L",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 291
+    },
+    {
+      "name": "Ujë i aromatizuar 0.5L",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PJA",
+      "sort_order": 292
+    },
+    {
+      "name": "Birra 0.5L",
+      "price": 1.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PAL",
+      "sort_order": 293
+    },
+    {
+      "name": "Verë 0.75L",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PAL",
+      "sort_order": 294
+    },
+    {
+      "name": "Raki 0.5L",
+      "price": 6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PAL",
+      "sort_order": 295
+    },
+    {
+      "name": "Vodkë 0.7L",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PAL",
+      "sort_order": 296
+    },
+    {
+      "name": "Uiski 0.7L",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PAL",
+      "sort_order": 297
+    },
+    {
+      "name": "Xhin 0.7L",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "LTR",
+      "category_code": "PAL",
+      "sort_order": 298
+    },
+    {
+      "name": "Cigare (pako)",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "PK",
+      "category_code": "DUH",
+      "sort_order": 299
+    },
+    {
+      "name": "Kafe espresso (pako)",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "CP",
+      "category_code": "UR",
+      "sort_order": 300
+    },
+    {
+      "name": "Kafe turke (pako)",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "CP",
+      "category_code": "UR",
+      "sort_order": 301
+    },
+    {
+      "name": "Çaj i paketuar (filter)",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "CP",
+      "category_code": "UR",
+      "sort_order": 302
+    },
+    {
+      "name": "Ushqim i gatshëm",
+      "price": 3.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "CP",
+      "category_code": "UR",
+      "sort_order": 303
+    },
+    {
+      "name": "Sandviç",
+      "price": 3.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "CP",
+      "category_code": "UR",
+      "sort_order": 304
+    },
+    {
+      "name": "Picë",
+      "price": 3.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "CP",
+      "category_code": "UR",
+      "sort_order": 305
+    },
+    {
+      "name": "Çips",
+      "price": 1.3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 306
+    },
+    {
+      "name": "Snack",
+      "price": 1.3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 307
+    },
+    {
+      "name": "Akullore",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "AU",
+      "sort_order": 308
+    },
+    {
+      "name": "Bluzë",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "VM",
+      "sort_order": 309
+    },
+    {
+      "name": "Pantallona",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "VM",
+      "sort_order": 310
+    },
+    {
+      "name": "Xhaketë",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "VM",
+      "sort_order": 311
+    },
+    {
+      "name": "Këpucë",
+      "price": 35,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "VM",
+      "sort_order": 312
+    },
+    {
+      "name": "Atlete",
+      "price": 35,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "VM",
+      "sort_order": 313
+    },
+    {
+      "name": "Parfum",
+      "price": 25,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "KO",
+      "sort_order": 314
+    },
+    {
+      "name": "Kozmetikë",
+      "price": 25,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "KO",
+      "sort_order": 315
+    },
+    {
+      "name": "Sapun",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "KO",
+      "sort_order": 316
+    },
+    {
+      "name": "Shampo",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "KO",
+      "sort_order": 317
+    },
+    {
+      "name": "Pasta e dhëmbëve",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "KO",
+      "sort_order": 318
+    },
+    {
+      "name": "Detergjent për rroba",
+      "price": 4.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "PS",
+      "sort_order": 319
+    },
+    {
+      "name": "Lëng enësh",
+      "price": 4.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "PS",
+      "sort_order": 320
+    },
+    {
+      "name": "Laptop",
+      "price": 150,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "PE",
+      "sort_order": 321
+    },
+    {
+      "name": "Telefon",
+      "price": 150,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "PE",
+      "sort_order": 322
+    },
+    {
+      "name": "Karikues",
+      "price": 150,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "PE",
+      "sort_order": 323
+    }
+  ]
+}

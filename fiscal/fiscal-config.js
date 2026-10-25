@@ -18,6 +18,7 @@ const EDITABLE_KEYS = [
   "atk_api_url",
   "fiscalization_number",
   "application_id",
+  "atk_spec_version",
 ];
 
 const DEFAULTS = {
@@ -35,6 +36,7 @@ const DEFAULTS = {
   pos_id: "",
   fiscalization_number: "",
   application_id: "",
+  atk_spec_version: "MF-01/2026",
   sef_code: "",
   developer_nui: "811314567",
   sef_identifier: "",
@@ -44,6 +46,7 @@ const DEFAULTS = {
   daily_receipt_counter: 0,
   total_receipt_counter: 0,
   last_z_report_date: "",
+  last_daily_number_date: "",
   language: "sq",
   created_at: null,
   updated_at: null,
@@ -86,6 +89,10 @@ function normalizeRow(row) {
     pos_id: row.pos_id != null ? String(row.pos_id) : "",
     fiscalization_number: row.fiscalization_number != null ? String(row.fiscalization_number) : "",
     application_id: row.application_id != null ? String(row.application_id) : "",
+    atk_spec_version:
+      row.atk_spec_version != null && String(row.atk_spec_version).trim()
+        ? String(row.atk_spec_version).trim()
+        : "MF-01/2026",
     sef_code: row.sef_code != null ? String(row.sef_code) : "",
     developer_nui: row.developer_nui != null ? String(row.developer_nui) : "811314567",
     sef_identifier: row.sef_identifier != null ? String(row.sef_identifier) : "",
@@ -98,6 +105,8 @@ function normalizeRow(row) {
     daily_receipt_counter: Number(row.daily_receipt_counter) || 0,
     total_receipt_counter: Number(row.total_receipt_counter) || 0,
     last_z_report_date: row.last_z_report_date != null ? String(row.last_z_report_date) : "",
+    last_daily_number_date:
+      row.last_daily_number_date != null ? String(row.last_daily_number_date) : "",
     language: row.language === "sr" ? "sr" : "sq",
     created_at: row.created_at || null,
     updated_at: row.updated_at || null,
@@ -158,28 +167,18 @@ function saveFiscalSettings(data) {
     next[key] = String(data[key] ?? "").trim();
   }
 
-  const changedKeys = EDITABLE_KEYS.filter((k) => data[k] !== undefined);
-  const wasEnabled = !!current.fiscal_enabled;
+  function settingsValuesEqual(key, a, b) {
+    if (key === "fiscal_enabled") return !!a === !!b;
+    return String(a ?? "") === String(b ?? "");
+  }
 
-  // Audit PARA update nëse po fiket — logFiscalAction kërkon fiscal ON
-  if (wasEnabled && changedKeys.length) {
-    try {
-      const { logFiscalAction } = require("./fiscal-audit");
-      logFiscalAction(
-        "setting_changed",
-        {
-          fiscal_enabled: next.fiscal_enabled,
-          keys: changedKeys,
-          taxpayer_nui: next.taxpayer_nui,
-          language: next.language,
-          pos_id: next.pos_id,
-        },
-        "Pronari",
-        "OWNER"
-      );
-    } catch (e) {
-      console.warn("[fiscal-config] audit:", e.message);
-    }
+  const changedKeys = EDITABLE_KEYS.filter((k) => {
+    if (data[k] === undefined) return false;
+    return !settingsValuesEqual(k, next[k], current[k]);
+  });
+
+  if (changedKeys.length === 0) {
+    return getFiscalSettings();
   }
 
   // Siguro kolonat e reja në DB të vjetër
@@ -192,6 +191,7 @@ function saveFiscalSettings(data) {
     `ALTER TABLE fiscal_settings ADD COLUMN application_id TEXT`,
     `ALTER TABLE fiscal_settings ADD COLUMN atk_api_url TEXT`,
     `ALTER TABLE fiscal_settings ADD COLUMN fiscalization_number TEXT`,
+    `ALTER TABLE fiscal_settings ADD COLUMN atk_spec_version TEXT DEFAULT 'MF-01/2026'`,
   ]) {
     try {
       sqlite.prepare(colSql).run();
@@ -235,6 +235,7 @@ function saveFiscalSettings(data) {
         atk_api_url = ?,
         fiscalization_number = ?,
         application_id = ?,
+        atk_spec_version = ?,
         updated_at = datetime('now','localtime')
       WHERE id = 1`
     )
@@ -254,7 +255,8 @@ function saveFiscalSettings(data) {
       next.language || "sq",
       next.atk_api_url || "https://fiskalizimi-test.atk-ks.org",
       next.fiscalization_number || null,
-      next.application_id || null
+      next.application_id || null,
+      next.atk_spec_version || "MF-01/2026"
     );
 
   // Sinkronizo cache i18n nga DB (pa rishkruar)
@@ -265,25 +267,11 @@ function saveFiscalSettings(data) {
     }
   } catch (_e) { /* */ }
 
-  // Audit PAS update kur sapo u ndez fiscal
-  if (!wasEnabled && next.fiscal_enabled) {
-    try {
-      const { logFiscalAction } = require("./fiscal-audit");
-      logFiscalAction(
-        "setting_changed",
-        { fiscal_enabled: true, keys: changedKeys },
-        "Pronari",
-        "OWNER"
-      );
-    } catch (e) {
-      console.warn("[fiscal-config] audit:", e.message);
-    }
-  }
-
   return getFiscalSettings();
 }
 
 module.exports = {
+  EDITABLE_KEYS,
   getFiscalSettings,
   saveFiscalSettings,
   isFiscalEnabled,

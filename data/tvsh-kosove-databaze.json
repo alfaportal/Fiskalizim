@@ -1,0 +1,267 @@
+{
+  "meta": {
+    "title": "Databazë TVSH Kosovë — për POS / e-fiskalizim",
+    "version": "1.1.0",
+    "updated": "2026-08-06",
+    "currency": "EUR",
+    "authority": "ATK — Administrata Tatimore e Kosovës",
+    "sources": [
+      {
+        "name": "Udhëzuesi interaktiv i ATK për TVSH",
+        "url": "https://crmm.atk-ks.org/en/Public/InteractiveTaxGuide"
+      },
+      {
+        "name": "Ligji për TVSH (kërko 08/L-257 / TVSH në GZK)",
+        "url": "https://gzk.rks-gov.net"
+      },
+      {
+        "name": "Faqja zyrtare ATK",
+        "url": "https://www.atk-ks.org"
+      }
+    ],
+    "notes": [
+      "Kosova NUK publikon listë zyrtare me mijëra emra produktesh. Ligji klasifikon sipas kategorive.",
+      "Normat ATK për kupon: A=0% eksport, C=0% lirim, D=8% reduktuar, E=18% standarde.",
+      "Kur ka dyshim → verifiko te ATK Interactive Tax Guide / ligji. Mos hamendëso për produkte të përpunuara (p.sh. sallam).",
+      "Ky skedar është burim pune për Revolution POS (KAFENE, HOTEL, FURRA, etj.)."
+    ]
+  },
+  "vat_letters": {
+    "A": { "rate": 0, "label": "A · 0%", "meaning": "Eksport / të lidhura me eksport (Neni 31)" },
+    "B": { "rate": 0, "label": "B · 0%", "meaning": "Rezervuar ATK" },
+    "C": { "rate": 0, "label": "C · 0%", "meaning": "Lirim (Neni 27 / 28)" },
+    "D": { "rate": 8, "label": "D · 8%", "meaning": "Normë e reduktuar (Neni 26)" },
+    "E": { "rate": 18, "label": "E · 18%", "meaning": "Normë standarde (default)" }
+  },
+  "rules_for_pos": {
+    "product_must_have_vat": true,
+    "owner_is_not_tax_expert": true,
+    "on_install": "Seed template me produkte + vat_letter/vat_category të sakta",
+    "on_new_product": "Smart mapping sipas fjalëve kyçe → propozo A/C/D/E automatikisht",
+    "on_sale": "Llogarit TVSH automatikisht nga produkti — pa llogaritje manuale në faturë",
+    "default_if_unknown": "E (18%) — me paralajmërim që të verifikohet"
+  },
+  "what_is_hs_cn": {
+    "hs": "Harmonized System — kod ndërkombëtar i mallrave (dogana)",
+    "cn": "Combined Nomenclature — varianti europian/doganor i HS",
+    "why": "Ligji i TVSH klasifikon sipas llojit të mallit (shpesh i lidhur me kodin doganor), JO sipas emrit të markës.",
+    "when_needed": "Market / import / saktësi e lartë. Për kafene/hotel shpesh mjafton kategoria + emri.",
+    "examples": [
+      { "code": "2203", "means": "Birra", "typical_vat": "E · 18%" },
+      { "code": "0401", "means": "Qumësht", "typical_vat": "D · 8%" },
+      { "code": "8471", "means": "Laptop / kompjuter", "typical_vat": "D · 8%" },
+      { "code": "2202", "means": "Pije të ëmbla (Cola etj.)", "typical_vat": "E · 18%" }
+    ]
+  },
+  "what_is_smart_mapping": {
+    "definition": "Programi propozon vetë TVSH-në kur shkruhet emri ose skanohet barkodi.",
+    "inputs": ["emri i produktit", "barkodi (nëse njihet)", "kategoria e zgjedhur"],
+    "outputs": ["vat_letter A/C/D/E", "vat_percent 0/8/18"],
+    "examples": [
+      { "typed": "Birra Peja 0.5L", "result": "E · 18%", "why": "keyword birra" },
+      { "typed": "Qumësht 1L", "result": "D · 8%", "why": "keyword qumësht" },
+      { "typed": "Espresso", "result": "E · 18%", "why": "keyword espresso/kafe" },
+      { "typed": "Sallam", "result": "KËRKO ZGJEDHJE", "why": "disputed — mos auto" }
+    ]
+  },
+  "project_templates": {
+    "KAFENE": {
+      "description": "Kafene / restorant / bar / piceri",
+      "menu_categories": [
+        { "name": "Kafe", "default_letter": "E", "default_rate": 18 },
+        { "name": "Pije", "default_letter": "E", "default_rate": 18 },
+        { "name": "Alkool", "default_letter": "E", "default_rate": 18 },
+        { "name": "Ushqim", "default_letter": "E", "default_rate": 18 },
+        { "name": "Ëmbëlsira", "default_letter": "E", "default_rate": 18 },
+        { "name": "Ushqim bazë (Neni 26)", "default_letter": "D", "default_rate": 8 },
+        { "name": "Duhan", "default_letter": "E", "default_rate": 18 }
+      ],
+      "smart_mapping": true,
+      "seed_from_products_filter": ["Kafe / bar", "Pije", "Alkool", "Ëmbëlsira", "Snacks", "Ushqim i gatshëm", "Ushqim bazë"]
+    },
+    "HOTEL": {
+      "description": "Hotel / motel / resort + F&B",
+      "menu_categories": [
+        { "name": "Dhoma / Akomodim", "default_letter": "E", "default_rate": 18 },
+        { "name": "Mëngjes", "default_letter": "E", "default_rate": 18 },
+        { "name": "Minibar", "default_letter": "E", "default_rate": 18 },
+        { "name": "Restorant", "default_letter": "E", "default_rate": 18 },
+        { "name": "Kafe / Bar", "default_letter": "E", "default_rate": 18 },
+        { "name": "Alkool", "default_letter": "E", "default_rate": 18 },
+        { "name": "Spa / Wellness", "default_letter": "E", "default_rate": 18 },
+        { "name": "Parking / Laundry", "default_letter": "E", "default_rate": 18 },
+        { "name": "Ushqim bazë (Neni 26)", "default_letter": "D", "default_rate": 8 }
+      ],
+      "smart_mapping": true,
+      "seed_from_products_filter": ["Hotel", "Kafe / bar", "Pije", "Alkool", "Ushqim i gatshëm"]
+    },
+    "FURRA": {
+      "description": "Furrë buke / pastiçeri",
+      "menu_categories": [
+        { "name": "Bukë", "default_letter": "D", "default_rate": 8 },
+        { "name": "Miellore", "default_letter": "D", "default_rate": 8 },
+        { "name": "Pastiçeri / Ëmbëlsira", "default_letter": "E", "default_rate": 18 },
+        { "name": "Pije", "default_letter": "E", "default_rate": 18 },
+        { "name": "Kafe", "default_letter": "E", "default_rate": 18 }
+      ],
+      "smart_mapping": true,
+      "seed_from_products_filter": ["Ushqim bazë", "Ëmbëlsira", "Kafe / bar", "Pije"]
+    },
+    "MARKET": {
+      "description": "Market / supermarket — katalog i madh + HS/CN + barkod",
+      "menu_categories": [
+        { "name": "Ushqim bazë", "default_letter": "D", "default_rate": 8 },
+        { "name": "Pije joalkoolike", "default_letter": "E", "default_rate": 18 },
+        { "name": "Alkool", "default_letter": "E", "default_rate": 18 },
+        { "name": "Duhan", "default_letter": "E", "default_rate": 18 },
+        { "name": "Higjienë / Kozmetikë", "default_letter": "E", "default_rate": 18 },
+        { "name": "Veshje", "default_letter": "E", "default_rate": 18 },
+        { "name": "IT / Elektronikë", "default_letter": "D", "default_rate": 8 },
+        { "name": "Farmaci", "default_letter": "D", "default_rate": 8 },
+        { "name": "Të tjera", "default_letter": "E", "default_rate": 18 }
+      ],
+      "smart_mapping": true,
+      "use_hs_cn": true,
+      "use_barcode_cache": true,
+      "note": "Market NUK ka nevojë për 1 milion rreshta TVSH. Ka katalog produktesh + rregulla kategori/HS + smart mapping."
+    }
+  },
+  "categories": [
+    {
+      "id": "export",
+      "letter": "A",
+      "rate": 0,
+      "legal": "Neni 31 — eksporte / transport ndërkombëtar",
+      "keywords": ["export", "eksport", "ndërkombëtar", "nderkombetar", "export malli"]
+    },
+    {
+      "id": "exempt_health_education_social",
+      "letter": "C",
+      "rate": 0,
+      "legal": "Neni 27 — shëndetësi, arsim, sociale, kulturë (kur plotësohen kushtet)",
+      "keywords": ["fizioterapi", "kontroll i syve", "regjistrim shkollor", "gazetë", "gazete", "revistë", "reviste", "biletë autobusi", "bilete autobusi", "kujdes ditor", "postare", "postar", "kulturor"]
+    },
+    {
+      "id": "exempt_postal_other",
+      "letter": "C",
+      "rate": 0,
+      "legal": "Neni 28 — shërbime postare etj. (kur plotësohen kushtet)",
+      "keywords": ["pullë", "pulle", "shërbim postar", "sherbim postar"]
+    },
+    {
+      "id": "reduced_food_staples",
+      "letter": "D",
+      "rate": 8,
+      "legal": "Neni 26 — ushqime bazë / produkte të reduktuara",
+      "keywords": ["bukë", "buke", "miell", "makarona", "oriz", "qumësht", "qumesht", "kos", "djathë", "djathe", "gjalpë", "gjalpe", "vaj", "vezë", "veze", "kripë", "kripe", "misër", "miser", "elb", "tërshërë", "tersherë", "grurë", "grure"]
+    },
+    {
+      "id": "reduced_pharma_books_it",
+      "letter": "D",
+      "rate": 8,
+      "legal": "Neni 26 — ilaçe, libra shkollorë, pajisje IT (sipas listës ligjore)",
+      "keywords": ["ilaç", "ilac", "libër", "liber", "tekst shkollor", "laptop", "tablet", "kompjuter", "printer"]
+    },
+    {
+      "id": "standard_drinks_alcohol_tobacco",
+      "letter": "E",
+      "rate": 18,
+      "legal": "Normë standarde — pije, alkool, duhan",
+      "keywords": ["coca", "cola", "fanta", "sprite", "birra", "verë", "vere", "raki", "vodkë", "vodke", "whisky", "uiski", "cigare", "energjik", "red bull", "lëng", "leng", "kafe", "espresso", "cappuccino", "makiatto", "macchiato", "nescafe"]
+    },
+    {
+      "id": "standard_packaged_water_sweets_snacks",
+      "letter": "E",
+      "rate": 18,
+      "legal": "Normë standarde — ujë i emballar, ëmbëlsira, snacks (ujë mineral i emballar zakonisht JO 8%)",
+      "keywords": ["ujë", "uje", "water", "mineral", "çokollatë", "cokollate", "chips", "akullore", "tortë", "torte", "ëmbëlsirë", "embelsire", "sandviç", "sandvic"]
+    },
+    {
+      "id": "standard_goods_services",
+      "letter": "E",
+      "rate": 18,
+      "legal": "Normë standarde — mallra/shërbime të zakonshme",
+      "keywords": ["këpucë", "kepuce", "veshje", "bluzë", "bluze", "parfum", "sapun", "shampo", "shampoo", "hotel", "dhomë", "dhoma", "night", "netë", "nete", "spa", "massage", "parking"]
+    },
+    {
+      "id": "disputed_verify",
+      "letter": null,
+      "rate": null,
+      "legal": "DYS HIM — verifiko te ATK para se të vendosësh 8%. Mos auto-mapo pa konfirmim.",
+      "keywords": ["sheqer", "mish", "viçi", "vici", "pule", "sallam", "proshutë", "proshute", "suxhuk", "donacion", "kurs", "mësim privat", "mesim privat"]
+    }
+  ],
+  "products": [
+    { "name": "Bukë e bardhë", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "1905", "legal": "Neni 26 — produkte buke / miellore", "keywords": ["bukë", "buke", "bread"] },
+    { "name": "Bukë integrale", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "1905", "legal": "Neni 26", "keywords": ["bukë", "integrale"] },
+    { "name": "Miell", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "1101", "legal": "Neni 26", "keywords": ["miell", "flour"] },
+    { "name": "Makarona", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "1902", "legal": "Neni 26", "keywords": ["makarona", "pasta"] },
+    { "name": "Oriz", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "1006", "legal": "Neni 26", "keywords": ["oriz", "rice"] },
+    { "name": "Qumësht", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "0401", "legal": "Neni 26", "keywords": ["qumësht", "qumesht", "milk"] },
+    { "name": "Kos", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "0403", "legal": "Neni 26", "keywords": ["kos", "yogurt"] },
+    { "name": "Djathë i bardhë", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "0406", "legal": "Neni 26", "keywords": ["djathë", "djathe", "cheese"] },
+    { "name": "Gjalpë", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "0405", "legal": "Neni 26", "keywords": ["gjalpë", "gjalpe", "butter"] },
+    { "name": "Vaj luledielli", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "1512", "legal": "Neni 26", "keywords": ["vaj", "oil"] },
+    { "name": "Vezë", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "0407", "legal": "Neni 26", "keywords": ["vezë", "veze", "egg"] },
+    { "name": "Kripë", "category": "Ushqim bazë", "letter": "D", "rate": 8, "hs_hint": "2501", "legal": "Neni 26", "keywords": ["kripë", "kripe", "salt"] },
+    { "name": "Ilaç me recetë", "category": "Farmaci", "letter": "D", "rate": 8, "hs_hint": "3004", "legal": "Neni 26 — produkte farmaceutike", "keywords": ["ilaç", "ilac", "medicine"] },
+    { "name": "Ilaç pa recetë", "category": "Farmaci", "letter": "D", "rate": 8, "hs_hint": "3004", "legal": "Neni 26", "keywords": ["ilaç", "ilac"] },
+    { "name": "Libër shkollor", "category": "Arsim", "letter": "D", "rate": 8, "hs_hint": "4901", "legal": "Neni 26 — libra", "keywords": ["libër", "liber", "book"] },
+    { "name": "Tekst shkollor", "category": "Arsim", "letter": "D", "rate": 8, "hs_hint": "4901", "legal": "Neni 26", "keywords": ["tekst", "shkollor"] },
+    { "name": "Laptop", "category": "IT", "letter": "D", "rate": 8, "hs_hint": "8471", "legal": "Neni 26 — pajisje IT (sipas listës)", "keywords": ["laptop", "notebook"] },
+    { "name": "Tablet", "category": "IT", "letter": "D", "rate": 8, "hs_hint": "8471", "legal": "Neni 26", "keywords": ["tablet", "ipad"] },
+
+    { "name": "Espresso", "category": "Kafe / bar", "letter": "E", "rate": 18, "hs_hint": "2202/shërbim", "legal": "Normë standarde — shërbim kafeje / pije", "keywords": ["espresso", "kafe"] },
+    { "name": "Macchiato", "category": "Kafe / bar", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["macchiato", "makiatto", "makiato"] },
+    { "name": "Cappuccino", "category": "Kafe / bar", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["cappuccino", "kapuçino", "kapucino"] },
+    { "name": "Kafe e gjatë", "category": "Kafe / bar", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["kafe", "americano"] },
+    { "name": "Çaj", "category": "Kafe / bar", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["çaj", "caj", "tea"] },
+    { "name": "Ujë mineral (i emballar)", "category": "Pije", "letter": "E", "rate": 18, "hs_hint": "2201", "legal": "Uji i emballar zakonisht 18% (jo lista e reduktuar si ujë i papërpunuar)", "keywords": ["ujë", "uje", "water", "mineral"] },
+    { "name": "Coca-Cola", "category": "Pije", "letter": "E", "rate": 18, "hs_hint": "2202", "legal": "Normë standarde — pije të ëmbla", "keywords": ["coca", "cola", "cocacola"] },
+    { "name": "Fanta", "category": "Pije", "letter": "E", "rate": 18, "hs_hint": "2202", "legal": "Normë standarde", "keywords": ["fanta"] },
+    { "name": "Sprite", "category": "Pije", "letter": "E", "rate": 18, "hs_hint": "2202", "legal": "Normë standarde", "keywords": ["sprite"] },
+    { "name": "Lëng frutash", "category": "Pije", "letter": "E", "rate": 18, "hs_hint": "2009", "legal": "Normë standarde", "keywords": ["lëng", "leng", "juice"] },
+    { "name": "Energjik", "category": "Pije", "letter": "E", "rate": 18, "hs_hint": "2202", "legal": "Normë standarde", "keywords": ["energjik", "red bull", "monster"] },
+    { "name": "Birra", "category": "Alkool", "letter": "E", "rate": 18, "hs_hint": "2203", "legal": "Normë standarde — alkool", "keywords": ["birra", "beer"] },
+    { "name": "Verë", "category": "Alkool", "letter": "E", "rate": 18, "hs_hint": "2204", "legal": "Normë standarde", "keywords": ["verë", "vere", "wine"] },
+    { "name": "Raki", "category": "Alkool", "letter": "E", "rate": 18, "hs_hint": "2208", "legal": "Normë standarde", "keywords": ["raki"] },
+    { "name": "Whisky / Uiski", "category": "Alkool", "letter": "E", "rate": 18, "hs_hint": "2208", "legal": "Normë standarde", "keywords": ["whisky", "uiski", "whiskey"] },
+    { "name": "Vodkë", "category": "Alkool", "letter": "E", "rate": 18, "hs_hint": "2208", "legal": "Normë standarde", "keywords": ["vodkë", "vodke", "vodka"] },
+    { "name": "Cigare", "category": "Duhan", "letter": "E", "rate": 18, "hs_hint": "2402", "legal": "Normë standarde", "keywords": ["cigare", "duhan", "tobacco"] },
+    { "name": "Çokollatë", "category": "Ëmbëlsira", "letter": "E", "rate": 18, "hs_hint": "1806", "legal": "Normë standarde", "keywords": ["çokollatë", "cokollate", "chocolate"] },
+    { "name": "Chips", "category": "Snacks", "letter": "E", "rate": 18, "hs_hint": "2005", "legal": "Normë standarde", "keywords": ["chips", "çips"] },
+    { "name": "Akullore", "category": "Ëmbëlsira", "letter": "E", "rate": 18, "hs_hint": "2105", "legal": "Normë standarde", "keywords": ["akullore", "ice cream"] },
+    { "name": "Sandviç", "category": "Ushqim i gatshëm", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde — ushqim i përgatitur / shërbim", "keywords": ["sandviç", "sandvic", "sandwich"] },
+    { "name": "Veshje / bluzë", "category": "Veshje", "letter": "E", "rate": 18, "hs_hint": "6109", "legal": "Normë standarde", "keywords": ["veshje", "bluzë", "bluze", "tshirt"] },
+    { "name": "Këpucë", "category": "Veshje", "letter": "E", "rate": 18, "hs_hint": "6403", "legal": "Normë standarde", "keywords": ["këpucë", "kepuce", "shoes"] },
+    { "name": "Parfum", "category": "Kozmetikë", "letter": "E", "rate": 18, "hs_hint": "3303", "legal": "Normë standarde", "keywords": ["parfum", "perfume"] },
+    { "name": "Sapun", "category": "Higjienë", "letter": "E", "rate": 18, "hs_hint": "3401", "legal": "Normë standarde", "keywords": ["sapun", "soap"] },
+    { "name": "Shampo", "category": "Higjienë", "letter": "E", "rate": 18, "hs_hint": "3305", "legal": "Normë standarde", "keywords": ["shampo", "shampoo"] },
+
+    { "name": "Netë hoteli / dhomë", "category": "Hotel", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Shërbim akomodimi — zakonisht 18% (verifiko nëse ka regjim të veçantë për rastin)", "keywords": ["dhomë", "dhoma", "room", "netë", "nete", "night", "akomodim"] },
+    { "name": "Mëngjes hotel", "category": "Hotel", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde — shërbim ushqimi", "keywords": ["mëngjes", "mengjes", "breakfast"] },
+    { "name": "Minibar", "category": "Hotel", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["minibar"] },
+    { "name": "Laundry / larje", "category": "Hotel", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["laundry", "larje", "pastrim"] },
+    { "name": "Parking", "category": "Hotel", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde", "keywords": ["parking"] },
+    { "name": "Spa / massage", "category": "Hotel", "letter": "E", "rate": 18, "hs_hint": "shërbim", "legal": "Normë standarde (përjashtimet mjekësore janë C vetëm kur plotësohen kushtet)", "keywords": ["spa", "massage", "masazh"] },
+
+    { "name": "Export malli", "category": "Eksport", "letter": "A", "rate": 0, "hs_hint": "sipas mallit", "legal": "Neni 31 — eksport", "keywords": ["export", "eksport"] },
+    { "name": "Transport ndërkombëtar", "category": "Eksport", "letter": "A", "rate": 0, "hs_hint": "shërbim", "legal": "Neni 31", "keywords": ["transport ndërkombëtar", "nderkombetar"] },
+
+    { "name": "Gazetë", "category": "Media", "letter": "C", "rate": 0, "hs_hint": "4902", "legal": "Neni 27 — gazeta/revista (kur plotësohen kushtet)", "keywords": ["gazetë", "gazete", "newspaper"] },
+    { "name": "Revistë", "category": "Media", "letter": "C", "rate": 0, "hs_hint": "4902", "legal": "Neni 27", "keywords": ["revistë", "reviste", "magazine"] },
+    { "name": "Biletë autobusi", "category": "Transport publik", "letter": "C", "rate": 0, "hs_hint": "shërbim", "legal": "Neni 27 — transport publik (kur plotësohet)", "keywords": ["biletë", "bilete", "autobus"] },
+    { "name": "Shërbim postar", "category": "Posta", "letter": "C", "rate": 0, "hs_hint": "shërbim", "legal": "Neni 28", "keywords": ["postar", "postare", "posta"] }
+  ],
+  "smart_mapping_algorithm": {
+    "description": "Kur përdoruesi shkruan emrin e produktit të ri:",
+    "steps": [
+      "1) Normalizo tekstin (lowercase, hiq diacritics opsionale).",
+      "2) Nëse emri përputhet me products[].keywords → përdor letter/rate e produktit.",
+      "3) Përndryshe kërko categories[].keywords (përjashto disputed_verify).",
+      "4) Nëse bie te disputed_verify → MOS auto-vendos; kërko zgjedhje / shfaq paralajmërim.",
+      "5) Nëse asnjë match → default E · 18% + shënim 'verifiko'.",
+      "6) Ruaj vat_letter + vat_category (0/8/18) në DB të produktit."
+    ]
+  }
+}

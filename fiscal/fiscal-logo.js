@@ -281,6 +281,9 @@ function rgbaToGsV0(img, opts = {}) {
     } else if (Number(opts.inkLevel) > 0) {
       ink = Math.min(1, Number(opts.inkLevel));
     }
+    if (Number(opts.minInk) > 0) {
+      ink = Math.max(ink, Math.min(1, Number(opts.minInk)));
+    }
     inkByte = Math.round(ink * 255);
   }
 
@@ -475,8 +478,9 @@ function buildCenteredRasterPrintBuffer(decoded, opts = {}) {
   const lumMax =
     opts.blackLumMax ??
     (pd != null ? blackLumMaxFromPrintDensity(pd) : blackLumMaxFromPrintDensity(10));
+  const solidRaster = opts.solidRaster === true;
   const escposRaster = rgbaToGsV0(centered, {
-    blackLumMax: opts.solidRaster !== false ? Math.max(lumMax, 78) : lumMax,
+    blackLumMax: solidRaster ? Math.max(lumMax, 78) : lumMax,
     alphaMin:
       opts.alphaMin ??
       (pd != null
@@ -484,7 +488,8 @@ function buildCenteredRasterPrintBuffer(decoded, opts = {}) {
         : 96),
     printDensity: pd != null ? pd : opts.printDensity,
     printerName: opts.printerName || "",
-    solidRaster: opts.solidRaster !== false,
+    minInk: opts.minInk,
+    solidRaster,
   });
   return {
     buffer: Buffer.concat([
@@ -547,7 +552,6 @@ function getFiscalLogoForPrint(opts = {}) {
       buildEscLeftMarginChars(0),
       Buffer.from([0x1b, 0x61, 0x01]),
       logo.escposRaster,
-      Buffer.from([0x0a]),
       buildGsLeftMarginReset(),
       Buffer.from([0x1b, 0x61, 0x00]),
     ]);

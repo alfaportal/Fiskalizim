@@ -987,6 +987,7 @@ module.exports = {
   isHardwareUnlocked,
   isLicenseExpired,
   writeStoredLicenseKey,
+  readStoredLicenseKey,
   readStoredLicenseRecord,
   ensureHardwareLicense,
   getGraceStatus,

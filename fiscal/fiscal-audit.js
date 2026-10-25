@@ -5,26 +5,99 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { isFiscalEnabled } = require("./fiscal-config");
+const { isFiscalEnabled, EDITABLE_KEYS } = require("./fiscal-config");
+const { isFiscalMemoryOnly, memLogAudit, memGetAuditLog } = require("./fiscal-test-mode-store");
 
 const ALLOWED_ACTIONS = Object.freeze([
   "receipt_created",
   "receipt_sent",
   "receipt_send_failed",
+  "receipt_emailed",
   "z_report",
+  "z_report_generated",
   "x_report",
   "periodic_report",
   "short_periodic_report",
   "monthly_memory_report",
   "power_recovery",
+  "repair_wizard",
   "setting_changed",
   "correction_created",
   "offline_start",
   "offline_end",
+  "offline_deadline_48h",
+  "offline_deadline_day10",
+  "atk_notification_ack",
+  "paper_block_mode_on",
+  "paper_block_mode_off",
+  "paper_block_issued",
+  "paper_block_registered",
   "login",
   "error",
+  "self_test",
   "write_once_violation",
+  "backup_created",
+  "backup_restored",
+  "disk_space_warning",
+  "disk_space_critical",
 ]);
+
+const SYSTEM_ACTIONS = Object.freeze(
+  new Set(["backup_created", "backup_restored", "disk_space_warning", "disk_space_critical"])
+);
+
+/** Veprimet që shfaqen në eksport/UI audit (ATK Neni 26) — krejt veprimet e lejuara. */
+const FISCAL_AUDIT_EXPORT_ACTIONS = Object.freeze([...ALLOWED_ACTIONS]);
+
+const AUDIT_PURGE_FLAG = "audit_legacy_noise_purged_v2";
+
+/** Çelësat shtesë (settings SQLite) + meta fiskale jo-EDITABLE por të audituara. */
+const FISCAL_APP_SETTING_KEYS = Object.freeze([
+  "atk_auto_send",
+  "atk_send_allowed",
+  "atk_test_mode",
+  "sef_code",
+  "developer_nui",
+  "sef_identifier",
+  "certificate_path",
+  "private_key_path",
+]);
+
+const SENSITIVE_SETTING_KEY_RE =
+  /password|pin|passphrase|secret|token|credential|private.?key|certificate|signed.?cert|\.pem|\.key/i;
+
+const FISCAL_SETTING_AUDIT_KEYS = Object.freeze([
+  ...EDITABLE_KEYS,
+  ...FISCAL_APP_SETTING_KEYS,
+]);
+
+const SETTING_AUDIT_IGNORE_KEYS = Object.freeze(
+  new Set(["id", "created_at", "updated_at"])
+);
+
+/** Etiketa shqip për fushat e cilësimeve në audit (eksport CSV/PDF). */
+const SETTING_FIELD_LABELS = Object.freeze({
+  atk_spec_version: "Versioni i specifikimeve ATK",
+  taxpayer_nui: "NUI",
+  taxpayer_nf: "NF",
+  taxpayer_vat_number: "Nr. TVSH",
+  taxpayer_legal_name: "Emri ligjor",
+  taxpayer_address: "Adresa",
+  unit_number: "Nr. njësisë ARBK",
+  unit_name: "Emri i njësisë",
+  unit_phone: "Telefoni i njësisë",
+  pos_id: "POS ID",
+  application_id: "Application ID",
+  fiscalization_number: "Kodi fiskalizimit",
+  atk_api_url: "URL ATK",
+  language: "Gjuha e kuponit",
+  fiscal_enabled: "Fiskalizimi aktiv",
+});
+
+function formatSettingFieldLabel(field) {
+  const key = String(field || "").trim();
+  return SETTING_FIELD_LABELS[key] || key;
+}
 
 function getSqlite() {
   const database = require("../database");
@@ -57,9 +130,97 @@ function normalizeDateBound(value, endOfDay) {
 /**
  * INSERT write-once në fiscal_audit_log.
  */
-function logFiscalAction(action, details, operatorName, operatorId) {
-  if (!isFiscalEnabled()) return null;
+function isSensitiveSettingKey(key) {
+  return SENSITIVE_SETTING_KEY_RE.test(String(key || ""));
+}
 
+function normalizeSettingAuditValue(key, value) {
+  if (key === "fiscal_enabled") {
+    return value === true || value === 1 || value === "1" ? "1" : "0";
+  }
+  if (value == null) return null;
+  if (typeof value === "boolean") return value ? "1" : "0";
+  return String(value);
+}
+
+function settingsAuditValuesEqual(key, a, b) {
+  return normalizeSettingAuditValue(key, a) === normalizeSettingAuditValue(key, b);
+}
+
+function buildSettingChangeEntries(before, after, keys) {
+  const list = Array.isArray(keys) && keys.length ? keys : FISCAL_SETTING_AUDIT_KEYS;
+  const changes = [];
+  for (const key of list) {
+    const oldVal = before?.[key];
+    const newVal = after?.[key];
+    if (settingsAuditValuesEqual(key, oldVal, newVal)) continue;
+    if (isSensitiveSettingKey(key)) {
+      changes.push({ field: key, old: "ndryshuar", new: "ndryshuar", redacted: true });
+    } else {
+      changes.push({
+        field: key,
+        old: normalizeSettingAuditValue(key, oldVal),
+        new: normalizeSettingAuditValue(key, newVal),
+      });
+    }
+  }
+  return changes;
+}
+
+/** Gjendje e plotë fiskale + settings app për diff audit. */
+function snapshotFiscalSettingsState(database) {
+  const db = database || require("../database");
+  const row = db.getFiscalSettingsRow() || {};
+  const snap = { ...row };
+  snap.fiscal_enabled = !!row.fiscal_enabled;
+  snap.atk_auto_send = db.getSetting("atk_auto_send", "0");
+  snap.atk_send_allowed = db.getSetting("atk_send_allowed", "0");
+  snap.atk_test_mode = db.getSetting("atk_test_mode", "0");
+  return snap;
+}
+
+/**
+ * Regjistron setting_changed — fusha, vlera e vjetër/e re (pa vlera sensitive).
+ * Kthen null nëse nuk ka ndryshime.
+ */
+function logFiscalSettingsChanged(opts = {}) {
+  const before = opts.before && typeof opts.before === "object" ? opts.before : {};
+  const after = opts.after && typeof opts.after === "object" ? opts.after : {};
+  const keys =
+    opts.keys ||
+    [
+      ...new Set([
+        ...FISCAL_SETTING_AUDIT_KEYS,
+        ...Object.keys(before),
+        ...Object.keys(after),
+      ]),
+    ].filter((k) => !SETTING_AUDIT_IGNORE_KEYS.has(k));
+  const changes = buildSettingChangeEntries(before, after, keys);
+  if (!changes.length) return null;
+
+  const operatorName = String(opts.operator_name || "Operator").trim() || "Operator";
+  const operatorId = String(opts.operator_id || "POS").trim() || "POS";
+  const at = new Date().toISOString();
+
+  try {
+    return logFiscalAction(
+      "setting_changed",
+      {
+        source: opts.source || "api",
+        changes,
+        changed_count: changes.length,
+        at,
+      },
+      operatorName,
+      operatorId
+    );
+  } catch (e) {
+    console.warn("[fiscal-audit] setting_changed:", e.message || e);
+    return null;
+  }
+}
+
+function logFiscalAction(action, details, operatorName, operatorId) {
   const act = String(action || "")
     .trim()
     .toLowerCase();
@@ -67,6 +228,11 @@ function logFiscalAction(action, details, operatorName, operatorId) {
     throw new Error(
       `Veprim i panjohur audit: ${action}. Lejohen: ${ALLOWED_ACTIONS.join(", ")}`
     );
+  }
+  if (!SYSTEM_ACTIONS.has(act) && !isFiscalEnabled()) return null;
+
+  if (isFiscalMemoryOnly()) {
+    return memLogAudit(act, details, operatorName, operatorId);
   }
 
   const sqlite = getSqlite();
@@ -94,11 +260,78 @@ function logFiscalAction(action, details, operatorName, operatorId) {
   };
 }
 
+function isFiscalExportAction(action) {
+  return FISCAL_AUDIT_EXPORT_ACTIONS.includes(String(action || "").toLowerCase());
+}
+
+function filterFiscalExportRows(rows) {
+  return (rows || []).filter((r) => isFiscalExportAction(r.action));
+}
+
+function reinstallAuditWriteOnceTriggers(sqlite) {
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_audit_block_update`);
+  sqlite.exec(`
+    CREATE TRIGGER trg_fiscal_audit_block_update
+    BEFORE UPDATE ON fiscal_audit_log
+    FOR EACH ROW
+    BEGIN
+      SELECT RAISE(ABORT, 'WRITE-ONCE: UPDATE i ndaluar në fiscal_audit_log');
+    END;
+  `);
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_audit_block_delete`);
+  sqlite.exec(`
+    CREATE TRIGGER trg_fiscal_audit_block_delete
+    BEFORE DELETE ON fiscal_audit_log
+    FOR EACH ROW
+    BEGIN
+      SELECT RAISE(ABORT, 'WRITE-ONCE: DELETE i ndaluar në fiscal_audit_log');
+    END;
+  `);
+}
+
+/**
+ * Fshin një herë rreshtat test/debug (2026-07-16 etj.) — mbaj vetëm veprime fiskale reale.
+ */
+function purgeLegacyAuditNoise() {
+  if (isFiscalMemoryOnly()) {
+    const { memPurgeNonFiscalAudit } = require("./fiscal-test-mode-store");
+    const { deleted } = memPurgeNonFiscalAudit(FISCAL_AUDIT_EXPORT_ACTIONS);
+    return { skipped: false, deleted };
+  }
+
+  const database = require("../database");
+  if (database.getSetting(AUDIT_PURGE_FLAG) === "1") {
+    return { skipped: true, deleted: 0 };
+  }
+
+  const sqlite = getSqlite();
+  const placeholders = FISCAL_AUDIT_EXPORT_ACTIONS.map(() => "?").join(", ");
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_audit_block_delete`);
+  const result = sqlite
+    .prepare(
+      `DELETE FROM fiscal_audit_log
+       WHERE action NOT IN (${placeholders})
+          OR action = 'setting_changed'
+          OR operator_name = 'TEST'
+          OR operator_id IN ('TEST', 'SELFTEST')
+          OR details_json LIKE '%"self_test"%'
+          OR created_at LIKE '2026-07-16%'`
+    )
+    .run(...FISCAL_AUDIT_EXPORT_ACTIONS);
+  reinstallAuditWriteOnceTriggers(sqlite);
+  database.setSetting(AUDIT_PURGE_FLAG, "1");
+  return { skipped: false, deleted: Number(result.changes) || 0 };
+}
+
 /**
  * Lista e veprimeve brenda datave (YYYY-MM-DD ose datetime).
  */
 function getAuditLog(fromDate, toDate) {
   if (!isFiscalEnabled()) return null;
+
+  if (isFiscalMemoryOnly()) {
+    return filterFiscalExportRows(memGetAuditLog(fromDate, toDate));
+  }
 
   const sqlite = getSqlite();
   const from = normalizeDateBound(fromDate, false);
@@ -118,7 +351,7 @@ function getAuditLog(fromDate, toDate) {
   sql += ` ORDER BY id ASC`;
 
   const rows = sqlite.prepare(sql).all(...params);
-  return rows.map((r) => {
+  const mapped = rows.map((r) => {
     let details = {};
     try {
       details = JSON.parse(r.details_json || "{}");
@@ -135,6 +368,7 @@ function getAuditLog(fromDate, toDate) {
       created_at: r.created_at,
     };
   });
+  return filterFiscalExportRows(mapped);
 }
 
 function csvEscape(value) {
@@ -145,30 +379,80 @@ function csvEscape(value) {
   return s;
 }
 
+function defaultAuditExportName(format) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const ext = String(format || "csv").toLowerCase() === "pdf" ? "pdf" : "csv";
+  return `fiscal-audit-${stamp}.${ext}`;
+}
+
 /**
- * Eksport CSV → Documents. Kthen shtegun e fajllit.
+ * Dialog Electron Save As — operatori zgjedh folderin dhe emrin e skedarit.
+ * Kthen null nëse anulohet ose jashtë Electron.
  */
-function exportAuditCSV(fromDate, toDate) {
+function pickAuditSaveDialog(format, parentWindow) {
+  try {
+    const { dialog, BrowserWindow } = require("electron");
+    const win =
+      parentWindow ||
+      BrowserWindow.getFocusedWindow() ||
+      BrowserWindow.getAllWindows()[0] ||
+      null;
+    const fmt = String(format || "csv").toLowerCase();
+    const isPdf = fmt === "pdf";
+    const defaultName = defaultAuditExportName(fmt);
+    const result = dialog.showSaveDialogSync(win, {
+      title: "Eksport audit log — ruaj si",
+      defaultPath: path.join(getDocumentsDir(), defaultName),
+      filters: isPdf
+        ? [{ name: "PDF", extensions: ["pdf"] }]
+        : [{ name: "CSV", extensions: ["csv"] }],
+    });
+    if (!result) return null;
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Eksport CSV. Pa targetPath → dialog Save As. Kthen shtegun ose null (anulim).
+ */
+function exportAuditCSV(fromDate, toDate, targetPath) {
   if (!isFiscalEnabled()) return null;
 
   const rows = getAuditLog(fromDate, toDate) || [];
   const header = [
-    "id",
-    "created_at",
-    "action",
-    "operator_name",
-    "operator_id",
+    "Data",
+    "Ora",
+    "Veprimi",
+    "NUIKF",
+    "Shuma Totale",
+    "Statusi ATK",
+    "Operatori",
+    "PayLoad",
+    "Current Hash",
+    "Previous Hash",
+    "Integrity Check",
+    "Detaje",
     "details_json",
   ];
   const lines = [header.join(",")];
   for (const r of rows) {
+    const mapped = mapAuditRowToExport(r);
     lines.push(
       [
-        r.id,
-        r.created_at,
-        r.action,
-        r.operator_name,
-        r.operator_id,
+        mapped.data,
+        mapped.ora,
+        mapped.veprimi,
+        mapped.nuikf,
+        mapped.shuma_totale,
+        mapped.status_atk,
+        mapped.operatori,
+        mapped.chain_payload,
+        mapped.chain_current_hash,
+        mapped.chain_previous_hash,
+        mapped.chain_integrity_check,
+        mapped.detaje,
         r.details_json || JSON.stringify(r.details || {}),
       ]
         .map(csvEscape)
@@ -176,22 +460,543 @@ function exportAuditCSV(fromDate, toDate) {
     );
   }
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const filePath = path.join(
-    getDocumentsDir(),
-    `fiscal-audit-${stamp}.csv`
-  );
+  const filePath = targetPath ? String(targetPath).trim() : "";
+  if (!filePath) return null;
+
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, "\uFEFF" + lines.join("\r\n") + "\r\n", "utf8");
   return filePath;
 }
 
-/** PDF minimal (tekst) pa dependency të jashtëm — A4, shumë faqe. */
+const PDF_PAGE_WIDTH = 595;
+const PDF_PAGE_HEIGHT = 842;
+const PDF_MARGIN = 36;
+const PDF_FONT_SIZE = 8;
+const PDF_LINE_HEIGHT = 11;
+const PDF_CHARS_PER_LINE = 105;
+
+/** Kolona fikse tabelë audit (PDF) — Neni 26 / eksport ATK. */
+const PDF_EXPORT_COL = Object.freeze({
+  data: 10,
+  ora: 8,
+  veprimi: 14,
+  nuikf: 16,
+  shuma: 9,
+  status: 14,
+  operator: 12,
+  gap: 1,
+});
+
+function padEndText(value, width) {
+  const s = String(value ?? "");
+  if (s.length >= width) return s.slice(0, width);
+  return s + " ".repeat(width - s.length);
+}
+
+function padStartText(value, width) {
+  const s = String(value ?? "");
+  if (s.length >= width) return s.slice(0, width);
+  return " ".repeat(width - s.length) + s;
+}
+
+function pdfExportDetajeIndent() {
+  return "  Detaje: ";
+}
+
+function wrapText(text, maxWidth) {
+  const normalized = String(text || "")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return [""];
+
+  const words = normalized.split(" ");
+  const lines = [];
+  let current = "";
+
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    if (current) lines.push(current);
+    if (word.length > maxWidth) {
+      for (let i = 0; i < word.length; i += maxWidth) {
+        lines.push(word.slice(i, i + maxWidth));
+      }
+      current = "";
+    } else {
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+function formatAuditMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(2);
+}
+
+function formatAuditPayment(method) {
+  const key = String(method || "cash").trim().toLowerCase();
+  if (key === "card") return "Kartelë";
+  if (key === "transfer") return "Transfer";
+  if (key === "mixed") return "E përzier";
+  if (key === "cash") return "Para të gatshme";
+  return method ? String(method) : "—";
+}
+
+function formatCorrectionTypeLabel(type) {
+  const key = String(type || "").trim().toLowerCase();
+  if (key === "cancel") return "Anulim";
+  if (key === "return") return "Kthim";
+  if (key === "storno") return "Storno";
+  return type ? String(type) : "—";
+}
+
+const PDF_HASH_PREVIEW_LEN = 20;
+
+function shortenHashForPdf(value) {
+  const s = String(value || "").trim();
+  if (!s) return null;
+  if (s.length <= PDF_HASH_PREVIEW_LEN) return s;
+  return `${s.slice(0, PDF_HASH_PREVIEW_LEN)}...`;
+}
+
+function lookupChainFieldsByNuikf(nuikf) {
+  const key = String(nuikf || "")
+    .trim()
+    .toUpperCase();
+  if (!key) return null;
+  if (isFiscalMemoryOnly()) return null;
+  try {
+    const sqlite = getSqlite();
+    return (
+      sqlite
+        .prepare(
+          `SELECT chain_payload_json, chain_current_hash, chain_previous_hash, chain_integrity_ok
+           FROM fiscal_receipts
+           WHERE nuikf = ?
+           LIMIT 1`
+        )
+        .get(key) || null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function formatIntegrityCheckExport(integrity) {
+  if (integrity == null || integrity === "") return "";
+  const ok =
+    Number(integrity) === 1 || integrity === true || String(integrity).toLowerCase() === "true";
+  return ok ? "OK" : "FAIL";
+}
+
+function resolveChainFieldsForAudit(details) {
+  const d = details && typeof details === "object" ? details : {};
+  let payload = d.chain_payload_json ?? d.chain_payload ?? null;
+  let current = d.chain_current_hash ?? null;
+  let previous = d.chain_previous_hash ?? null;
+  let integrity = d.chain_integrity_ok ?? null;
+
+  const needsDb =
+    d.nuikf &&
+    (!payload || !current || previous == null || integrity == null || integrity === "");
+  if (needsDb) {
+    const row = lookupChainFieldsByNuikf(d.nuikf);
+    if (row) {
+      if (!payload && row.chain_payload_json != null) {
+        payload = row.chain_payload_json;
+      }
+      if (!current) current = row.chain_current_hash ?? null;
+      if (previous == null || previous === "") {
+        previous = row.chain_previous_hash ?? null;
+      }
+      if (integrity == null || integrity === "") {
+        integrity = row.chain_integrity_ok ?? null;
+      }
+    }
+  }
+
+  return { payload, current, previous, integrity };
+}
+
+function resolveAtkChainExportColumns(details) {
+  const { payload, current, previous, integrity } = resolveChainFieldsForAudit(details);
+  const payloadStr =
+    payload == null || payload === ""
+      ? ""
+      : typeof payload === "string"
+        ? payload.trim()
+        : JSON.stringify(payload);
+  return {
+    chain_payload: payloadStr,
+    chain_current_hash: current != null ? String(current).trim() : "",
+    chain_previous_hash: previous != null ? String(previous).trim() : "",
+    chain_integrity_check: formatIntegrityCheckExport(integrity),
+  };
+}
+
+function formatChainHashDetail(details) {
+  const { current, previous, integrity } = resolveChainFieldsForAudit(details);
+  const parts = [];
+  const currentShort = shortenHashForPdf(current);
+  const previousShort = shortenHashForPdf(previous);
+  if (currentShort) parts.push(`Hash: ${currentShort}`);
+  if (previousShort) parts.push(`Hash paraprak: ${previousShort}`);
+  if (integrity != null && integrity !== "") {
+    const ok =
+      Number(integrity) === 1 || integrity === true || String(integrity).toLowerCase() === "true";
+    parts.push(`Integriteti: ${ok ? 1 : 0}`);
+  }
+  return parts.length ? parts.join(", ") : null;
+}
+
+function formatAuditActionLabel(action) {
+  const key = String(action || "").trim().toLowerCase();
+  const labels = {
+    receipt_created: "Kupon i krijuar",
+    receipt_sent: "Dërguar te ATK",
+    receipt_emailed: "Kupon me email",
+    setting_changed: "Ndryshim cilësimi",
+    correction_created: "Korrigjim",
+    z_report: "Raporti Z",
+    z_report_generated: "Raporti Z (PDF/lokal)",
+    x_report: "Raporti X",
+    offline_start: "Offline filloi",
+    offline_end: "Offline mbaroi",
+    backup_created: "Backup",
+    backup_restored: "Rikthim backup",
+    power_recovery: "Rikuperim energjie",
+  };
+  return labels[key] || key || "—";
+}
+
+function formatAuditDetailText(row) {
+  const d = row && row.details && typeof row.details === "object" ? row.details : {};
+  const action = String(row?.action || "").toLowerCase();
+
+  if (action === "receipt_created") {
+    const parts = [
+      d.payment_method ? `Pagesa: ${formatAuditPayment(d.payment_method)}` : null,
+      d.daily_number != null ? `Nr. ditor: ${d.daily_number}` : null,
+      d.offline ? "Offline: Po" : null,
+      d.local_only ? "Lokal: Po" : null,
+      formatChainHashDetail(d),
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "correction_created") {
+    const parts = [
+      d.nuikf ? `NUIKF: ${d.nuikf}` : null,
+      d.receipt_type ? `Lloji: ${formatCorrectionTypeLabel(d.receipt_type)}` : null,
+      d.original_nuikf ? `Origjinal: ${d.original_nuikf}` : null,
+      d.total != null ? `Totali: ${formatAuditMoney(d.total)} EUR` : null,
+      d.reason ? `Arsyeja: ${d.reason}` : null,
+      formatChainHashDetail(d),
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "x_report" || action === "z_report" || action === "z_report_generated") {
+    const parts = [
+      d.date ? `Data: ${d.date}` : null,
+      d.coupon_count != null
+        ? `Kupona: ${d.coupon_count}`
+        : d.rfd_count != null
+          ? `Kupona: ${d.rfd_count}`
+          : null,
+      d.total_amount != null ? `Totali: ${formatAuditMoney(d.total_amount)} EUR` : null,
+      action === "z_report" && d.reset_applied ? "Reset ditor: Po" : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "receipt_sent") {
+    const parts = [
+      d.transaction_id ? `TX: ${d.transaction_id}` : null,
+      d.fiscal_receipt_id != null ? `ID kupon: ${d.fiscal_receipt_id}` : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "receipt_send_failed") {
+    const parts = [
+      d.error ? `Gabim: ${d.error}` : null,
+      d.status != null ? `HTTP: ${d.status}` : null,
+      d.queued_for_retry ? "Radhë retry: Po" : null,
+      d.atk_refused ? "Print i bllokuar: Po" : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "receipt_emailed") {
+    const parts = [
+      d.nuikf ? `NUIKF: ${d.nuikf}` : null,
+      d.email ? `Email: ${d.email}` : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "setting_changed") {
+    const changes = Array.isArray(d.changes) ? d.changes : [];
+    if (changes.length) {
+      const summary = changes
+        .slice(0, 8)
+        .map((c) => {
+          const label = formatSettingFieldLabel(c.field);
+          if (c.redacted) return `${label}: ndryshuar`;
+          return `${label}: ${String(c.old ?? "—")} → ${String(c.new ?? "—")}`;
+        })
+        .join("; ");
+      return changes.length > 8 ? `${summary}; (+${changes.length - 8} fusha)` : summary;
+    }
+    return d.source ? `Burimi: ${d.source}` : formatAuditDetailFallback(d);
+  }
+
+  if (action === "offline_start" || action === "offline_end") {
+    return d.at ? `Koha: ${String(d.at).replace("T", " ").slice(0, 19)}` : formatAuditDetailFallback(d);
+  }
+
+  if (action === "backup_created") {
+    const dest = d.dest_dir ? path.basename(String(d.dest_dir)) : null;
+    const parts = [
+      dest ? `Destinacioni: ${dest}` : d.dest_dir ? `Destinacioni: ${d.dest_dir}` : null,
+      d.file_count != null ? `Skedarë: ${d.file_count}` : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "backup_restored") {
+    const from = d.restored_from ? path.basename(String(d.restored_from)) : null;
+    const parts = [
+      from ? `Nga: ${from}` : d.restored_from ? `Nga: ${d.restored_from}` : null,
+      d.keys_restored != null ? `Çelësat: ${d.keys_restored ? "Po" : "Jo"}` : null,
+      d.safety_dir ? `Safety: ${path.basename(String(d.safety_dir))}` : null,
+      d.needs_restart ? "Rinisje e nevojshme" : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  if (action === "power_recovery") {
+    const parts = [
+      d.nuikf ? `NUIKF: ${d.nuikf}` : null,
+      d.order_id != null ? `Porosia: ${d.order_id}` : null,
+      d.printed != null ? `Printuar: ${d.printed ? "Po" : "Jo"}` : null,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
+  }
+
+  return formatAuditDetailFallback(d);
+}
+
+function formatAuditDetailFallback(details) {
+  const d = details && typeof details === "object" ? details : {};
+  const parts = [];
+  for (const [key, value] of Object.entries(d)) {
+    if (value == null || value === "") continue;
+    if (typeof value === "object") continue;
+    parts.push(`${key}: ${value}`);
+  }
+  return parts.length ? parts.join(", ") : "—";
+}
+
+const RECEIPT_AUDIT_ACTIONS = Object.freeze(
+  new Set([
+    "receipt_created",
+    "receipt_sent",
+    "receipt_send_failed",
+    "correction_created",
+  ])
+);
+
+function splitAuditDateTime(createdAt) {
+  const raw = String(createdAt || "").trim();
+  if (!raw) return { data: "", ora: "" };
+  const normalized = raw.replace("T", " ");
+  const [datePart, timePart] = normalized.split(/\s+/);
+  const data = datePart || "";
+  let ora = timePart || "";
+  if (ora.length > 8) ora = ora.slice(0, 8);
+  return { data, ora };
+}
+
+function extractReceiptNuikf(action, details) {
+  if (!RECEIPT_AUDIT_ACTIONS.has(String(action || "").toLowerCase())) return "";
+  return String(details?.nuikf || "").trim();
+}
+
+function extractReceiptTotal(action, details) {
+  if (!RECEIPT_AUDIT_ACTIONS.has(String(action || "").toLowerCase())) return "";
+  const d = details || {};
+  const val = d.total != null && d.total !== "" ? d.total : d.total_amount;
+  if (val == null || val === "") return "";
+  const n = Number(val);
+  return Number.isFinite(n) ? n.toFixed(2) : String(val);
+}
+
+function extractAuditAtkStatus(action, details) {
+  const act = String(action || "").toLowerCase();
+  const d = details || {};
+  if (act === "receipt_sent") {
+    const tx = d.transaction_id ? String(d.transaction_id).trim() : "";
+    return tx ? `Sukses (${tx})` : "Sukses";
+  }
+  if (act === "receipt_send_failed") {
+    if (d.atk_refused || d.print_blocked) return "Refuzuar";
+    const err = String(d.error || "").trim();
+    if (d.status != null && d.status !== "") {
+      return err ? `HTTP ${d.status}: ${err.slice(0, 60)}` : `HTTP ${d.status}`;
+    }
+    return err ? `Dështoi: ${err.slice(0, 72)}` : "Dështoi";
+  }
+  if (act === "receipt_created") {
+    if (d.local_only) return "Lokal";
+    if (d.offline) return "Offline";
+    return "";
+  }
+  return "";
+}
+
+/** Rresht i eksportit me kolona fikse (CSV / PDF). */
+function mapAuditRowToExport(row) {
+  const d = row?.details && typeof row.details === "object" ? row.details : {};
+  const { data, ora } = splitAuditDateTime(row?.created_at);
+  const operatori =
+    [row?.operator_name, row?.operator_id].filter((x) => String(x || "").trim()).join(" / ") || "";
+  const chain = resolveAtkChainExportColumns(d);
+  return {
+    data,
+    ora,
+    veprimi: formatAuditActionLabel(row?.action),
+    nuikf: extractReceiptNuikf(row?.action, d),
+    shuma_totale: extractReceiptTotal(row?.action, d),
+    status_atk: extractAuditAtkStatus(row?.action, d),
+    operatori,
+    chain_payload: chain.chain_payload,
+    chain_current_hash: chain.chain_current_hash,
+    chain_previous_hash: chain.chain_previous_hash,
+    chain_integrity_check: chain.chain_integrity_check,
+    detaje: formatAuditDetailText(row),
+  };
+}
+
+function formatAuditExportTableRow(cols) {
+  const c = PDF_EXPORT_COL;
+  const g = c.gap;
+  return (
+    padEndText(cols.data, c.data) +
+    " ".repeat(g) +
+    padEndText(cols.ora, c.ora) +
+    " ".repeat(g) +
+    padEndText(cols.veprimi, c.veprimi) +
+    " ".repeat(g) +
+    padEndText(cols.nuikf, c.nuikf) +
+    " ".repeat(g) +
+    padEndText(cols.shuma_totale, c.shuma) +
+    " ".repeat(g) +
+    padEndText(cols.status_atk, c.status) +
+    " ".repeat(g) +
+    padEndText(cols.operatori, c.operator)
+  );
+}
+
+function formatAuditExportTableHeader() {
+  return formatAuditExportTableRow({
+    data: "Data",
+    ora: "Ora",
+    veprimi: "Veprimi",
+    nuikf: "NUIKF",
+    shuma_totale: "Shuma",
+    status_atk: "Status ATK",
+    operatori: "Operatori",
+  });
+}
+
+function buildAuditPdfLines(rows, fromDate, toDate) {
+  const rule = "-".repeat(Math.min(PDF_CHARS_PER_LINE, 105));
+  const detajePrefix = pdfExportDetajeIndent();
+  const detajeWidth = Math.max(40, PDF_CHARS_PER_LINE - detajePrefix.length);
+  const lines = [
+    `Audit Log Fiskal — ${fromDate || "..."} deri ${toDate || "..."}`,
+    "=".repeat(Math.min(PDF_CHARS_PER_LINE, 105)),
+    formatAuditExportTableHeader(),
+    rule,
+  ];
+
+  const chainIndent = "  ";
+  const chainWidth = Math.max(40, PDF_CHARS_PER_LINE - chainIndent.length);
+
+  for (const r of rows) {
+    const mapped = mapAuditRowToExport(r);
+    lines.push(formatAuditExportTableRow(mapped));
+    const detailLines = wrapText(mapped.detaje || "—", detajeWidth);
+    for (let i = 0; i < detailLines.length; i++) {
+      const prefix = i === 0 ? detajePrefix : " ".repeat(detajePrefix.length);
+      lines.push(prefix + detailLines[i]);
+    }
+    if (mapped.chain_payload || mapped.chain_current_hash || mapped.chain_previous_hash) {
+      const chainBlock = [
+        mapped.chain_payload ? `PayLoad: ${mapped.chain_payload}` : null,
+        mapped.chain_current_hash ? `Current Hash: ${mapped.chain_current_hash}` : null,
+        mapped.chain_previous_hash ? `Previous Hash: ${mapped.chain_previous_hash}` : null,
+        mapped.chain_integrity_check
+          ? `Integrity Check: ${mapped.chain_integrity_check}`
+          : null,
+      ].filter(Boolean);
+      for (const block of chainBlock) {
+        const wrapped = wrapText(block, chainWidth);
+        for (let i = 0; i < wrapped.length; i++) {
+          lines.push(chainIndent + wrapped[i]);
+        }
+      }
+    }
+  }
+
+  lines.push(rule);
+  lines.push(`Totali: ${rows.length} regjistrime`);
+  return lines;
+}
+
+/** PDF Type1 Courier = 1 byte/shkronjë (WinAnsi). UTF-8 shumë-byte (p.sh. ë) prish leximin. */
+function toPdfLatin1Text(text) {
+  return String(text ?? "")
+    .normalize("NFC")
+    .replace(/\u20AC/g, "\x80")
+    .replace(/…/g, "...")
+    .replace(/[""„]/g, '"')
+    .replace(/[''‚]/g, "'")
+    .replace(/[–—]/g, "-")
+    .replace(/[^\x00-\xFF]/g, "?");
+}
+
+function escapePdfLiteralString(text) {
+  const latin = toPdfLatin1Text(text);
+  let out = "";
+  for (let i = 0; i < latin.length; i++) {
+    const ch = latin[i];
+    const code = latin.charCodeAt(i);
+    if (ch === "\\") out += "\\\\";
+    else if (ch === "(") out += "\\(";
+    else if (ch === ")") out += "\\)";
+    else if (code >= 0x20 && code <= 0x7E) out += ch;
+    else out += ch;
+  }
+  return out;
+}
+
+/** PDF minimal (tekst) pa dependency të jashtëm — A4, shumë faqe, word wrap. */
 function buildSimplePdf(lines) {
-  const pageWidth = 595;
-  const pageHeight = 842;
-  const margin = 40;
-  const fontSize = 9;
-  const lineHeight = 12;
+  const pageWidth = PDF_PAGE_WIDTH;
+  const pageHeight = PDF_PAGE_HEIGHT;
+  const margin = PDF_MARGIN;
+  const fontSize = PDF_FONT_SIZE;
+  const lineHeight = PDF_LINE_HEIGHT;
   const usableHeight = pageHeight - margin * 2;
   const linesPerPage = Math.floor(usableHeight / lineHeight);
 
@@ -207,24 +1012,17 @@ function buildSimplePdf(lines) {
     return objects.length;
   };
 
-  // 1: Catalog
   addObj("<< /Type /Catalog /Pages 2 0 R >>");
-  // 2: Pages (placeholder, patched later)
   addObj("PAGES_PLACEHOLDER");
 
-  const fontId = addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>");
+  const fontId = addObj(
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>"
+  );
   const pageIds = [];
   const contentIds = [];
 
   for (const pageLines of pages) {
-    const escaped = pageLines
-      .map((ln) =>
-        String(ln)
-          .replace(/\\/g, "\\\\")
-          .replace(/\(/g, "\\(")
-          .replace(/\)/g, "\\)")
-          .slice(0, 110)
-      );
+    const escaped = pageLines.map((ln) => escapePdfLiteralString(ln));
     let y = pageHeight - margin - fontSize;
     const streamParts = [`BT /F1 ${fontSize} Tf 0 Tg`];
     for (const ln of escaped) {
@@ -234,7 +1032,7 @@ function buildSimplePdf(lines) {
     streamParts.push("ET");
     const stream = streamParts.join("\n");
     const contentId = addObj(
-      `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`
+      `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`
     );
     contentIds.push(contentId);
     const pageId = addObj(
@@ -250,10 +1048,10 @@ function buildSimplePdf(lines) {
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
   for (let i = 0; i < objects.length; i++) {
-    offsets.push(Buffer.byteLength(pdf, "utf8"));
+    offsets.push(Buffer.byteLength(pdf, "latin1"));
     pdf += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
   }
-  const xrefPos = Buffer.byteLength(pdf, "utf8");
+  const xrefPos = Buffer.byteLength(pdf, "latin1");
   pdf += `xref\n0 ${objects.length + 1}\n`;
   pdf += "0000000000 65535 f \n";
   for (let i = 1; i <= objects.length; i++) {
@@ -261,46 +1059,55 @@ function buildSimplePdf(lines) {
   }
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
   pdf += `startxref\n${xrefPos}\n%%EOF\n`;
-  return Buffer.from(pdf, "utf8");
+  return Buffer.from(pdf, "latin1");
+}
+
+/** Ruaj tekst raporti (Z/X/periodik) si PDF minimal — pa dialog. */
+function writeTextReportPdf(plainText, targetPath) {
+  const filePath = String(targetPath || "").trim();
+  if (!filePath) throw new Error("Shtegu PDF mungon");
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, buildTextReportPdfBuffer(plainText));
+  return filePath;
+}
+
+/** PDF minimal (tekst monospace) — buffer për email / bashkëngjitje. */
+function buildTextReportPdfBuffer(plainText) {
+  const lines = String(plainText || "").split(/\r?\n/);
+  return buildSimplePdf(lines);
 }
 
 /**
- * Eksport PDF → Documents. Kthen shtegun e fajllit.
+ * Eksport PDF. Pa targetPath → dialog Save As. Kthen shtegun ose null (anulim).
  */
-function exportAuditPDF(fromDate, toDate) {
+function exportAuditPDF(fromDate, toDate, targetPath) {
   if (!isFiscalEnabled()) return null;
 
   const rows = getAuditLog(fromDate, toDate) || [];
-  const title = `Fiscal Audit Log  ${fromDate || "..."} - ${toDate || "..."}`;
-  const lines = [
-    title,
-    "=".repeat(90),
-    "ID | Data | Veprimi | Operatori | Detaje",
-    "-".repeat(90),
-  ];
-  for (const r of rows) {
-    const det = JSON.stringify(r.details || {}).slice(0, 80);
-    lines.push(
-      `${r.id} | ${r.created_at || ""} | ${r.action} | ${r.operator_name || "-"} | ${det}`
-    );
-  }
-  lines.push("-".repeat(90));
-  lines.push(`Totali: ${rows.length} regjistrime`);
+  const lines = buildAuditPdfLines(rows, fromDate, toDate);
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const filePath = path.join(
-    getDocumentsDir(),
-    `fiscal-audit-${stamp}.pdf`
-  );
+  const filePath = targetPath ? String(targetPath).trim() : "";
+  if (!filePath) return null;
+
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, buildSimplePdf(lines));
   return filePath;
 }
 
 module.exports = {
   ALLOWED_ACTIONS,
+  FISCAL_AUDIT_EXPORT_ACTIONS,
   logFiscalAction,
+  logFiscalSettingsChanged,
+  snapshotFiscalSettingsState,
+  buildSettingChangeEntries,
+  mapAuditRowToExport,
   getAuditLog,
   exportAuditCSV,
   exportAuditPDF,
+  writeTextReportPdf,
+  buildTextReportPdfBuffer,
+  pickAuditSaveDialog,
+  purgeLegacyAuditNoise,
   getDocumentsDir,
 };

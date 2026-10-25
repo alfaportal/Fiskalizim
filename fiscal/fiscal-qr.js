@@ -41,10 +41,10 @@ const QR_PAYLOAD_MAX_ATK = 2048;
 const QR_PAYLOAD_MAX_LEGACY = 700;
 
 /** PNG i mprehtë; raster termik ~20 mm (160 dots @ 203 DPI) — skanueshmëri ATK. */
-const FISCAL_QR_PNG_WIDTH = 320;
-const FISCAL_QR_MAX_WIDTH_DOTS = 160;
-const FISCAL_QR_MAX_HEIGHT_DOTS = 160;
-const FISCAL_QR_MODULE_SIZE = 4;
+const FISCAL_QR_PNG_WIDTH = 256;
+const FISCAL_QR_MAX_WIDTH_DOTS = 128;
+const FISCAL_QR_MAX_HEIGHT_DOTS = 128;
+const FISCAL_QR_MODULE_SIZE = 3;
 /** Binarizim QR raster — si 1.0.10 (78): zi/bardhë pa gray në module. */
 const FISCAL_QR_BLACK_LUM_MAX = 78;
 const FISCAL_QR_ALPHA_MIN = 96;
@@ -53,7 +53,6 @@ function getFiscalQrPrintOpts(extra = {}) {
   const {
     normalizePrintDensity,
     blackLumMaxFromPrintDensity,
-    qrDarkHexFromPrintDensity,
   } = require("../receipt-text");
   const printDensity =
     extra.printDensity != null ? normalizePrintDensity(extra.printDensity) : null;
@@ -70,9 +69,10 @@ function getFiscalQrPrintOpts(extra = {}) {
   } catch {
     /* */
   }
+  const { isRongtaPrinterName } = require("../receipt-text");
+  /** Si instaluesi 1.0.10: native QR kur errësira ≥8; raster i plotë poshtë 8 / Rongta. */
   let preferNativeQr =
     extra.preferNativeQr != null ? !!extra.preferNativeQr : d >= 8;
-  const { isRongtaPrinterName } = require("../receipt-text");
   if (isRongtaPrinterName(printerName) && d <= 7) {
     preferNativeQr = false;
   }
@@ -84,7 +84,7 @@ function getFiscalQrPrintOpts(extra = {}) {
     alphaMin,
     printDensity: d,
     printerName,
-    /** Si 1.0.10 për errësira ≥8; raster + dither për 1–7 (PNG #000 ishte gjithmonë zi). */
+    /** Native GS ( k — skanueshmëri ATK (si 1.0.10); raster vetëm kur errësira ≤7 / Rongta. */
     preferNativeQr,
     solidRaster: true,
     ...extra,
@@ -96,7 +96,18 @@ function getFiscalQrPrintOpts(extra = {}) {
   };
 }
 
+function bufferHasNativeEscPosQr(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 4) return false;
+  for (let i = 0; i <= buf.length - 3; i += 1) {
+    if (buf[i] === 0x1d && buf[i + 1] === 0x28 && buf[i + 2] === 0x6b) return true;
+  }
+  return false;
+}
+
+/** Si 1.0.10: mos shto ESC 7 / GS E para GS ( k — prish skanimin ATK. */
 function withQrPrintDensity(buffer, printDensity) {
+  if (!buffer || !buffer.length) return buffer;
+  if (bufferHasNativeEscPosQr(buffer)) return buffer;
   const { prependPrintDensityEscPos } = require("../receipt-text");
   let printerName = "";
   try {
@@ -309,7 +320,7 @@ function buildEscPosQrCommands(data, moduleSize = 4) {
   return Buffer.concat([
     buildQrCenterPrefix(),
     qrBody,
-    Buffer.from("\n\n", "ascii"),
+    Buffer.from("\n", "ascii"),
     Buffer.from([0x1d, 0x4c, 0x00, 0x00]),
     Buffer.from([0x1b, 0x61, 0x00]),
   ]);
@@ -488,6 +499,97 @@ function ymdToFiscalDate(ymd) {
   return s;
 }
 
+function parseJsonObject(raw, fallback) {
+  if (raw != null && typeof raw === "object" && !Array.isArray(raw)) return raw;
+  if (Array.isArray(raw)) return raw;
+  try {
+    const p = JSON.parse(raw == null ? "" : String(raw));
+    return p != null ? p : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildFiscalQrReceiptData(receiptRow, settings) {
+  const row = receiptRow && typeof receiptRow === "object" ? receiptRow : {};
+  const s = settings && typeof settings === "object" ? settings : {};
+  const items = Array.isArray(row.items)
+    ? row.items
+    : parseJsonObject(row.items_json, []);
+  const vatBreak = parseJsonObject(row.vat_breakdown ?? row.vat_breakdown_json, {});
+  const taxpayerNui = String(
+    row.taxpayer_nui || s.taxpayer_nui || s.developer_nui || ""
+  ).trim();
+  const totalAmount = Number(row.total_amount ?? row.total ?? 0);
+  const fiscalTime = String(row.fiscal_time || "").trim();
+  return {
+    nuikf: row.nuikf,
+    total_amount: totalAmount,
+    total: totalAmount,
+    total_without_tax:
+      row.total_without_tax != null && row.total_without_tax !== ""
+        ? Number(row.total_without_tax)
+        : undefined,
+    fiscal_date: row.fiscal_date,
+    fiscal_time: fiscalTime.length >= 4 ? fiscalTime : undefined,
+    taxpayer_nui: taxpayerNui,
+    nui: taxpayerNui,
+    sef_id: row.sef_id,
+    daily_number: row.daily_number,
+    total_number: row.total_number,
+    receipt_type: row.receipt_type || "regular",
+    original_nuikf: row.original_nuikf,
+    payment_method: row.payment_method || "cash",
+    items_json: JSON.stringify(Array.isArray(items) ? items : []),
+    vat_breakdown_json: JSON.stringify(
+      vatBreak && typeof vatBreak === "object" && !Array.isArray(vatBreak) ? vatBreak : {}
+    ),
+    taxpayer_address: row.taxpayer_address || s.taxpayer_address || "",
+    operator_id: row.operator_id,
+  };
+}
+
+function reportNowStampParts() {
+  let d = new Date();
+  try {
+    const { getFiscalNow } = require("./fiscal-time-sync");
+    d = getFiscalNow();
+  } catch {
+    /* */
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  return {
+    fiscal_date: `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`,
+    fiscal_time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+function resolveReportFiscalDateTime(details) {
+  const d = details && typeof details === "object" ? details : {};
+  const fd = String(d.fiscalization_date || "").trim();
+  const ft = String(d.fiscalization_time || "").trim();
+  if (fd && ft.length >= 4) {
+    return { fiscal_date: fd, fiscal_time: ft.slice(0, 5) };
+  }
+  const dt = String(d.fiscalization_datetime || "").trim();
+  if (dt) {
+    const m = dt.match(/^(\d{2}\.\d{2}\.\d{4})\s+(\d{1,2}:\d{2})/);
+    if (m) {
+      const timePart = m[2];
+      const fiscal_time =
+        timePart.length === 4 ? `0${timePart}` : timePart.slice(0, 5);
+      return { fiscal_date: m[1], fiscal_time };
+    }
+  }
+  const dateRaw = String(d.date || d.from_date || "")
+    .split("→")[0]
+    .trim()
+    .slice(0, 10);
+  const nowParts = reportNowStampParts();
+  const fiscal_date = ymdToFiscalDate(dateRaw) || nowParts.fiscal_date;
+  return { fiscal_date, fiscal_time: nowParts.fiscal_time };
+}
+
 function buildReportVerificationNo(details, mode) {
   const crypto = require("crypto");
   const { getSefIdentifier } = require("./fiscal-numbering");
@@ -516,15 +618,7 @@ async function generateFiscalReportQR(reportDetails, opts = {}) {
   const d = reportDetails && typeof reportDetails === "object" ? reportDetails : {};
   const mode = String(opts.reportMode || d.mode || "X").toUpperCase();
   const nuikf = buildReportVerificationNo(d, mode);
-  const dateRaw = String(d.date || d.from_date || "")
-    .split("→")[0]
-    .trim()
-    .slice(0, 10);
-  const fiscal_date =
-    ymdToFiscalDate(dateRaw) ||
-    ymdToFiscalDate(new Date().toISOString().slice(0, 10));
-  const now = new Date();
-  const fiscal_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const { fiscal_date, fiscal_time } = resolveReportFiscalDateTime(d);
 
   const row = {
     nuikf,
@@ -562,6 +656,7 @@ module.exports["resolveQrPngBuffer"] = resolveQrPngBuffer;
 module.exports["buildEscPosQrRasterForPrint"] = buildEscPosQrRasterForPrint;
 module.exports["estimateQrPrintWidthDots"] = estimateQrPrintWidthDots;
 module.exports["buildQrCenterPrefix"] = buildQrCenterPrefix;
+module.exports["buildFiscalQrReceiptData"] = buildFiscalQrReceiptData;
 module.exports["generateFiscalQR"] = generateFiscalQR;
 module.exports["generateFiscalReportQR"] = generateFiscalReportQR;
 module.exports["generateQRForPrint"] = generateQRForPrint;

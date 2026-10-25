@@ -3,6 +3,13 @@
  * Checkpoint në pending_txn midis hapave kritikë; pa dublikim kuponësh.
  */
 const { isFiscalEnabled } = require("./fiscal-config");
+const {
+  isFiscalMemoryOnly,
+  memBeginPending,
+  memUpdatePending,
+  memGetPendingForOrder,
+  memListOpenPending,
+} = require("./fiscal-test-mode-store");
 
 const STAGES = Object.freeze({
   STARTED: "started",
@@ -97,6 +104,9 @@ function buildRecoveryPrintText(originalText, lastPrintedLine) {
 
 function beginPending({ orderId, operatorName, operatorId }) {
   if (!isFiscalEnabled()) return null;
+  if (isFiscalMemoryOnly()) {
+    return memBeginPending({ orderId, operatorName, operatorId });
+  }
   const sqlite = getSqlite();
   ensurePendingTxnTable(sqlite);
 
@@ -129,6 +139,10 @@ function beginPending({ orderId, operatorName, operatorId }) {
 
 function updatePending(pendingId, patch) {
   if (!pendingId) return;
+  if (isFiscalMemoryOnly()) {
+    memUpdatePending(pendingId, patch);
+    return;
+  }
   const sqlite = getSqlite();
   ensurePendingTxnTable(sqlite);
   const row = sqlite.prepare(`SELECT * FROM pending_txn WHERE id = ?`).get(Number(pendingId));
@@ -209,6 +223,7 @@ function abandonPending(pendingId, reason) {
 
 function listOpenPending() {
   if (!isFiscalEnabled()) return [];
+  if (isFiscalMemoryOnly()) return memListOpenPending();
   const sqlite = getSqlite();
   ensurePendingTxnTable(sqlite);
   return sqlite
@@ -223,6 +238,7 @@ function listOpenPending() {
 
 function getOpenPendingForOrder(orderId) {
   if (!isFiscalEnabled()) return null;
+  if (isFiscalMemoryOnly()) return memGetPendingForOrder(orderId);
   const sqlite = getSqlite();
   ensurePendingTxnTable(sqlite);
   return (
@@ -317,8 +333,20 @@ async function resumePendingPrint(pending, opts = {}) {
  * Pas boot: rikuperon të gjitha pending të hapura me kupon.
  * Pending në stage=started (pa kupon) → abandon (pa dublikim).
  */
+const BOOT_AT_MS = Date.now();
+
+function parsePendingUpdatedMs(row) {
+  const raw = String(row?.updated_at || row?.created_at || "").trim();
+  if (!raw) return 0;
+  const t = Date.parse(raw.replace(" ", "T"));
+  return Number.isFinite(t) ? t : 0;
+}
+
 async function resumeAllPendingOnBoot(opts = {}) {
   if (!isFiscalEnabled()) return { ok: true, resumed: [], abandoned: [] };
+  if (isFiscalMemoryOnly()) {
+    return { ok: true, resumed: [], abandoned: [], test_mode: true };
+  }
 
   const sqlite = getSqlite();
   ensurePendingTxnTable(sqlite);
@@ -339,6 +367,11 @@ async function resumeAllPendingOnBoot(opts = {}) {
   const resumed = [];
   for (const p of open) {
     try {
+      const updatedMs = parsePendingUpdatedMs(p);
+      if (updatedMs >= BOOT_AT_MS - 3000) {
+        console.log("[fiscal-recovery] skip boot resume (session i ri): pending", p.id);
+        continue;
+      }
       const r = await resumePendingPrint(p, opts);
       resumed.push(r);
     } catch (e) {
