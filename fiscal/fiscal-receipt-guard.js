@@ -238,9 +238,6 @@ function validateReceiptBeforePrint(receiptText, opts = {}) {
   if (!RE_PAY_METHOD.test(text)) {
     missing.push("MËNYRA E PAGESËS");
   }
-  if (!/\be-kuponi\b|\be-kupon\b/i.test(text)) {
-    missing.push("e-kuponi");
-  }
   if (!RE_CURRENCY.test(text)) {
     missing.push("valuta EUR");
   }

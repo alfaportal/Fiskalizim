@@ -108,10 +108,8 @@ function padThreeCol(left, center, right, width = WIDTH) {
   return `${pad(l, nameW, "left").slice(0, nameW)}${c}${r}`;
 }
 
-/** Markera — qendër + lartësi +1 + bold (logo, KUPON FISKAL). */
-const ATK_TITLE_CENTER = "^C^H^B";
-/** Markera — lartësi +1 + bold (TOTALI PER PAGESE — ^H hequr: € i njëjtë me numrat). */
-const ATK_EMPHASIS = "^B";
+const ATK_TITLE_CENTER = "^C";
+const ATK_EMPHASIS = "";
 
 /** Hapësirë vertikale (frymë) si origjinali ATK. */
 function atkGap(lines, count = 1) {
@@ -1117,8 +1115,38 @@ function appendAtkVatLines(lines, vatBreak, width, items) {
   }
 }
 
+function resolveSefUnitAndPos(fiscal, order) {
+  let unitNumber = "";
+  let posId = "";
+  const fromData = (src) => {
+    if (!src || typeof src !== "object") return;
+    if (!unitNumber) {
+      unitNumber = String(src.unit_number || src.business_unit_number || "").trim();
+    }
+    if (!posId) {
+      posId = String(src.pos_id || "").trim();
+    }
+  };
+  fromData(fiscal);
+  fromData(order);
+  if (!unitNumber || !posId) {
+    try {
+      const { getFiscalSettings } = require("./fiscal-config");
+      const s = getFiscalSettings() || {};
+      if (!unitNumber) {
+        unitNumber = String(s.unit_number || s.business_unit_number || "").trim();
+      }
+      if (!posId) {
+        posId = String(s.pos_id || "").trim();
+      }
+    } catch {}
+  }
+  return { unitNumber, posId };
+}
+
 function appendAtkHeader(lines, width, ctx) {
-  lines.push(`${ATK_TITLE_CENTER}${pad(String(ctx.brandName).toUpperCase(), width, "center")}`);
+  lines.push(`${ATK_TITLE_CENTER}^B${pad(String(ctx.brandName).toUpperCase(), width, "center")}`);
+  atkGap(lines, 1);
   appendAtkCenterLine(lines, `${t("atk_taxpayer")}: ${legalNameDisplay(ctx.legalName)}`, width);
   if (ctx.unitName) {
     appendAtkCenterLine(lines, `${t("atk_unit_name")}: ${ctx.unitName}`, width);
@@ -1127,15 +1155,42 @@ function appendAtkHeader(lines, width, ctx) {
     appendAtkCenterLine(lines, `${t("atk_unit_address")}: ${al}`, width);
   }
   if (ctx.city) appendAtkCenterLine(lines, `${t("atk_place")}: ${ctx.city}`, width);
+  appendAtkCenterLine(lines, `NR. NJESISE: ${ctx.unitNumber || "-"}`, width);
   if (ctx.unitPhone) appendAtkCenterLine(lines, `${t("atk_phone")}: ${ctx.unitPhone}`, width);
   appendAtkCenterLine(lines, `${t("atk_nf_nui")}: ${ctx.nui || "-"}`, width);
   appendAtkCenterLine(lines, `${t("atk_vat_number")}: ${ctx.vatNo || "-"}`, width);
   appendAtkRule(lines, width);
-  lines.push(padLine(`${t("atk_worker_name")}:`, ctx.operatorName || "-", width));
+}
+
+function appendAtkTitleAndOperator(lines, width, receiptType, operatorName, posId) {
+  lines.push(formatAtkWorkerLine(operatorName, posId, width));
+  atkGap(lines, 1);
+  lines.push(
+    `${ATK_TITLE_CENTER}${pad(couponTitleForReceiptType(receiptType), width, "center")}`
+  );
 }
 
 function legalNameDisplay(name) {
   return String(name || "-").trim() || "-";
+}
+
+function formatAtkWorkerLine(operatorName, posId, width = WIDTH) {
+  const name = legalNameDisplay(operatorName);
+  const pos = String(posId || "-").trim() || "-";
+  const left = "OPERATORI:";
+  const right = `POS ID: ${pos}`;
+  const maxName = Math.max(1, width - left.length - right.length - 2);
+  let mid = name;
+  if (mid.length > maxName) {
+    mid =
+      maxName <= 1
+        ? mid.slice(0, 1)
+        : `${mid.slice(0, Math.max(1, maxName - 1))}…`;
+  }
+  const inner = Math.max(mid.length, width - left.length - right.length);
+  const padL = Math.max(0, Math.floor((inner - mid.length) / 2));
+  const padR = Math.max(0, inner - mid.length - padL);
+  return `${left}${" ".repeat(padL)}${mid}${" ".repeat(padR)}${right}`.slice(0, width);
 }
 
 function resolveCartDiscountAmount(items, orderDiscount) {
@@ -1198,12 +1253,14 @@ function appendAtkPaymentLines(lines, width, order, fiscal, paymentMethod, total
     return;
   }
   if (splits.length === 1) {
-    lines.push(
-      padLine(t("atk_payment_method"), atkPaymentModeShort(splits[0].method), width)
-    );
+    const money = formatAtkMoneyEuro(totalPay);
+    const mode = pad(atkPaymentModeShort(splits[0].method), money.length, "left");
+    lines.push(padLine(t("atk_payment_method"), mode, width));
     return;
   }
-  lines.push(padLine(t("atk_payment_method"), atkPaymentModeShort(paymentMethod), width));
+  const money = formatAtkMoneyEuro(totalPay);
+  const mode = pad(atkPaymentModeShort(paymentMethod), money.length, "left");
+  lines.push(padLine(t("atk_payment_method"), mode, width));
 }
 
 function appendAtkTotalsBlock(lines, width, block) {
@@ -1232,6 +1289,7 @@ function appendAtkTotalsBlock(lines, width, block) {
 
   atkGap(lines);
   lines.push(padLineBoldLabelNormalAmount(t("atk_total_pay"), formatAtkMoneyEuro(totalPay), width));
+  atkGap(lines);
 
   appendAtkPaymentLines(
     lines,
@@ -1265,11 +1323,10 @@ function appendAtkFooter(lines, width, footer) {
     padLine(t("atk_date_time"), `${formatAtkDateSlash(dateStr)} ${timeStr}`, width)
   );
   lines.push(padLine(t("atk_sef_id"), sefId || "-", width));
-  lines.push(`^BNUIKF: ${nuikf || "-"}`);
+  lines.push(`NUIKF: ${nuikf || "-"}`);
   lines.push(
     `^C${pad(`${t("fiscal_coupon_daily_nr")} ${formatAtkDailyNumber(dailyNumber)}`, width, "center")}`
   );
-  lines.push(`^C${t("e_kuponi")}`);
 }
 
 function buildSaleBlockContext(order, fiscal, items) {
@@ -1369,6 +1426,7 @@ function generateFiscalReceipt(orderData, fiscalData) {
     "";
 
   const operatorName = order.operator_name || order.waiter_name || fiscal.operator_name || "";
+  const { unitNumber, posId } = resolveSefUnitAndPos(fiscal, order);
 
   const { date, time } = formatFiscalDateTime(
     order.closed_at || order.fiscal_date || fiscal.fiscal_date || order.created_at
@@ -1415,13 +1473,13 @@ function generateFiscalReceipt(orderData, fiscalData) {
     unitName,
     addressLines,
     city,
+    unitNumber,
     unitPhone,
     nui,
     vatNo,
-    operatorName,
   });
 
-  lines.push(`${ATK_TITLE_CENTER}${pad(couponTitleForReceiptType(receiptType), w, "center")}`);
+  appendAtkTitleAndOperator(lines, w, receiptType, operatorName, posId);
   if (resolvePrintOfflineBanner(order, fiscal)) {
     appendOfflineBanner(lines, w);
   }

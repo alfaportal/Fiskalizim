@@ -41,10 +41,10 @@ const QR_PAYLOAD_MAX_ATK = 2048;
 const QR_PAYLOAD_MAX_LEGACY = 700;
 
 /** PNG i mprehtë; raster termik ~20 mm (160 dots @ 203 DPI) — skanueshmëri ATK. */
-const FISCAL_QR_PNG_WIDTH = 320;
-const FISCAL_QR_MAX_WIDTH_DOTS = 160;
-const FISCAL_QR_MAX_HEIGHT_DOTS = 160;
-const FISCAL_QR_MODULE_SIZE = 4;
+const FISCAL_QR_PNG_WIDTH = 256;
+const FISCAL_QR_MAX_WIDTH_DOTS = 128;
+const FISCAL_QR_MAX_HEIGHT_DOTS = 128;
+const FISCAL_QR_MODULE_SIZE = 3;
 /** Binarizim QR raster — si 1.0.10 (78): zi/bardhë pa gray në module. */
 const FISCAL_QR_BLACK_LUM_MAX = 78;
 const FISCAL_QR_ALPHA_MIN = 96;
@@ -488,6 +488,56 @@ function ymdToFiscalDate(ymd) {
   return s;
 }
 
+function parseJsonObject(raw, fallback) {
+  if (raw != null && typeof raw === "object" && !Array.isArray(raw)) return raw;
+  if (Array.isArray(raw)) return raw;
+  try {
+    const p = JSON.parse(raw == null ? "" : String(raw));
+    return p != null ? p : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildFiscalQrReceiptData(receiptRow, settings) {
+  const row = receiptRow && typeof receiptRow === "object" ? receiptRow : {};
+  const s = settings && typeof settings === "object" ? settings : {};
+  const items = Array.isArray(row.items)
+    ? row.items
+    : parseJsonObject(row.items_json, []);
+  const vatBreak = parseJsonObject(row.vat_breakdown ?? row.vat_breakdown_json, {});
+  const taxpayerNui = String(
+    row.taxpayer_nui || s.taxpayer_nui || s.developer_nui || ""
+  ).trim();
+  const totalAmount = Number(row.total_amount ?? row.total ?? 0);
+  const fiscalTime = String(row.fiscal_time || "").trim();
+  return {
+    nuikf: row.nuikf,
+    total_amount: totalAmount,
+    total: totalAmount,
+    total_without_tax:
+      row.total_without_tax != null && row.total_without_tax !== ""
+        ? Number(row.total_without_tax)
+        : undefined,
+    fiscal_date: row.fiscal_date,
+    fiscal_time: fiscalTime.length >= 4 ? fiscalTime : undefined,
+    taxpayer_nui: taxpayerNui,
+    nui: taxpayerNui,
+    sef_id: row.sef_id,
+    daily_number: row.daily_number,
+    total_number: row.total_number,
+    receipt_type: row.receipt_type || "regular",
+    original_nuikf: row.original_nuikf,
+    payment_method: row.payment_method || "cash",
+    items_json: JSON.stringify(Array.isArray(items) ? items : []),
+    vat_breakdown_json: JSON.stringify(
+      vatBreak && typeof vatBreak === "object" && !Array.isArray(vatBreak) ? vatBreak : {}
+    ),
+    taxpayer_address: row.taxpayer_address || s.taxpayer_address || "",
+    operator_id: row.operator_id,
+  };
+}
+
 function buildReportVerificationNo(details, mode) {
   const crypto = require("crypto");
   const { getSefIdentifier } = require("./fiscal-numbering");
@@ -562,6 +612,7 @@ module.exports["resolveQrPngBuffer"] = resolveQrPngBuffer;
 module.exports["buildEscPosQrRasterForPrint"] = buildEscPosQrRasterForPrint;
 module.exports["estimateQrPrintWidthDots"] = estimateQrPrintWidthDots;
 module.exports["buildQrCenterPrefix"] = buildQrCenterPrefix;
+module.exports["buildFiscalQrReceiptData"] = buildFiscalQrReceiptData;
 module.exports["generateFiscalQR"] = generateFiscalQR;
 module.exports["generateFiscalReportQR"] = generateFiscalReportQR;
 module.exports["generateQRForPrint"] = generateQRForPrint;

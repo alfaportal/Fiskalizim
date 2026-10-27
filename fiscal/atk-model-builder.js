@@ -113,8 +113,10 @@ function mapCouponType(receiptType) {
   const t = String(receiptType || "regular")
     .trim()
     .toLowerCase();
-  if (t === "cancel" || t === "cancelled" || t === "anulim") return "CANCEL";
-  if (t === "return" || t === "storno" || t === "refund") return "RETURN";
+  if (t === "return" || t === "refund" || t === "kthim") return "CANCEL";
+  if (t === "cancel" || t === "cancelled" || t === "anulim" || t === "storno") {
+    return "RETURN";
+  }
   return "SALE";
 }
 
