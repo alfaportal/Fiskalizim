@@ -161,6 +161,22 @@
       color: #bbf7d0;
       border-color: #166534;
     }
+    .offline-pending-banner {
+      display: none;
+      padding: 7px 18px;
+      border-bottom: 1px solid #991b1b;
+      background: #dc2626;
+      color: #ffffff;
+      font-size: 0.82rem;
+      font-weight: 800;
+      line-height: 1.35;
+      text-align: center;
+      pointer-events: none;
+      user-select: none;
+    }
+    .offline-pending-banner.visible {
+      display: block;
+    }
     .settings-decrypt-alert {
       display: none;
       margin-bottom: 12px;
@@ -716,6 +732,21 @@
       text-align: center;
       font-size: 0.88rem;
     }
+    .cart-row .cart-price-cell [data-act="lpv"],
+    .cart-row .cart-price-cell [data-act="lqv"],
+    .cart-row .cart-qty-cell [data-act="lqv"] {
+      cursor: text;
+      outline: none;
+      border: none;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      font-weight: inherit;
+      color: inherit;
+      display: inline;
+      white-space: nowrap;
+    }
     .cart-row .cart-price-cell {
       white-space: nowrap;
       font-size: 0.88rem;
@@ -834,9 +865,10 @@
       padding: 3px 6px;
     }
     #tab-pos-pay.checkout-panel #pos-msg.pending {
-      border-color: #d97706;
-      color: #fde68a;
-      background: rgba(217, 119, 6, 0.12);
+      border-color: #991b1b;
+      color: #ffffff;
+      background: #dc2626;
+      font-weight: 800;
     }
     .checkout-vat-compact {
       display: flex;
@@ -1491,6 +1523,11 @@
       color: #052e16;
       box-shadow: 0 8px 20px #16a34a44;
     }
+    .btn-pay-nopaper {
+      background: linear-gradient(180deg, #38bdf8, #0369a1);
+      color: #f0f9ff;
+      box-shadow: 0 8px 20px #0369a144;
+    }
     .btn-warn { background: linear-gradient(180deg, #fbbf24, #d97706); color: #111; }
     .btn-danger { background: linear-gradient(180deg, #f87171, #dc2626); color: #fff; }
     .btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
@@ -1796,6 +1833,33 @@
       padding: 16px;
     }
     .preview-overlay.hidden { display: none; }
+    .preview-qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .preview-qr-wrap.hidden { display: none; }
+    .preview-qr-hint {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.35;
+    }
+    #preview-qr {
+      display: block;
+      width: 150px;
+      height: 150px;
+      max-width: 150px;
+      max-height: 150px;
+      margin: 0 auto;
+      image-rendering: pixelated;
+    }
     .nuikf-cell {
       user-select: text;
       -webkit-user-select: text;
@@ -1925,10 +1989,16 @@
         <button type="button" class="btn btn-ghost" id="btn-preview-close" style="width:auto">Mbyll</button>
       </div>
       <pre id="preview-text">—</pre>
+      <div id="preview-qr-wrap" class="preview-qr-wrap hidden" aria-hidden="true">
+        <p class="preview-qr-hint">Skano QR-në fiskale — nuk kërkohet printim letre</p>
+        <img id="preview-qr" alt="QR kupon fiskal" width="200" height="200" />
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn btn-primary" id="btn-preview-print" style="width:auto">Printo tani</button>
+        <button type="button" class="btn btn-ghost" id="btn-preview-email" style="width:auto">Dërgo me Email</button>
         <button type="button" class="btn btn-ghost" id="btn-preview-close-2" style="width:auto">Vetëm shiko</button>
       </div>
+      <div class="msg" id="preview-email-msg" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -2028,6 +2098,8 @@
   </header>
 
   <div class="disk-banner" id="disk-banner" role="alert" aria-live="polite"></div>
+  <div id="atk-time-alarm" role="alert" aria-live="assertive" style="display:none;padding:10px 18px;background:#7f1d1d;color:#fecaca;font-weight:800;font-size:1rem;text-align:center;letter-spacing:0.02em">ORA NUK ËSHTË E SINKRONIZUAR ME ATK!</div>
+  <div class="offline-pending-banner" id="offline-pending-banner" role="status" aria-live="polite" aria-hidden="true"></div>
 
   <div class="topbar-status hidden" id="topbar-status" aria-hidden="true">
     <span class="pill hidden" id="pill-atk" aria-hidden="true"><span class="dot"></span> Lidhja: —</span>
@@ -2063,6 +2135,7 @@
       <div class="pos-arka-basket" id="pos-arka-basket">
         <header class="checkout-head pos-basket-head">
           <span class="basket-label">SHPORTA</span>
+          <span id="atk-time-ok" style="display:inline-flex;align-items:center;gap:5px;margin-left:8px;font-size:0.72rem;color:#22c55e;font-weight:650"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>ATK</span>
           <span class="cart-head-meta"><strong id="cart-head-count">0</strong> prod. · <span id="cart-head-qty">0</span> copë</span>
         </header>
         <input id="pos-scan" type="text" inputmode="numeric" autocomplete="off"
@@ -2084,7 +2157,7 @@
         </div>
         <div style="margin-bottom:10px">
           <label style="color:#ccc">Çmimi (€):</label>
-          <input type="number" id="edit-prod-price" step="0.01" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
+          <input type="number" id="edit-prod-price" step="0.0001" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
         </div>
         <div class="edit-prod-field-hide" style="margin-bottom:10px">
           <label style="color:#ccc">Norma TVSH:</label>
@@ -2118,6 +2191,10 @@
             <option value="XBX">XBX — Kuti</option>
             <option value="PAL">PAL — Palë</option>
           </select>
+        </div>
+        <div id="edit-prod-base-wrap" class="edit-prod-field-hide" style="margin-bottom:10px;display:none">
+          <label style="color:#ccc">Pesha / vëllimi bazë:</label>
+          <input id="edit-prod-base-weight" type="number" min="0.001" step="0.001" value="1.000" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
         </div>
         <div class="edit-prod-field-hide" style="margin-bottom:15px">
           <label style="color:#ccc">Kategoria ATK:</label>
@@ -2219,6 +2296,7 @@
         </div>
         <div class="checkout-pay-actions">
           <button type="button" class="btn btn-primary" id="btn-checkout">Paguaj</button>
+          <button type="button" class="btn btn-pay-nopaper" id="btn-checkout-nopaper">Paguaj pa letër</button>
           <button type="button" class="btn" id="btn-kupon-termik">Kupon Termik</button>
           <button type="button" class="btn btn-ghost" id="btn-clear">Pastro shportën</button>
         </div>
@@ -2254,7 +2332,7 @@
         </div>
         <div>
           <label for="mgmt-prod-price">Çmimi (€)</label>
-          <input type="number" id="mgmt-prod-price" step="0.01" min="0" value="0.00" placeholder="0.00" />
+          <input type="number" id="mgmt-prod-price" step="0.0001" min="0" value="0.00" placeholder="0.00" />
         </div>
         <div>
           <label for="mgmt-prod-vat">TVSH</label>
@@ -2285,6 +2363,10 @@
             <option value="XBX">XBX — Kuti</option>
             <option value="PAL">PAL — Palë</option>
           </select>
+        </div>
+        <div id="mgmt-prod-base-wrap" style="display:none">
+          <label for="mgmt-prod-base-weight">Pesha / vëllimi bazë</label>
+          <input type="number" id="mgmt-prod-base-weight" min="0.001" step="0.001" value="1.000" />
         </div>
         <div>
           <label for="mgmt-prod-category">Kategoria ATK</label>
@@ -2522,14 +2604,32 @@
         style="margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel2);max-width:920px"
       >
         <h3 style="margin:0 0 10px;font-size:1rem">Regjistro kupon bllok letër</h3>
-        <label for="paper-serial-no">Numri serik i bllokut</label>
-        <input
-          id="paper-serial-no"
-          type="text"
-          placeholder="p.sh. 000123"
-          autocomplete="off"
-          style="max-width:280px"
-        />
+        <p style="margin:0 0 12px;color:var(--muted);font-size:0.82rem;line-height:1.45">
+          Modaliteti bllok letër duhet të jetë aktiv. Numri serik i kuponit, kodi unik i bllokut dhe artikujt
+          ruhen në databazë për regjistrim në SEF më vonë.
+        </p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;max-width:620px;margin-bottom:4px">
+          <div style="flex:1;min-width:200px">
+            <label for="paper-serial-no">Numri serik i kuponit</label>
+            <input
+              id="paper-serial-no"
+              type="text"
+              placeholder="p.sh. A001"
+              autocomplete="off"
+              style="max-width:100%"
+            />
+          </div>
+          <div style="flex:1;min-width:200px">
+            <label for="paper-block-code">Kodi unik i bllokut</label>
+            <input
+              id="paper-block-code"
+              type="text"
+              placeholder="p.sh. BLK-2026-01"
+              autocomplete="off"
+              style="max-width:100%"
+            />
+          </div>
+        </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;max-width:420px;margin-top:10px">
           <div>
             <label for="paper-sale-date" style="font-size:0.78rem">Data e shitjes</label>
@@ -2677,6 +2777,18 @@
         </div>
       </div>
 
+      <h2>Logo e biznesit (opsionale)</h2>
+      <div class="form-grid">
+        <div>
+          <label>Logo në kupon (PNG / JPG)</label>
+          <input type="file" id="s-biz-logo" accept="image/png,image/jpeg,.png,.jpg,.jpeg" />
+          <div id="s-biz-logo-preview-wrap" class="hidden" style="margin-top:8px">
+            <img id="s-biz-logo-preview" alt="Logo" style="max-width:180px;max-height:80px;background:#fff;padding:4px;border-radius:4px" />
+          </div>
+          <button type="button" class="btn btn-ghost hidden" id="btn-biz-logo-remove" style="width:auto;margin-top:8px">Hiq logon</button>
+        </div>
+      </div>
+
       <h2>Lidhja fiskale</h2>
       <div class="form-grid">
         <div>
@@ -2696,7 +2808,7 @@
           <div id="app-id-panel" class="app-id-panel hidden">
             <label for="s-app-id">Application ID</label>
             <div class="app-id-field-wrap">
-              <input id="s-app-id" placeholder="p.sh. 987654321098" autocomplete="new-password" inputmode="numeric" spellcheck="false" autocapitalize="off" data-form-type="other" />
+              <input id="s-app-id" placeholder="p.sh. 987.654.321.098" autocomplete="new-password" inputmode="numeric" spellcheck="false" autocapitalize="off" data-form-type="other" />
               <button type="button" id="btn-app-id-eye" class="app-id-eye" aria-label="Shfaq numrin" title="Shfaq / fsheh numrin" disabled>👁</button>
             </div>
           </div>
@@ -2758,6 +2870,7 @@
       atkStatus: null,
       fiscalSettings: {},
       paperBlockActive: false,
+      paperBlockBatchId: "",
       fiscalLanguage: "sq",
       exchangeLookup: null,
       returnLookup: null,
@@ -3040,6 +3153,7 @@
         }
       }
       const termikBtn = document.getElementById("btn-kupon-termik");
+      const btnNoPaperPay = document.getElementById("btn-checkout-nopaper");
       const payDisabled = !status.ok || !state.cart.length || invoiceTotal <= 0;
       if (btn && !state.diskBlocksRecords && !state.dbDecryptFailed) {
         btn.disabled = payDisabled;
@@ -3048,6 +3162,9 @@
           : invoiceTotal <= 0 && state.cart.length
             ? "Totali duhet > 0 — kontrolloni zbritjen në total ose artikujt"
             : "";
+      }
+      if (btnNoPaperPay && !state.diskBlocksRecords && !state.dbDecryptFailed) {
+        btnNoPaperPay.disabled = payDisabled;
       }
       if (termikBtn && !state.diskBlocksRecords && !state.dbDecryptFailed) {
         termikBtn.disabled = payDisabled;
@@ -3292,8 +3409,8 @@
         input.value = "";
         input.placeholder = placeholder || "";
         const isPassword = !!options.password;
-        input.type = isPassword ? "password" : "text";
-        input.autocomplete = isPassword ? "off" : "off";
+        input.type = isPassword ? "password" : options.email ? "email" : "text";
+        input.autocomplete = isPassword ? "off" : options.email ? "email" : "off";
         let eyeRevealed = false;
         if (eyeBtn) {
           if (isPassword && options.hideEye !== true) {
@@ -4180,17 +4297,111 @@
       return state.operator_id || "POS";
     }
 
-    function openPrintPreview(text, receiptId, meta) {
+    function resetPreviewQr() {
+      const wrap = document.getElementById("preview-qr-wrap");
+      const img = document.getElementById("preview-qr");
+      if (wrap) {
+        wrap.classList.add("hidden");
+        wrap.setAttribute("aria-hidden", "true");
+      }
+      if (img) img.removeAttribute("src");
+    }
+
+    function showPreviewQr(pngBase64) {
+      const wrap = document.getElementById("preview-qr-wrap");
+      const img = document.getElementById("preview-qr");
+      if (!wrap || !img || !pngBase64) return;
+      img.src = "data:image/png;base64," + pngBase64;
+      wrap.classList.remove("hidden");
+      wrap.setAttribute("aria-hidden", "false");
+    }
+
+    async function loadPreviewQr(receiptId, meta) {
+      const id = receiptId != null ? Number(receiptId) : null;
+      if (!Number.isFinite(id) || id < 1) return;
+      if (meta && meta.qr_png_base64) {
+        showPreviewQr(meta.qr_png_base64);
+        return;
+      }
+      try {
+        const data = await api("/api/fiscal/receipts/" + id + "/preview");
+        if (data.qr_png_base64) showPreviewQr(data.qr_png_base64);
+      } catch {
+        /* QR opsional — preview teksti mbetet */
+      }
+    }
+
+    function syncPreviewEmailButton() {
+      const btn = document.getElementById("btn-preview-email");
+      if (!btn) return;
+      const hasId = state.previewReceiptId != null && Number(state.previewReceiptId) > 0;
+      btn.disabled = !hasId;
+      btn.style.display = hasId ? "" : "none";
+    }
+
+    async function openPrintPreview(text, receiptId, meta) {
       state.previewReceiptId = receiptId != null ? Number(receiptId) : null;
       state.previewPrintMeta = meta && typeof meta === "object" ? meta : null;
       document.getElementById("preview-text").textContent = String(text || "—");
+      const previewEmailMsg = document.getElementById("preview-email-msg");
+      if (previewEmailMsg) previewEmailMsg.textContent = "";
+      resetPreviewQr();
+      syncPreviewEmailButton();
       document.getElementById("preview-overlay").classList.remove("hidden");
+      await loadPreviewQr(state.previewReceiptId, state.previewPrintMeta);
     }
 
     function closePrintPreview() {
       document.getElementById("preview-overlay").classList.add("hidden");
+      resetPreviewQr();
       state.previewReceiptId = null;
       state.previewPrintMeta = null;
+      syncPreviewEmailButton();
+      const previewEmailMsg = document.getElementById("preview-email-msg");
+      if (previewEmailMsg) previewEmailMsg.textContent = "";
+    }
+
+    async function runPreviewEmail() {
+      const id = state.previewReceiptId;
+      const msg = document.getElementById("preview-email-msg");
+      const posMsg = document.getElementById("pos-msg");
+      if (!id) {
+        if (msg) setMsg(msg, "Vetëm kuponët fiskalë mund të dërgohen me email.", false);
+        return;
+      }
+      const email = await askText(
+        "Fut emailin e konsumatorit për dërgimin e kuponit fiskal (PDF + QR):",
+        "",
+        { email: true }
+      );
+      if (!email) return;
+      const btn = document.getElementById("btn-preview-email");
+      if (btn) btn.disabled = true;
+      if (msg) setMsg(msg, "Duke dërguar email…", true);
+      try {
+        const data = await api("/api/fiscal/receipts/" + id + "/email", {
+          method: "POST",
+          body: JSON.stringify({
+            email,
+            operator_name: currentOperator(),
+            operator_id: currentOperatorId(),
+          }),
+        });
+        const queued =
+          !!data.queued || /radhë/i.test(String(data.message || ""));
+        const line = queued
+          ? data.message ||
+            `Email u ruajt në radhë për ${data.email || email} — dërgohet kur kthehet interneti.`
+          : `Kuponi ${data.nuikf || ""} u dërgua te ${data.email || email}.`;
+        if (msg) setMsg(msg, line, true);
+        if (posMsg) setMsg(posMsg, line, true);
+      } catch (e) {
+        const errLine = e.message || "Dërgimi i emailit dështoi.";
+        if (msg) setMsg(msg, errLine, false);
+        if (posMsg) setMsg(posMsg, errLine, false);
+      } finally {
+        syncPreviewEmailButton();
+      }
     }
 
     async function api(url, opts) {
@@ -4229,6 +4440,11 @@
           checkout.disabled = true;
           checkout.title = blockTitle;
         }
+        const checkoutNoPaper = document.getElementById("btn-checkout-nopaper");
+        if (checkoutNoPaper) {
+          checkoutNoPaper.disabled = true;
+          checkoutNoPaper.title = blockTitle;
+        }
         const cashBtn = document.getElementById("btn-pay-cash-submit");
         const cardBtn = document.getElementById("btn-pay-card");
         if (cashBtn) {
@@ -4263,6 +4479,11 @@
       if (state.diskBlocksRecords) {
         checkout.disabled = true;
         checkout.title = disk?.message || "Disku i mbushur — lironi hapësirë";
+        const checkoutNoPaper = document.getElementById("btn-checkout-nopaper");
+        if (checkoutNoPaper) {
+          checkoutNoPaper.disabled = true;
+          checkoutNoPaper.title = checkout.title;
+        }
         if (addProd) {
           addProd.disabled = true;
           addProd.title = checkout.title;
@@ -4379,13 +4600,28 @@
       return `<span class="cart-disc-badge" style="opacity:0">·</span>`;
     }
 
-    function formatLinePriceHtml(c) {
+    function formatLinePriceHtml(c, index) {
+      const qty = Number(c.quantity) || 0;
+      const unit = Number(c.base_price ?? c.price) || 0;
+      const i = Number(index);
+      const unitHtml = Number.isFinite(i)
+        ? `<span data-act="lpv" data-i="${i}" contenteditable="true" spellcheck="false">${esc(formatPosUnit(unit))}</span>`
+        : esc(formatPosUnit(unit));
+      const pack = packPartsFromName(c && c.name);
+      const packTotal = pack ? qty * pack.amount : 0;
+      const qtyShown = pack
+        ? (Number.isInteger(packTotal) ? String(packTotal) : packTotal.toFixed(3))
+        : (isWeightedUnit(c.unit_code) ? qty.toFixed(3) : qty);
+      const qtyHtml = Number.isFinite(i)
+        ? `<span data-act="lqv" data-i="${i}" contenteditable="true" spellcheck="false">${esc(String(qtyShown))}</span>`
+        : esc(String(qtyShown));
+      const mid = `${qtyHtml} X ${unitHtml}`;
       const gross = lineGross(c);
       const net = lineNet(c);
       if (Math.abs(gross - net) > 0.001) {
-        return `<span style="text-decoration:line-through;color:var(--muted);margin-right:4px">${euro(gross)}</span><strong>${euro(net)}</strong>`;
+        return `${mid} <span style="text-decoration:line-through;color:var(--muted);margin-right:4px">${euro(gross)}</span><strong>${euro(net)}</strong>`;
       }
-      return euro(gross);
+      return mid;
     }
 
     function updateCartLinePrice(index) {
@@ -4393,9 +4629,66 @@
       const row = box?.querySelector(`.cart-row[data-i="${index}"]`);
       const priceEl = row?.querySelector("[data-line-price]");
       const c = state.cart[index];
-      if (priceEl && c) priceEl.innerHTML = formatLinePriceHtml(c);
+      const editingPrice = priceEl?.querySelector("[data-act=lpv]");
+      const editingQty = priceEl?.querySelector("[data-act=lqv]");
+      if (priceEl && c && document.activeElement !== editingPrice && document.activeElement !== editingQty) {
+        priceEl.innerHTML = formatLinePriceHtml(c, index);
+      }
       const qtyEl = row?.querySelector(`[data-line-qty="${index}"]`);
-      if (qtyEl && c) qtyEl.textContent = String(c.quantity);
+      if (qtyEl && c && document.activeElement !== qtyEl) qtyEl.textContent = formatCartQty(c);
+    }
+
+    function parseCartQty(raw) {
+      const s = String(raw ?? "").trim().replace(",", ".").replace(/[^\d.]/g, "");
+      if (!s || s.endsWith(".")) return null;
+      const value = Number(s);
+      if (!Number.isFinite(value) || value <= 0) return null;
+      return roundQty3(value);
+    }
+
+    function applyCartLineQty(index, raw) {
+      const item = state.cart[index];
+      if (!item) return false;
+      const typed = parseCartQty(raw);
+      if (typed == null) return false;
+      const pack = packPartsFromName(item.name);
+      const next = pack ? roundQty3(typed / pack.amount) : typed;
+      if (!(next > 0)) return false;
+      item.quantity = next;
+      return true;
+    }
+
+    function parseCartUnitPrice(raw) {
+      const value = Number(String(raw ?? "").trim().replace(",", "."));
+      if (!Number.isFinite(value) || value <= 0) return null;
+      return Math.round(value * 10000) / 10000;
+    }
+
+    function applyCartUnitPrice(index, raw) {
+      const item = state.cart[index];
+      if (!item) return false;
+      const price = parseCartUnitPrice(raw);
+      if (price == null) return false;
+      item.price = price;
+      item.base_price = price;
+      return true;
+    }
+
+    function commitOpenCartPriceEdits() {
+      const box = document.getElementById("cart");
+      box?.querySelectorAll("[data-act=lqv]").forEach((el) => {
+        applyCartLineQty(Number(el.dataset.i), el.textContent);
+      });
+      box?.querySelectorAll("[data-act=lpv]").forEach((el) => {
+        applyCartUnitPrice(Number(el.dataset.i), el.textContent);
+      });
+    }
+
+    function startCartPriceEdit(index) {
+      const box = document.getElementById("cart");
+      const span = box?.querySelector(`[data-act=lpv][data-i="${index}"]`);
+      if (!span) return;
+      span.focus();
     }
 
     function setQuickPayment(methodId) {
@@ -4420,8 +4713,61 @@
       return n ? n.type : fallback;
     }
 
+    const WEIGHT_UNITS = { KGN: 1, KGB: 1, GRM: 1, LTR: 1, MLT: 1 };
+    function isWeightedUnit(code) {
+      return !!WEIGHT_UNITS[String(code || "").trim().toUpperCase()];
+    }
+    function roundQty3(n) {
+      return Math.round((Number(n) || 0) * 1000) / 1000;
+    }
+    function packPartsFromName(name) {
+      const m = String(name || "").match(/(\d+(?:[.,]\d+)?)\s*(ml|ltr|kg|gr|gram|g|l)\b/i);
+      if (!m) return null;
+      const amount = Number(String(m[1]).replace(",", "."));
+      if (!Number.isFinite(amount) || amount <= 0) return null;
+      const u = String(m[2] || "").toLowerCase();
+      let unit = "g";
+      if (u === "ml") unit = "ml";
+      else if (u === "l" || u === "ltr") unit = "L";
+      else if (u === "kg") unit = "kg";
+      return { amount, unit };
+    }
+    function packLabelFromName(name) {
+      const p = packPartsFromName(name);
+      if (!p) return "";
+      return `${p.amount}${p.unit}`;
+    }
+    function isPackagedByName(name) {
+      return !!packLabelFromName(name);
+    }
+    function formatCartQty(c) {
+      const q = Number(c && c.quantity) || 0;
+      const pack = packPartsFromName(c && c.name);
+      if (pack) {
+        const total = q * pack.amount;
+        if (Number.isInteger(total)) return `${total}${pack.unit}`;
+        return `${total.toFixed(3)}${pack.unit}`;
+      }
+      return isWeightedUnit(c && c.unit_code) ? q.toFixed(3) : String(q);
+    }
+    function productBaseWeight(c) {
+      const b = Number(c && c.base_weight);
+      return b > 0 ? b : 1;
+    }
+    function syncBaseWeightField(unitId, wrapId) {
+      const wrap = document.getElementById(wrapId);
+      const sel = document.getElementById(unitId);
+      if (!wrap) return;
+      wrap.style.display = isWeightedUnit(sel && sel.value) ? "" : "none";
+    }
+
     function lineGross(c) {
-      return (Number(c.base_price ?? c.price) || 0) * (Number(c.quantity) || 0);
+      const unit = Number(c.base_price ?? c.price) || 0;
+      const qty = Number(c.quantity) || 0;
+      if (isWeightedUnit(c && c.unit_code) && !isPackagedByName(c && c.name)) {
+        return unit * (qty / productBaseWeight(c));
+      }
+      return unit * qty;
     }
 
     function lineNet(c) {
@@ -4596,6 +4942,17 @@
       el.classList.toggle("err", ok === false);
       el.classList.toggle("ok", ok === true);
       el.classList.remove("pending");
+    }
+
+    function formatPosUnit(n) {
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "0.00";
+      let s = (Math.round(x * 10000) / 10000).toFixed(4);
+      s = s.replace(/0+$/, "").replace(/\.$/, "");
+      const i = s.indexOf(".");
+      if (i < 0) return s + ".00";
+      if (s.length - i - 1 === 1) return s + "0";
+      return s;
     }
 
     function euro(n) {
@@ -5228,6 +5585,9 @@
         document.getElementById("edit-prod-vat").value = p.vat_letter || "E";
         document.getElementById("edit-prod-unit").value = p.unit_code || "EA";
         document.getElementById("edit-prod-category").value = p.category_code || "TT";
+        const bw = Number(p.base_weight) > 0 ? Number(p.base_weight) : 1;
+        document.getElementById("edit-prod-base-weight").value = bw.toFixed(3);
+        syncBaseWeightField("edit-prod-unit", "edit-prod-base-wrap");
         const modal = document.getElementById("edit-product-modal");
         modal.classList.remove("fiskalizim-price-only");
         document.getElementById("edit-prod-title").textContent = "Edito produktin";
@@ -5246,6 +5606,9 @@
         document.getElementById("edit-prod-vat").value = p.vat_letter || "E";
         document.getElementById("edit-prod-unit").value = p.unit_code || "EA";
         document.getElementById("edit-prod-category").value = p.category_code || "TT";
+        const bwOnly = Number(p.base_weight) > 0 ? Number(p.base_weight) : 1;
+        document.getElementById("edit-prod-base-weight").value = bwOnly.toFixed(3);
+        syncBaseWeightField("edit-prod-unit", "edit-prod-base-wrap");
         const modal = document.getElementById("edit-product-modal");
         modal.classList.add("fiskalizim-price-only");
         document.getElementById("edit-prod-title").textContent =
@@ -5275,6 +5638,7 @@
             vat_letter: document.getElementById("edit-prod-vat").value,
             unit_code: document.getElementById("edit-prod-unit").value,
             category_code: document.getElementById("edit-prod-category").value,
+            base_weight: parseFloat(document.getElementById("edit-prod-base-weight").value) || 1,
           }
         : {
             name: document.getElementById("edit-prod-name").value.trim(),
@@ -5282,6 +5646,7 @@
             vat_letter: document.getElementById("edit-prod-vat").value,
             unit_code: document.getElementById("edit-prod-unit").value,
             category_code: document.getElementById("edit-prod-category").value,
+            base_weight: parseFloat(document.getElementById("edit-prod-base-weight").value) || 1,
           };
       try {
         await api(`/api/products/${id}`, {
@@ -5296,6 +5661,13 @@
       }
     });
 
+    document.getElementById("edit-prod-unit").addEventListener("change", () => {
+      syncBaseWeightField("edit-prod-unit", "edit-prod-base-wrap");
+    });
+    document.getElementById("mgmt-prod-unit").addEventListener("change", () => {
+      syncBaseWeightField("mgmt-prod-unit", "mgmt-prod-base-wrap");
+    });
+    syncBaseWeightField("mgmt-prod-unit", "mgmt-prod-base-wrap");
     bindProductNameAutoDetect(document.getElementById("edit-prod-name"), {
       unit: "edit-prod-unit",
       category: "edit-prod-category",
@@ -5380,6 +5752,7 @@
       const vat = document.getElementById("mgmt-prod-vat").value;
       const unit = document.getElementById("mgmt-prod-unit").value;
       const cat = document.getElementById("mgmt-prod-category").value;
+      const baseWeight = parseFloat(document.getElementById("mgmt-prod-base-weight").value) || 1;
       const barcodeEl = document.getElementById("mgmt-prod-barcode");
       const barcode = barcodeEl ? String(barcodeEl.value || "").trim() : "";
       const posKatEl = document.getElementById("mgmt-prod-pos-kat");
@@ -5399,6 +5772,7 @@
             category_code: cat,
             barcode,
             pos_category,
+            base_weight: baseWeight,
           }),
         });
         document.getElementById("mgmt-prod-name").value = "";
@@ -5451,6 +5825,7 @@
     });
 
     function addProduct(id) {
+      commitOpenCartPriceEdits();
       if (state.dbDecryptFailed) {
         const msg = document.getElementById("pos-msg");
         setMsg(msg, "Databaza nuk lexohet — duhet rikthyer nga backup-i", false);
@@ -5459,8 +5834,14 @@
       const p = findProduct(id);
       if (!p) return;
       const existing = state.cart.find((c) => c.product_id === p.id);
+      let addQty = 1;
+      if (isWeightedUnit(p.unit_code) && !isPackagedByName(p.name)) {
+        addQty = Number(p.base_weight) > 0 ? roundQty3(p.base_weight) : 1;
+      }
       if (existing) {
-        existing.quantity += 1;
+        existing.quantity = isWeightedUnit(p.unit_code) && !isPackagedByName(p.name)
+          ? roundQty3(existing.quantity + addQty)
+          : existing.quantity + 1;
         ensureCartItemShape(existing);
         const i = state.cart.indexOf(existing);
         updateCartLinePrice(i);
@@ -5475,7 +5856,7 @@
         name: p.name,
         price: Number(p.price),
         base_price: Number(p.price),
-        quantity: 1,
+        quantity: addQty,
         vat_norm: L,
         vat_letter: L,
         vat_category: String(pct),
@@ -5483,6 +5864,7 @@
         vat_percent: pct,
         unit_code: p.unit_code || "EA",
         category_code: p.category_code || "TT",
+        base_weight: Number(p.base_weight) > 0 ? Number(p.base_weight) : 1,
         line_discount: null,
         line_surcharge: null,
       });
@@ -5540,14 +5922,29 @@
       box.dataset.cartBound = "1";
 
       box.addEventListener("click", (e) => {
+        if (e.target.closest("[data-act=lpv], [data-act=lqv]")) return;
+        const priceCell = e.target.closest(".cart-price-cell[data-line-price]");
+        if (priceCell) {
+          startCartPriceEdit(Number(priceCell.getAttribute("data-line-price")));
+          return;
+        }
         const btn = e.target.closest("button[data-act][data-i]");
         if (!btn) return;
         const i = Number(btn.dataset.i);
         const act = btn.dataset.act;
         if (!state.cart[i]) return;
+        commitOpenCartPriceEdits();
         syncAllLineAdjustmentsFromDom();
-        if (act === "plus") state.cart[i].quantity += 1;
-        if (act === "minus") state.cart[i].quantity = Math.max(1, state.cart[i].quantity - 1);
+        if (act === "plus") {
+          state.cart[i].quantity = isWeightedUnit(state.cart[i].unit_code) && !isPackagedByName(state.cart[i].name)
+            ? roundQty3(state.cart[i].quantity + 0.1)
+            : state.cart[i].quantity + 1;
+        }
+        if (act === "minus") {
+          state.cart[i].quantity = isWeightedUnit(state.cart[i].unit_code) && !isPackagedByName(state.cart[i].name)
+            ? Math.max(0.001, roundQty3(state.cart[i].quantity - 0.1))
+            : Math.max(1, state.cart[i].quantity - 1);
+        }
         if (act === "del") {
           state.cart.splice(i, 1);
           renderCartRows();
@@ -5607,6 +6004,24 @@
       box.addEventListener(
         "blur",
         (e) => {
+          const qtyEdit = e.target.closest("[data-act=lqv][data-i]");
+          if (qtyEdit) {
+            const i = Number(qtyEdit.dataset.i);
+            if (qtyEdit.dataset.skip !== "1") applyCartLineQty(i, qtyEdit.textContent);
+            updateCartLinePrice(i);
+            updateCartTotals();
+            return;
+          }
+          const priceEl = e.target.closest("[data-act=lpv][data-i]");
+          if (priceEl) {
+            const i = Number(priceEl.dataset.i);
+            if (priceEl.dataset.skip !== "1") applyCartUnitPrice(i, priceEl.textContent);
+            const c = state.cart[i];
+            const cell = document.getElementById("cart")?.querySelector(`[data-line-price="${i}"]`);
+            if (cell && c) cell.innerHTML = formatLinePriceHtml(c, i);
+            updateCartTotals();
+            return;
+          }
           const el = e.target.closest("input[data-act=ldv][data-i], input[data-act=lsv][data-i]");
           if (!el) return;
           const i = Number(el.dataset.i);
@@ -5616,9 +6031,34 @@
         },
         true
       );
+
+      box.addEventListener("keydown", (e) => {
+        const el = e.target.closest("[data-act=lpv][data-i], [data-act=lqv][data-i]");
+        if (!el) return;
+        if (e.key === "Enter") {
+          e.preventDefault();
+          el.blur();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          el.dataset.skip = "1";
+          el.blur();
+        }
+      });
+
+      box.addEventListener("focusin", (e) => {
+        const el = e.target.closest("[data-act=lpv][data-i], [data-act=lqv][data-i]");
+        if (!el) return;
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
     }
 
     function renderCartRows() {
+      commitOpenCartPriceEdits();
       const box = document.getElementById("cart");
       if (!state.cart.length) {
         box.innerHTML =
@@ -5632,10 +6072,10 @@
               <div class="cart-name-cell">${esc(c.name)}</div>
               <div class="cart-qty-cell">
                 <button type="button" data-act="minus" data-i="${i}">−</button>
-                <strong data-line-qty="${i}">${c.quantity}</strong>
+                <strong data-line-qty="${i}" data-act="lqv" data-i="${i}" contenteditable="true" spellcheck="false">${formatCartQty(c)}</strong>
                 <button type="button" data-act="plus" data-i="${i}">+</button>
               </div>
-              <div class="cart-price-cell" data-line-price="${i}">${formatLinePriceHtml(c)}</div>
+              <div class="cart-price-cell" data-line-price="${i}">${formatLinePriceHtml(c, i)}</div>
               <button type="button" data-act="del" data-i="${i}">×</button>
               <div class="cart-adj-line">
                 <div class="cart-adj-pair" title="Zbritje artikulli (€ ose %)">
@@ -5689,18 +6129,26 @@
     }
 
     function buildCheckoutBody(confirmedOver1000) {
+      commitOpenCartPriceEdits();
       syncAllLineAdjustmentsFromDom();
       syncCartAdjustmentInputs();
       const splits = getPaymentSplitsFromState();
       const body = {
         items: state.cart.map((c) => {
           ensureCartItemShape(c);
+          const listed = Number(c.base_price ?? c.price) || 0;
+          const entered = Number(c.quantity) || 0;
+          const baseW = Number(c.base_weight) > 0 ? Number(c.base_weight) : 1;
+          const unitPrice =
+            isWeightedUnit(c.unit_code) && !isPackagedByName(c.name)
+              ? listed / baseW
+              : listed;
           return {
           product_id: c.product_id,
           name: c.name,
-          price: c.base_price ?? c.price,
-          base_price: c.base_price ?? c.price,
-          quantity: c.quantity,
+          price: unitPrice,
+          base_price: unitPrice,
+          quantity: entered,
           vat_norm: c.vat_norm,
           vat_letter: c.vat_letter,
           line_discount: c.line_discount ? { ...c.line_discount } : null,
@@ -5966,8 +6414,10 @@
 
     async function checkout(opts = {}) {
       const thermal = opts.thermal === true;
+      const noPaper = opts.skipPrint === true;
       const msg = document.getElementById("pos-msg");
       const btn = document.getElementById("btn-checkout");
+      const btnNoPaper = document.getElementById("btn-checkout-nopaper");
       const btnTermik = document.getElementById("btn-kupon-termik");
       if (state.dbDecryptFailed) {
         setMsg(msg, "Databaza nuk lexohet — duhet rikthyer nga backup-i", false);
@@ -6022,6 +6472,7 @@
         return;
       }
       if (btn) btn.disabled = true;
+      if (btnNoPaper) btnNoPaper.disabled = true;
       if (btnTermik) btnTermik.disabled = true;
       try {
         if (thermal) {
@@ -6029,22 +6480,42 @@
         }
         if (!thermal && state.paperBlockActive) {
           let serialNo = null;
+          let blockCode = null;
           const titleEl = document.getElementById("text-prompt-title");
           const prevTitle = titleEl ? titleEl.textContent : "";
           while (true) {
-            if (titleEl) titleEl.textContent = "Numri serik i bllokut letër";
+            if (titleEl) titleEl.textContent = "Numri serik i kuponit";
             const entered = await askText(
-              "Vendos numrin serik nga blloku fizik i letrës. Pa numër serik nuk vazhdohet pagesa.",
-              "p.sh. 000123"
+              "Vendos numrin serik të fletës së kuponit fizik. Pa të nuk vazhdohet pagesa.",
+              "p.sh. A001"
             );
             if (titleEl) titleEl.textContent = prevTitle || "Fut vlerën";
             if (entered === null) {
-              setMsg(msg, "Pagesa u anulua — mungon numri serik i bllokut.", false);
+              setMsg(msg, "Pagesa u anulua — mungon numri serik i kuponit.", false);
               return;
             }
             serialNo = String(entered).trim();
             if (serialNo) break;
-            setMsg(msg, "Numri serik i bllokut letër është i detyrueshëm.", false);
+            setMsg(msg, "Numri serik i kuponit është i detyrueshëm.", false);
+          }
+          const blockPlaceholder =
+            String(document.getElementById("paper-block-code")?.value || "").trim() ||
+            String(state.paperBlockBatchId || "").trim() ||
+            "BLK-2026-01";
+          while (true) {
+            if (titleEl) titleEl.textContent = "Kodi unik i bllokut";
+            const enteredBlock = await askText(
+              "Vendos kodin unik të bllokut letër (si në fletën ATK).",
+              blockPlaceholder
+            );
+            if (titleEl) titleEl.textContent = prevTitle || "Fut vlerën";
+            if (enteredBlock === null) {
+              setMsg(msg, "Pagesa u anulua — mungon kodi unik i bllokut.", false);
+              return;
+            }
+            blockCode = String(enteredBlock).trim();
+            if (blockCode) break;
+            setMsg(msg, "Kodi unik i bllokut është i detyrueshëm.", false);
           }
 
           const finishPaperBlockCheckout = (data) => {
@@ -6054,12 +6525,18 @@
             resetCartAdjustments();
             resetPaymentToDefault();
             renderCart();
-            if (p.slip_text) {
+            if (p.slip_text && !noPaper) {
               openPrintPreview(p.slip_text, null, {
                 print_text: p.slip_text,
                 nuikf: `PAPER-${p.serial_no || serialNo || ""}`,
                 total_amount: data.total,
               });
+            } else if (noPaper) {
+              setMsg(
+                msg,
+                `Kuponi bllok letër u ruajt lokalisht pa printim (serik ${p.serial_no || serialNo}).`,
+                true
+              );
             } else if (data.printMessage) {
               setMsg(msg, `Kuponi u ruajt · print: ${data.printMessage}`, true);
             } else {
@@ -6075,7 +6552,8 @@
 
           const body0 = buildCheckoutBody(false);
           body0.serial_no = serialNo;
-          body0.skip_print = false;
+          body0.block_code = blockCode;
+          body0.skip_print = noPaper;
           let data = await api("/api/fiscal/paper-block/checkout", {
             method: "POST",
             body: JSON.stringify(body0),
@@ -6090,7 +6568,8 @@
             }
             const body1 = buildCheckoutBody(true);
             body1.serial_no = serialNo;
-            body1.skip_print = false;
+            body1.block_code = blockCode;
+            body1.skip_print = noPaper;
             data = await api("/api/fiscal/paper-block/checkout", {
               method: "POST",
               body: JSON.stringify(body1),
@@ -6101,7 +6580,7 @@
         }
 
         const body0 = buildCheckoutBody(false);
-        body0.skip_print = false;
+        body0.skip_print = noPaper;
         if (thermal) {
           body0.coupon_type = "thermal";
           body0.print_thermal = true;
@@ -6119,7 +6598,7 @@
             return;
           }
           const body1 = buildCheckoutBody(true);
-          body1.skip_print = false;
+          body1.skip_print = noPaper;
           if (thermal) {
             body1.coupon_type = "thermal";
             body1.print_thermal = true;
@@ -6141,14 +6620,14 @@
         }
         const f = data.fiscal || {};
         setCouponStatus(msg, f);
-        if (f.printed === false && f.printMessage) {
+        if (!noPaper && f.printed === false && f.printMessage) {
           setMsg(msg, (formatCouponStatusLine(f) ? formatCouponStatusLine(f) + "\n" : "") + "Print: JO — " + f.printMessage, false);
         }
         state.cart = [];
         resetCartAdjustments();
         resetPaymentToDefault();
         renderCart();
-        if (f.print_text) {
+        if (f.print_text && !noPaper) {
           openPrintPreview(
             f.print_text,
             f.fiscal_receipt_id,
@@ -6174,6 +6653,7 @@
         if (e.disk_full) applyDiskUi({ disk: e.disk, blocks_new_records: true });
       } finally {
         if (btn) btn.disabled = false;
+        if (btnNoPaper) btnNoPaper.disabled = false;
         if (btnTermik) btnTermik.disabled = false;
         updateMixedPaymentBar();
       }
@@ -6398,7 +6878,33 @@
       }
     }
 
+    function formatOfflinePendingBannerText(count) {
+      const n = Math.max(0, Number(count) || 0);
+      if (n <= 0) return "";
+      const noun = n === 1 ? "kupon" : "kuponë";
+      const verb = n === 1 ? "dërgohet" : "dërgohen";
+      return `⚠ ${n} ${noun} në pritje — ${verb} automatikisht kur kthehet interneti`;
+    }
+
+    function renderOfflinePendingBanner(offline) {
+      const banner = document.getElementById("offline-pending-banner");
+      if (!banner) return;
+      const count = Number(offline?.pending_count) || 0;
+      if (count <= 0) {
+        banner.textContent = "";
+        banner.classList.remove("visible");
+        banner.setAttribute("aria-hidden", "true");
+        return;
+      }
+      const text = formatOfflinePendingBannerText(count);
+      banner.textContent = text;
+      banner.classList.add("visible");
+      banner.setAttribute("aria-hidden", "false");
+      banner.title = `${count} kupon(ë) në radhë offline për dërgim te ATK`;
+    }
+
     function renderOfflineQueueFooter(offline) {
+      renderOfflinePendingBanner(offline);
       const el = document.getElementById("footer-offline-queue");
       if (!el) return;
       const count = Number(offline?.offline_queue_count) || 0;
@@ -6440,6 +6946,11 @@
       if (!box) return;
 
       state.paperBlockActive = !!(status && status.active);
+      state.paperBlockBatchId = status && status.batch_id ? String(status.batch_id) : "";
+      const blockInput = document.getElementById("paper-block-code");
+      if (blockInput && state.paperBlockBatchId && !String(blockInput.value || "").trim()) {
+        blockInput.value = state.paperBlockBatchId;
+      }
       if (btnCheckout) {
         btnCheckout.textContent = state.paperBlockActive ? "Paguaj (bllok letër)" : "Paguaj";
       }
@@ -6748,7 +7259,13 @@
     function normalizeApplicationIdValue(raw) {
       const v = String(raw ?? "").trim();
       if (!v || v.includes("•")) return "";
-      return v.replace(/\s+/g, "");
+      return v.replace(/[\s.]+/g, "");
+    }
+    function formatApplicationIdDots(raw) {
+      const d = normalizeApplicationIdValue(raw);
+      if (!d) return "";
+      const rev = d.split("").reverse().join("");
+      return rev.replace(/(\d{3})(?=\d)/g, "$1.").split("").reverse().join("");
     }
 
     function maskApplicationId(raw) {
@@ -6771,9 +7288,7 @@
       if (!el) return appIdRealValue;
       if (!el.readOnly) {
         syncApplicationIdDomCache(el.value);
-        if (appIdRevealed && appIdRealValue !== String(el.value ?? "").trim()) {
-          el.value = appIdRealValue;
-        }
+        if (appIdRevealed) el.value = formatApplicationIdDots(appIdRealValue);
       } else if (!appIdRealValue && el.dataset.realValue) {
         syncApplicationIdDomCache(el.dataset.realValue);
       }
@@ -6798,17 +7313,14 @@
       el.dataset.realValue = real;
       if (!real) {
         el.value = "";
+        el.type = "password";
         el.readOnly = false;
         updateAppIdEyeButton();
         return;
       }
-      if (appIdRevealed) {
-        el.value = real;
-        el.readOnly = false;
-      } else {
-        el.value = maskApplicationId(real);
-        el.readOnly = true;
-      }
+      el.type = appIdRevealed ? "text" : "password";
+      el.value = appIdRevealed ? formatApplicationIdDots(real) : real;
+      el.readOnly = false;
       updateAppIdEyeButton();
     }
 
@@ -7062,6 +7574,70 @@
       });
     }
 
+    function setBusinessLogoPreview(has) {
+      const wrap = document.getElementById("s-biz-logo-preview-wrap");
+      const img = document.getElementById("s-biz-logo-preview");
+      const rm = document.getElementById("btn-biz-logo-remove");
+      if (wrap) wrap.classList.toggle("hidden", !has);
+      if (rm) rm.classList.toggle("hidden", !has);
+      if (has && img) img.src = "/api/fiscal/business-logo/file?t=" + Date.now();
+    }
+
+    async function refreshBusinessLogoPreview() {
+      try {
+        const data = await api("/api/fiscal/business-logo");
+        setBusinessLogoPreview(!!data.has_logo);
+      } catch {
+        setBusinessLogoPreview(false);
+      }
+    }
+
+    function fileToPngDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const maxW = 384;
+          const maxH = 160;
+          let w = img.naturalWidth || 1;
+          let h = img.naturalHeight || 1;
+          const s = Math.min(1, maxW / w, maxH / h);
+          w = Math.max(1, Math.round(w * s));
+          h = Math.max(1, Math.round(h * s));
+          const c = document.createElement("canvas");
+          c.width = w;
+          c.height = h;
+          const ctx = c.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL("image/png"));
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("Fotoja nuk lexohet"));
+        };
+        img.src = url;
+      });
+    }
+
+    async function uploadBusinessLogoFile(file) {
+      const msg = document.getElementById("settings-msg");
+      if (!file) return;
+      if (file.size > 2000000) {
+        setMsg(msg, "Fotoja është shumë e madhe", false);
+        return;
+      }
+      const png = await fileToPngDataUrl(file);
+      await api("/api/fiscal/business-logo", {
+        method: "PUT",
+        body: JSON.stringify({ png_base64: png }),
+      });
+      setBusinessLogoPreview(true);
+      setMsg(msg, "Logo u ruajt.", true);
+    }
+
     async function loadSettings() {
       const data = await api("/api/fiscal/settings");
       const s = data.settings || {};
@@ -7135,6 +7711,7 @@
         footer.textContent = "";
         footer.className = "msg";
       }
+      await refreshBusinessLogoPreview();
     }
 
     async function saveSettings() {
@@ -7334,6 +7911,7 @@
       });
     });
     document.getElementById("btn-checkout").addEventListener("click", () => checkout());
+    document.getElementById("btn-checkout-nopaper")?.addEventListener("click", () => checkout({ skipPrint: true }));
     document.getElementById("btn-kupon-termik")?.addEventListener("click", () => checkout({ thermal: true }));
     document.getElementById("pos-btn-shtyp-kupon-termik")?.addEventListener("click", () => {
       shtypPosKuponTermikPasPagese();
@@ -7618,6 +8196,25 @@
       if (el && !el.value) el.value = today;
     });
     document.getElementById("btn-save-settings").addEventListener("click", saveSettings);
+    document.getElementById("s-biz-logo")?.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      try {
+        await uploadBusinessLogoFile(file);
+      } catch (err) {
+        setMsg(document.getElementById("settings-msg"), err.message || "Logo nuk u ruajt", false);
+      }
+    });
+    document.getElementById("btn-biz-logo-remove")?.addEventListener("click", async () => {
+      const msg = document.getElementById("settings-msg");
+      try {
+        await api("/api/fiscal/business-logo", { method: "DELETE" });
+        setBusinessLogoPreview(false);
+        setMsg(msg, "Logo u hoq.", true);
+      } catch (err) {
+        setMsg(msg, err.message || "Logo nuk u hoq", false);
+      }
+    });
     initApplicationIdField();
     initFiscalizationNumberField();
 
@@ -8452,7 +9049,12 @@
       const msg = document.getElementById("paper-block-msg");
       const serial = String(document.getElementById("paper-serial-no")?.value || "").trim();
       if (!serial) {
-        setMsg(msg, "Numri serik i bllokut letër mungon.", false);
+        setMsg(msg, "Numri serik i kuponit mungon.", false);
+        return;
+      }
+      const blockCode = String(document.getElementById("paper-block-code")?.value || "").trim();
+      if (!blockCode) {
+        setMsg(msg, "Kodi unik i bllokut mungon.", false);
         return;
       }
       let saleWhen;
@@ -8480,6 +9082,7 @@
           method: "POST",
           body: JSON.stringify({
             serial_no: serial,
+            block_code: blockCode,
             items,
             fiscal_date: saleWhen.fiscal_date,
             fiscal_time: saleWhen.fiscal_time,
@@ -8491,7 +9094,7 @@
         const paper = data.paper || {};
         setMsg(
           msg,
-          `Kuponi u regjistrua: serik ${paper.serial_no || serial} · ${paper.fiscal_date || saleWhen.fiscal_date} ${paper.fiscal_time || saleWhen.fiscal_time} · totali ${Number(paper.total_amount || 0).toFixed(2)} €`,
+          `Kuponi u regjistrua: serik ${paper.serial_no || serial} · bllok ${paper.block_code || blockCode} · ${paper.fiscal_date || saleWhen.fiscal_date} ${paper.fiscal_time || saleWhen.fiscal_time} · totali ${Number(paper.total_amount || 0).toFixed(2)} €`,
           true
         );
         document.getElementById("paper-serial-no").value = "";
@@ -8626,6 +9229,7 @@
 
     document.getElementById("btn-preview-close").addEventListener("click", closePrintPreview);
     document.getElementById("btn-preview-close-2").addEventListener("click", closePrintPreview);
+    document.getElementById("btn-preview-email").addEventListener("click", runPreviewEmail);
     document.getElementById("btn-preview-print").addEventListener("click", async () => {
       const id = state.previewReceiptId;
       const msg = document.getElementById("pos-msg");
@@ -9011,11 +9615,26 @@
 
     initLoginOverlay().catch(() => {});
 
+    async function refreshAtkTimeSyncUi() {
+      const alarm = document.getElementById("atk-time-alarm");
+      const okEl = document.getElementById("atk-time-ok");
+      try {
+        const data = await api("/api/fiscal/time-sync");
+        const bad = !!data.alarm;
+        if (alarm) alarm.style.display = bad ? "block" : "none";
+        if (okEl) okEl.style.display = bad ? "none" : "inline-flex";
+      } catch {
+        if (alarm) alarm.style.display = "block";
+        if (okEl) okEl.style.display = "none";
+      }
+    }
     refreshDiskStatusUi().catch(() => {});
     refreshOfflineQueueUi().catch(() => {});
+    refreshAtkTimeSyncUi().catch(() => {});
     updateE2eSourceUi();
     setInterval(() => refreshDiskStatusUi().catch(() => {}), 30 * 60 * 1000);
     setInterval(() => refreshOfflineQueueUi().catch(() => {}), 15 * 1000);
+    setInterval(() => refreshAtkTimeSyncUi().catch(() => {}), 60 * 1000);
 
     // Kontrollo statusin ATK kur hapet faqja
     (async function checkAtkOnLoad() {

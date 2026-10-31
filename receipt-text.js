@@ -25,6 +25,17 @@ function formatMoney(n) {
   return Number(n || 0).toFixed(2);
 }
 
+function formatMoney4(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return "0.00";
+  let s = (Math.round(x * 10000) / 10000).toFixed(4);
+  s = s.replace(/0+$/, "").replace(/\.$/, "");
+  const i = s.indexOf(".");
+  if (i < 0) return s + ".00";
+  if (s.length - i - 1 === 1) return s + "0";
+  return s;
+}
+
 const RECEIPT_TIMEZONE = "Europe/Belgrade";
 
 function formatReceiptDateTime(iso) {
@@ -56,7 +67,7 @@ function itemUnitPrice(item) {
 function formatItemLine(item, width) {
   const qty = Number(item.quantity) || 1;
   const price = itemUnitPrice(item);
-  const unit = formatMoney(price);
+  const unit = formatMoney4(price);
   const lineTotal = formatMoney(price * qty);
   const tail = `${qty}x  ${unit}  =  ${lineTotal}`;
   const nameMax = Math.max(6, width - tail.length - 1);

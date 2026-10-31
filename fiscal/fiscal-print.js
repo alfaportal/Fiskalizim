@@ -361,7 +361,7 @@ function formatUnitPricePrint(price) {
 function formatQtyPrint(qty) {
   const n = normalizeQty(qty);
   if (Number.isInteger(n)) return String(n);
-  return moneyPrint(n);
+  return n.toFixed(3);
 }
 
 function parseJsonField(raw, fallback) {
