@@ -439,6 +439,10 @@ let autoBackupOpts = null;
 
 function startAutoBackup(opts = {}) {
   stopAutoBackup();
+  if (!backupLoc.isInstalledDesktopApp()) {
+    console.log("[backup] Desktop backup vetëm pas instalimit Setup");
+    return { ok: false, skipped: true, reason: "not_installed" };
+  }
   const backupDir = resolveBackupDir(opts);
   backupLoc.ensureVisibleBackupHome({
     backupDir,

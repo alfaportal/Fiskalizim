@@ -1,5 +1,25 @@
 # PUNA — FISKALIZIME
 
+## 2026-10-31 — Commit / push / deploy (backup pas ikonës)
+
+- Commit: një folder backup pas ikonës (`auto-backup-location.cjs`, `auto-backup.js`, `main.js`, `server.js`, `PUNA.md`, version 1.1.19).
+- Nuk u shtuan Setup, `.protected-build`, çelësa.
+- Push `origin/main` + deploy Railway. Nuk u dërgua ATK. Nuk u bë build.
+
+## 2026-10-31 — Një backup, pas ikonës së programit
+
+- Setup: së pari ikona `Revolution Fiskalizim`, pastaj një folder `Revolution Backup FISKALIZIMI`.
+- Instal i ri / update: i njëjti folder, të dhënat e vjetra. Nuk hapet Explorer.
+- Nuk u prek `fiscal/**`, ATK, build. Folderët e vjetër në desktop nuk u fshinë.
+- Në PC: vetëm pas Setup të ri + mbyllje e plotë + hapje.
+
+## 2026-10-31 — Build 1.1.19 OK
+
+- `package.json` 1.1.18 → 1.1.19
+- Setup: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.1.19-win-x64.exe`
+- Të vjetrat mbeten (1.1.10–1.1.18) për kthim.
+- Nuk u dërgua ATK. Në PC: instalo + mbyll plotësisht + hap përsëri.
+
 ## 2026-10-31 — Pa dritare «Pagesa u krye»
 
 - Pas pagesës me kupon termik nuk del më dritarja «Pagesa u krye / Shtyp Kuponin / Vazhdo».

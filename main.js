@@ -635,13 +635,6 @@ app.whenReady().then(async () => {
   const licenseOk = await bootFiskalizimLicenseLayers();
   if (!licenseOk) return;
 
-  try {
-    const boot = require(path.join(__dirname, "auto-backup-boot.cjs"));
-    boot.ensureBackupHomeVisible(__dirname, { productName: "FISKALIZIMI" });
-  } catch (e) {
-    console.warn("[backup] visible home:", e.message || e);
-  }
-
   global.__fiskalizimiAutoRestoreMessage = "";
   try {
     const autoBackup = require(path.join(__dirname, "auto-backup"));
@@ -677,6 +670,25 @@ app.whenReady().then(async () => {
       const db = require(path.join(__dirname, "database"));
       const boot = require(path.join(__dirname, "auto-backup-boot.cjs"));
       const fiscalKeysPath = path.join(dbDir, "fiscal-keys");
+      const os = require("os");
+      const waitForProgramIcon = async () => {
+        const desks = [
+          path.join(os.homedir(), "Desktop"),
+          path.join(os.homedir(), "OneDrive", "Desktop"),
+        ];
+        const names = ["Revolution Fiskalizim.lnk"];
+        const t0 = Date.now();
+        while (Date.now() - t0 < 15000) {
+          for (const desk of desks) {
+            for (const n of names) {
+              if (fs.existsSync(path.join(desk, n))) return true;
+            }
+          }
+          await new Promise((r) => setTimeout(r, 250));
+        }
+        return false;
+      };
+      await waitForProgramIcon();
       boot.startDesktopAutoBackup(__dirname, {
         getPersistedBackupDir: () => db.getSetting("auto_backup_dir", ""),
         setPersistedBackupDir: (dir) => {
@@ -684,6 +696,7 @@ app.whenReady().then(async () => {
         },
         dbPath: process.env.BIZNES_DB_PATH,
         fiscalKeysPath,
+        revealBackupFolder: false,
         flushSave:
           typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
         getSettingsSnapshot: () => ({

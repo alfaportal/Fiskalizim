@@ -263,6 +263,11 @@ async function boot() {
 
   setImmediate(() => {
     try {
+      const loc = require("./auto-backup-location.cjs");
+      const oneDir = loc.defaultBackupDirectory("FISKALIZIMI");
+      if (!loc.isInstalledDesktopApp() || !require("fs").existsSync(oneDir)) {
+        return;
+      }
       const { runAutoBackupOnStartup } = require("./biznes-backup");
       const auto = runAutoBackupOnStartup();
       if (auto.daily) {
@@ -3030,18 +3035,20 @@ async function boot() {
     }
   });
   try {
-    const autoBackup = require("./auto-backup");
-    const paths = resolveAutoBackupPaths();
-    if (paths.dbPath) {
-      autoBackup.startAutoBackup(
-        autoBackupPersistOpts({
-          dbPath: paths.dbPath,
-          fiscalKeysPath: paths.fiscalKeysPath,
-          intervalMs: 60 * 1000,
-          flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
-          getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
-        }),
-      );
+    if (!process.versions.electron) {
+      const autoBackup = require("./auto-backup");
+      const paths = resolveAutoBackupPaths();
+      if (paths.dbPath) {
+        autoBackup.startAutoBackup(
+          autoBackupPersistOpts({
+            dbPath: paths.dbPath,
+            fiscalKeysPath: paths.fiscalKeysPath,
+            intervalMs: 60 * 1000,
+            flushSave: typeof db.flushDatabase === "function" ? () => db.flushDatabase() : undefined,
+            getSettingsSnapshot: collectAutoBackupSettingsSnapshot,
+          }),
+        );
+      }
     }
   } catch (e) {
     console.warn("[backup] auto-start:", e.message);
