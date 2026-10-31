@@ -79,6 +79,61 @@ function getDbDir() {
   return path.dirname(dbPath);
 }
 
+function getDefaultDbFilePath() {
+  return (
+    process.env.BIZNES_DB_PATH ||
+    process.env.DB_PATH ||
+    path.join(portable.getDataDir(), "biznes.db")
+  );
+}
+
+function renameDbToUnreadable(dbPath) {
+  if (!dbPath || !fs.existsSync(dbPath)) return;
+  const unreadable = `${dbPath}.unreadable`;
+  const stamp = Date.now();
+  try {
+    const dest = fs.existsSync(unreadable) ? `${dbPath}.unreadable-${stamp}` : unreadable;
+    fs.renameSync(dbPath, dest);
+  } catch (e) {
+    console.error("[db-crypto] rename DB .unreadable:", e.message || e);
+  }
+}
+
+function recoverFromInvalidDpapi(err, dir, dbPath) {
+  console.error("DPAPI key unreadable — creating fresh database");
+  if (err) console.error("[db-crypto]", err.message || err);
+  const dpapiPath = wrappedDpapiPath(dir);
+  try {
+    if (fs.existsSync(dpapiPath)) {
+      const oldPath = `${dpapiPath}.old`;
+      try {
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch {
+        /* ignore */
+      }
+      fs.renameSync(dpapiPath, oldPath);
+    }
+  } catch (e2) {
+    console.error("[db-crypto] rename .db-master.dpapi.old:", e2.message || e2);
+  }
+  renameDbToUnreadable(dbPath || getDefaultDbFilePath());
+  const norm = path.resolve(dir);
+  const created = crypto.randomBytes(KEY_LEN);
+  wrapMasterKey(created, dir);
+  _masterKeysByDir.set(norm, created);
+  return created;
+}
+
+function resetMasterKeyAfterUnreadableDb(dbPath, dir) {
+  console.error("DPAPI key unreadable — creating fresh database");
+  renameDbToUnreadable(dbPath);
+  const norm = path.resolve(dir);
+  _masterKeysByDir.delete(norm);
+  const created = crypto.randomBytes(KEY_LEN);
+  wrapMasterKey(created, dir);
+  _masterKeysByDir.set(norm, created);
+}
+
 function wrappedDpapiPath(dir) {
   return path.join(dir, WRAPPED_DPAPI);
 }
@@ -232,11 +287,17 @@ function wrapMasterKey(masterKey, dir) {
   fs.writeFileSync(wrappedScryptPath(dir), wrapped, { mode: 0o600 });
 }
 
-function unwrapMasterKey(dir) {
+function unwrapMasterKey(dir, dbPath) {
   const dpapiPath = wrappedDpapiPath(dir);
   const scryptPath = wrappedScryptPath(dir);
   if (fs.existsSync(dpapiPath)) {
-    return dpapiUnprotect(fs.readFileSync(dpapiPath));
+    try {
+      return dpapiUnprotect(fs.readFileSync(dpapiPath));
+    } catch (e) {
+      recoverFromInvalidDpapi(e, dir, dbPath);
+      const norm = path.resolve(dir);
+      return _masterKeysByDir.get(norm) || null;
+    }
   }
   if (fs.existsSync(scryptPath)) {
     return scryptUnwrapKey(fs.readFileSync(scryptPath), dir);
@@ -244,10 +305,10 @@ function unwrapMasterKey(dir) {
   return null;
 }
 
-function getOrCreateMasterKey(dir) {
+function getOrCreateMasterKey(dir, dbPath) {
   const norm = path.resolve(dir);
   if (_masterKeysByDir.has(norm)) return _masterKeysByDir.get(norm);
-  const existing = unwrapMasterKey(dir);
+  const existing = unwrapMasterKey(dir, dbPath);
   if (existing && existing.length === KEY_LEN) {
     _masterKeysByDir.set(norm, existing);
     return existing;
@@ -313,6 +374,10 @@ function loadDatabaseBytes(dbPath) {
   const raw = fs.readFileSync(dbPath);
 
   if (isEncryptedBuffer(raw)) {
+    getOrCreateMasterKey(dir, dbPath);
+    if (!fs.existsSync(dbPath)) {
+      return { bytes: null, wasPlain: true, needsEncryptionMigration: false };
+    }
     try {
       const plain = decryptBuffer(raw, dir);
       if (!isPlainSqlite(plain)) {
@@ -331,10 +396,9 @@ function loadDatabaseBytes(dbPath) {
       if (isPlainSqlite(raw)) {
         return { bytes: raw, wasPlain: true, needsEncryptionMigration: true };
       }
-      throw new Error(
-        "db-crypto: biznes.db e enkriptuar e palexueshme — rikthe nga backup. " +
-          (e.message || e)
-      );
+      console.error("[db-crypto]", e.message || e);
+      resetMasterKeyAfterUnreadableDb(dbPath, dir);
+      return { bytes: null, wasPlain: true, needsEncryptionMigration: false };
     }
   }
 

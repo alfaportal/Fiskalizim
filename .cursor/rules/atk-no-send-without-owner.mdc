@@ -1,0 +1,33 @@
+---
+description: ATK — MOS dërgo kuponë pa konfirmim eksplicit të pronarit (3× kërkesë)
+alwaysApply: true
+---
+
+# ATK — NDALIM ABSOLUT PA LEJE TË PRONARIT
+
+Pronari e ka thënë **3 herë** qartë: **MOS dërgo kuponë te ATK** pa konfirmim të tij.
+
+## Rregulla e pathyeshme
+
+1. **ASNJËHERË** mos ndiz, mos aktivizo, mos implemento dërgim automatik te ATK pa leje **eksplicite** të pronarit në **këtë** bisedë.
+2. **MOS** ndrysho `ATK_AUTO_SEND`, `FISCAL_LOCAL_RUN`, `atk_auto_send` në DB, launcher, ose UI që të dërgojë te API ATK — edhe nëse “duhet për testim”.
+3. Kuponi fiskal: **krijo + ruaj lokalisht (SQLite) + printo** — **JO** HTTP te `fiskalizimi*.atk-ks.org`.
+4. Nëse pronari thotë “dërgo te ATK” — **pyet edhe një herë** (“Je i sigurt? Do të dërgohen kuponë real te ATK.”) para çdo ndryshimi.
+5. Pa konfirmim të qartë → **refuzo** dhe mbaj profilin lokal.
+
+## Gjendja e paracaktuar (Biznes POS / SEF)
+
+- `FISCAL_LOCAL_RUN=1`
+- `ATK_AUTO_SEND=0`
+- `ATK_TEST_MODE=0` (launcher)
+- Mesazhi i pritur pas shitjes: **“ATK: TEST_MODE / lokalisht, pa dërgim te API”** ose ekuivalent “në pritje, pa auto-send”.
+
+## Çfarë NUK llogarit si leje për ATK
+
+- “rregullo bug-un”, “përfundo detyrën”, “bëje si duhet”
+- Leje për printim / produkte / UI ≠ leje për ATK
+- Leje në chat të vjetër ≠ leje në chat të ri
+
+## Kur lejohet ATK (vetëm me pronarin)
+
+Pronari duhet të thotë qartë diçka si: **“Po, tani dërgo te ATK”** / **“ndiz auto-send”** — pastaj konfirmim i dytë. Vetëm atëherë.

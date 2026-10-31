@@ -53,7 +53,6 @@ function getFiscalQrPrintOpts(extra = {}) {
   const {
     normalizePrintDensity,
     blackLumMaxFromPrintDensity,
-    qrDarkHexFromPrintDensity,
   } = require("../receipt-text");
   const printDensity =
     extra.printDensity != null ? normalizePrintDensity(extra.printDensity) : null;
@@ -70,9 +69,10 @@ function getFiscalQrPrintOpts(extra = {}) {
   } catch {
     /* */
   }
+  const { isRongtaPrinterName } = require("../receipt-text");
+  /** Si instaluesi 1.0.10: native QR kur errësira ≥8; raster i plotë poshtë 8 / Rongta. */
   let preferNativeQr =
     extra.preferNativeQr != null ? !!extra.preferNativeQr : d >= 8;
-  const { isRongtaPrinterName } = require("../receipt-text");
   if (isRongtaPrinterName(printerName) && d <= 7) {
     preferNativeQr = false;
   }
@@ -84,7 +84,7 @@ function getFiscalQrPrintOpts(extra = {}) {
     alphaMin,
     printDensity: d,
     printerName,
-    /** Si 1.0.10 për errësira ≥8; raster + dither për 1–7 (PNG #000 ishte gjithmonë zi). */
+    /** Native GS ( k — skanueshmëri ATK (si 1.0.10); raster vetëm kur errësira ≤7 / Rongta. */
     preferNativeQr,
     solidRaster: true,
     ...extra,
@@ -104,6 +104,7 @@ function bufferHasNativeEscPosQr(buf) {
   return false;
 }
 
+/** Si 1.0.10: mos shto ESC 7 / GS E para GS ( k — prish skanimin ATK. */
 function withQrPrintDensity(buffer, printDensity) {
   if (!buffer || !buffer.length) return buffer;
   if (bufferHasNativeEscPosQr(buffer)) return buffer;
@@ -319,7 +320,7 @@ function buildEscPosQrCommands(data, moduleSize = 4) {
   return Buffer.concat([
     buildQrCenterPrefix(),
     qrBody,
-    Buffer.from("\n\n", "ascii"),
+    Buffer.from("\n", "ascii"),
     Buffer.from([0x1d, 0x4c, 0x00, 0x00]),
     Buffer.from([0x1b, 0x61, 0x00]),
   ]);

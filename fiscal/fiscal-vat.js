@@ -114,6 +114,24 @@ function getVatRate(letter) {
   return VAT_RATES[key];
 }
 
+function hasTaxpayerVatNumber(vatNumber) {
+  if (vatNumber == null) return false;
+  const v = String(vatNumber).trim();
+  if (!v) return false;
+  if (v === "-" || v === "–" || v === "—" || v === ".") return false;
+  return true;
+}
+
+function couponVatLetterForTaxpayer(letter, vatNumber) {
+  const L = String(letter || "")
+    .trim()
+    .toUpperCase();
+  const keep = L in VAT_RATES ? L : "E";
+  if (vatNumber === undefined) return keep;
+  if (!hasTaxpayerVatNumber(vatNumber)) return "C";
+  return keep;
+}
+
 function resolveItemLetter(item) {
   if (!item || typeof item !== "object") return "E";
   const raw =
@@ -380,6 +398,8 @@ module.exports = {
   EMPTY_BREAKDOWN,
   getVatNormLetter,
   getVatRate,
+  hasTaxpayerVatNumber,
+  couponVatLetterForTaxpayer,
   resolveItemLetter,
   round4,
   round2,

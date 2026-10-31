@@ -241,7 +241,40 @@ function getFiscalReceiptPreview(id) {
     print_text: stripEscMarkers(text),
     sef_id: row.sef_id,
     taxpayer_name: row.taxpayer_name,
+    taxpayer_nui: row.taxpayer_nui,
   };
+}
+
+async function getFiscalReceiptPreviewWithQr(id) {
+  const preview = getFiscalReceiptPreview(id);
+  if (!preview) return null;
+
+  const out = {
+    ...preview,
+    qr_png_base64: null,
+    qr_verify_url: null,
+    qr_error: null,
+  };
+
+  try {
+    const { generateFiscalQR } = require("./fiscal-qr");
+    const settings = getFiscalSettings();
+    const row = loadReceiptRow(id);
+    const qrInput = buildFiscalQrInputFromReceiptRow(row);
+    if (qrInput && !qrInput.taxpayer_nui) {
+      qrInput.taxpayer_nui = settings.taxpayer_nui || "";
+      qrInput.nui = qrInput.taxpayer_nui;
+    }
+    const qr = qrInput ? await generateFiscalQR(qrInput) : null;
+    if (qr?.png_base64) {
+      out.qr_png_base64 = qr.png_base64;
+      out.qr_verify_url = qr.verify_url || null;
+    }
+  } catch (e) {
+    out.qr_error = e.message || String(e);
+  }
+
+  return out;
 }
 
 function loadReceiptRow(id) {
@@ -257,6 +290,13 @@ function loadReceiptRow(id) {
     throw new Error("Kuponi nuk u gjet");
   }
   return row;
+}
+
+function buildFiscalQrInputFromReceiptRow(row) {
+  if (!row || typeof row !== "object") return null;
+  const { getFiscalSettings } = require("./fiscal-config");
+  const { buildFiscalQrReceiptData } = require("./fiscal-qr");
+  return buildFiscalQrReceiptData(row, getFiscalSettings());
 }
 
 /**
@@ -298,6 +338,8 @@ function prepareFiscalReceiptCopy(id) {
 module.exports = {
   listFiscalReceipts,
   getFiscalReceiptPreview,
+  getFiscalReceiptPreviewWithQr,
+  buildFiscalQrInputFromReceiptRow,
   prepareFiscalReceiptCopy,
   prepareFiscalReceiptReprint,
   markReceiptTextAsCopy,

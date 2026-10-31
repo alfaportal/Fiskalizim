@@ -113,9 +113,9 @@ function mapCouponType(receiptType) {
   const t = String(receiptType || "regular")
     .trim()
     .toLowerCase();
-  if (t === "return" || t === "refund" || t === "kthim") return "CANCEL";
+  if (t === "return" || t === "refund" || t === "kthim") return "RETURN";
   if (t === "cancel" || t === "cancelled" || t === "anulim" || t === "storno") {
-    return "RETURN";
+    return "CANCEL";
   }
   return "SALE";
 }

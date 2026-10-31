@@ -2236,15 +2236,78 @@ async function boot() {
         }
       }
 
+      const enrichedDetails = { ...details, sef_id: getSefIdentifier() || "" };
+      let delivery = null;
+      try {
+        const { processZReportDelivery } = require("./fiscal/fiscal-z-report-atk");
+        delivery = await processZReportDelivery({
+          text,
+          details: enrichedDetails,
+          settings,
+          operator_name: operatorName,
+          operator_id: operatorId,
+          manual: false,
+        });
+      } catch (de) {
+        console.warn("[z-report] delivery:", de.message || de);
+      }
+
       res.json({
         ok: true,
-        details: { ...details, sef_id: getSefIdentifier() || "" },
+        details: enrichedDetails,
         text,
         printed,
         printMessage,
+        delivery,
       });
     } catch (e) {
       console.error("[z-report]", e);
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/fiscal/z-report/send-atk", async (req, res) => {
+    try {
+      const {
+        processZReportDelivery,
+        getLatestZReportForSend,
+        ATK_Z_UNSUPPORTED_MSG,
+      } = require("./fiscal/fiscal-z-report-atk");
+      const { getSefIdentifier } = require("./fiscal/fiscal-numbering");
+      const settings = db.getFiscalSettingsRow();
+      const operatorName = req.body?.operator_name || "Operator";
+      const operatorId = resolveBodyOperatorId(req);
+
+      const latest = getLatestZReportForSend();
+      if (!latest) {
+        return res.status(400).json({
+          ok: false,
+          error: "Nuk ka Raport Z — gjeneroni Raportin Z së pari.",
+        });
+      }
+
+      let text = String(latest.text || "").trim();
+      const details = { ...(latest.details || {}), sef_id: getSefIdentifier() || "" };
+      if (!text) {
+        text = buildZReportText(details, settings);
+      }
+
+      const delivery = await processZReportDelivery({
+        text,
+        details,
+        settings,
+        operator_name: operatorName,
+        operator_id: operatorId,
+        manual: true,
+      });
+
+      res.json({
+        ok: true,
+        delivery,
+        message: delivery.atk_message || ATK_Z_UNSUPPORTED_MSG,
+      });
+    } catch (e) {
+      console.error("[z-report/send-atk]", e);
       res.status(400).json({ ok: false, error: e.message });
     }
   });
@@ -2756,6 +2819,34 @@ async function boot() {
       });
     } catch (e) {
       console.error("[exchange]", e);
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.get("/api/fiscal/repair-wizard/context", (_req, res) => {
+    try {
+      const { getRepairWizardContext } = require("./fiscal/fiscal-repair-wizard");
+      const ctx = getRepairWizardContext();
+      if (!ctx.ok) {
+        return res.status(400).json({ ok: false, error: ctx.error || "Wizard i padisponueshëm" });
+      }
+      res.json({ ok: true, ...ctx });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/fiscal/repair-wizard/step/:step", async (req, res) => {
+    try {
+      const { runRepairWizardStep } = require("./fiscal/fiscal-repair-wizard");
+      const step = Number(req.params.step);
+      const result = await runRepairWizardStep(step, {
+        operator_name: req.body?.operator_name || "Operator",
+        operator_id: req.body?.operator_id || "POS",
+        step_results: req.body?.step_results || null,
+      });
+      res.json({ ok: result.ok !== false, result });
+    } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
     }
   });

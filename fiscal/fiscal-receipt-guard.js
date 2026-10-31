@@ -218,14 +218,16 @@ function validateReceiptBeforePrint(receiptText, opts = {}) {
   if (!RE_TOTAL.test(text)) {
     missing.push("TOTALI NE EURO");
   }
-  if (!RE_TOT_PA.test(text)) missing.push("TOT. PA TVSH / UKUPNO BEZ PDV");
-  if (!RE_TVSH_BREAKDOWN.test(text)) missing.push("TVSH/PDV breakdown");
+  const hasTaxpayerVatOnCoupon = RE_NR_TVSH.test(text);
+  if (hasTaxpayerVatOnCoupon) {
+    if (!RE_TOT_PA.test(text)) missing.push("TOT. PA TVSH / UKUPNO BEZ PDV");
+    if (!RE_TVSH_BREAKDOWN.test(text)) missing.push("TVSH/PDV breakdown");
+  }
   if (!RE_DATA_ORA.test(text) && (!RE_DATA.test(text) || !RE_ORA.test(text))) {
     missing.push("data/ora");
   }
   if (!RE_OPERATOR.test(text)) missing.push("operator");
   if (!RE_NR_FISKAL.test(text)) missing.push("NR. FISKAL");
-  if (!RE_NR_TVSH.test(text)) missing.push("NR. TVSH");
   const isShtojcaFCoupon = RE_SHTOJCA_F_COUPON.test(text);
   const hasCouponNrLabel = RE_COUPON_NR_LABEL.test(text);
   const shtojcaBareSerial = isShtojcaFCoupon ? findShtojcaFBareSerial(text) : { found: false };

@@ -1,0 +1,42 @@
+---
+description: LOCKED — fiskalizimi/ATK/licenca nuk preken pa leje eksplicite nga përdoruesi
+alwaysApply: true
+---
+
+# FISKALIZIMI ËSHTË I MBYLLUR (LOCKED)
+
+Kjo është **rregull e rreptë**. Fiskalizimi, ATK, logoja RKS/MF, çelësat, kuponët, printimi fiskal dhe licenca fiskale **nuk ekzistojnë për ndryshim** pa leje.
+
+## Ndalim absolut pa leje
+
+**MOS** lexo-për-ndryshim, edito, fshi, riemërto, rifaktorizo, “pastro”, “përmirëso”, apo gjenero kod që prek:
+
+- `fiscal/**` (krejt moduli: ATK API, protobuf, crypto, offline queue, QR, logo, print, receipt guard, recovery, VAT, numbering, payment, audit, config, DB fiskal, self-test, assets, pem/keys)
+- Endpoint-e / rrugë `/api/fiscal/**` dhe çdo handler fiskal në `server.js`
+- Integrime fiskale në `database.js`, `printer.js`, `receipt-text.js`
+- Teste fiskale (`tests/fiscal*.js`, `fiscal/fiscal-self-test.js`)
+- Çelësa, certifikata, NUI, TCR, `fiscal-keys`, `biznes.db` fusha fiskale, ENV fiskal (`FISCAL_*`, ATK URLs, ECDSA)
+- Logo RKS/MF, generatorët e logos, `logo_rks_mf.png`, rendin e printit tekst → QR → logo
+- `fiscal/license-guard.js` dhe çdo logjikë licence të lidhur me fiskalizimin
+
+## Procedura e detyrueshme para çdo prekjeje
+
+Edhe nëse përdoruesi duket se kërkon ndryshim fiskal:
+
+1. **NDALO** — mos bëj asnjë edit/commit/tool write në zonën e mbyllur.
+2. **Pyet leje eksplicite** (duhet të thotë qartë që lejon prekjen e fiskalizimit).
+3. **Pyet HERËN E DYTË** — konfirmim: “Je i sigurt që të prek fiskalizimin / skedarin X?”
+4. Vetëm pasi përdoruesi konfirmon **dy herë** me fjalë të qarta, lejohet ndryshimi i kufizuar në atë që kërkoi.
+
+Pa këtë konfirmim dysh → **refuzo** ndryshimin. Lexim i shkurtër vetëm për përgjigje (pa edit) lejohet nëse pyetja është informative; prapë mos sugjero “le ta ndreqim” pa leje.
+
+## Çfarë NUK llogarit si leje
+
+- “rregullo bug-un”, “përmirëso”, “refactor”, “optimize”, “cleanup”
+- Ndryshime të tjera në projekt që “përkohësisht” duan prekje fiskale
+- Leje për një skedar ≠ leje për krejt fiskalizimin
+- Leje në një chat të vjetër ≠ leje në chat të ri (pyet përsëri nëse nuk është e qartë në këtë bisedë)
+
+## Kur ke dyshim
+
+Nëse nuk je **100% i sigurt** se përdoruesi sapo dha leje dyshe për atë zonë → **MOS E PREK**. Thuaj që fiskalizimi është i mbyllur dhe kërko leje.

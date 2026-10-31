@@ -27,7 +27,13 @@ const {
   getTimeSyncStatus,
   startFiscalTimeSyncMonitor,
 } = require("./fiscal-time-sync");
-const { round4, lineTotalAmount, normalizeQty, normalizeUnitPrice } = require("./fiscal-vat");
+const {
+  round4,
+  lineTotalAmount,
+  normalizeQty,
+  normalizeUnitPrice,
+  couponVatLetterForTaxpayer,
+} = require("./fiscal-vat");
 const { isAtkHost } = require("./fiscal-local-env");
 const { isAtkTransmissionBlocked } = require("./fiscal-test-mode-store");
 const { isFiscalLocalRun } = require("./fiscal-local-env");
@@ -41,6 +47,7 @@ const HOURS_24 = 24;
 const HOURS_48 = 48;
 
 let _monitorTimer = null;
+let _emailQueueTimer = null;
 let _lastOnline = null;
 let _readyToSendLogged = new Set(); // receipt ids audited this process
 
@@ -209,12 +216,15 @@ async function checkInternetConnection() {
   return online;
 }
 
-function normalizeItems(items) {
+function normalizeItems(items, taxpayerVatNumber) {
   return (Array.isArray(items) ? items : []).map((item) => {
     const letter = String(item.vat_norm || item.vat_letter || "E")
       .trim()
       .toUpperCase();
-    const L = /^[A-E]$/.test(letter) ? letter : "E";
+    const L = couponVatLetterForTaxpayer(
+      /^[A-E]$/.test(letter) ? letter : "E",
+      taxpayerVatNumber
+    );
     const rate =
       item.vat_percent != null
         ? Number(item.vat_percent)
@@ -265,12 +275,16 @@ function queueOfflineReceipt(receiptData) {
   if (!isFiscalEnabled()) return null;
 
   const d = receiptData && typeof receiptData === "object" ? receiptData : {};
-  const items = normalizeItems(d.items);
+  const settings = getFiscalSettings();
+  const items = normalizeItems(
+    d.items,
+    d.taxpayer_vat != null && String(d.taxpayer_vat).trim() !== ""
+      ? d.taxpayer_vat
+      : settings.taxpayer_vat_number
+  );
   if (!items.length) {
     throw new Error("Kuponi offline kërkon artikuj");
   }
-
-  const settings = getFiscalSettings();
   const { fiscal_date, fiscal_time } = todayParts();
   const nuikf = d.nuikf || generateNUIKF();
   if (!nuikf) throw new Error("Nuk u gjenerua NUIKF");
@@ -726,10 +740,29 @@ function finalizeLocalMemoryForPeriod(from, to) {
 /**
  * Monitor çdo 60s — vetëm kur fiscal ON.
  */
+function tickQueuedReceiptEmails() {
+  try {
+    const { processQueuedReceiptEmails } = require("./fiscal-receipt-email");
+    processQueuedReceiptEmails().catch((e) =>
+      console.warn("[fiscal-offline] email queue:", e.message)
+    );
+  } catch (e) {
+    console.warn("[fiscal-offline] email queue:", e.message);
+  }
+}
+
 function startOfflineMonitor() {
   if (!isFiscalEnabled()) {
     console.log("[fiscal-offline] monitor: fiscal OFF — nuk niset");
     return false;
+  }
+
+  if (!_emailQueueTimer) {
+    tickQueuedReceiptEmails();
+    _emailQueueTimer = setInterval(tickQueuedReceiptEmails, MONITOR_MS);
+    if (typeof _emailQueueTimer.unref === "function") {
+      _emailQueueTimer.unref();
+    }
   }
 
   try {
@@ -784,6 +817,10 @@ function stopOfflineMonitor() {
   if (_monitorTimer) {
     clearInterval(_monitorTimer);
     _monitorTimer = null;
+  }
+  if (_emailQueueTimer) {
+    clearInterval(_emailQueueTimer);
+    _emailQueueTimer = null;
   }
   try {
     const { stopOfflineComplianceMonitor } = require("./fiscal-offline-compliance");

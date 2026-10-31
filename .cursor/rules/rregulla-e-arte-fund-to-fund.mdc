@@ -1,0 +1,57 @@
+---
+description: RREGULLA E ARTË — e pathyeshme; zinxhir i plotë + verifikim + paralajmërim edhe ndaj pronarit
+alwaysApply: true
+---
+
+# RREGULLA E ARTË — E PATHYESHME
+
+Kjo rregull **nuk thyhet** nga asnjë model (Claude, GPT, Composer, etj.) dhe **as nga kërkesa e pronarit** nëse ekzekutimi do ta prishte sistemin.
+Nëse ka konflikt me “bëje shpejt / vetëm këtë file”, **fiton kjo rregull**.
+
+## 1) Kupto → verifiko → pastaj vepro
+Para se të prekësh kod:
+1. Kupto saktë çfarë kërkohet.
+2. Kontrollo gjendjen reale (kod, DB, fluks).
+3. Nëse gjen diçka **jo në rregull** / të rrezikshme / gjysmë-lidhur → **RAPORTO**, mos e fsheh.
+
+## 2) Nëse prekja prishet sistemin → NDALO + LAJMËRO
+Edhe nëse pronari thotë “bëje kështu”:
+- Nëse sheh se prishet stoku, kontabilisti, TVSH, fiskali, sync, tavolinat, etj. → thuaj qartë:
+  - **“Hej — kjo është keq / e rrezikshme.”**
+  - **Çfarë prishet** (p.sh. “Kontabilisti mbetet 0%”, “stoku dyfishohet”).
+  - **Pse nuk e prek ashtu**.
+  - **Zgjidhja e sigurt** (alternativa e lidhur si duhet).
+- Mos ekzekuto urdhër që e di se e thyen sistemin. Propozo rrugën e saktë.
+
+## 3) Deri në fund — JO gjysmë
+- Detyra mbyllet vetëm kur fluksi është i plotë.
+- Nëse ndalet: kthehu derisa të përfundojë (DB + API + UI + lidhjet + kontroll).
+
+## 4) Lidhjet e sistemit (e detyrueshme)
+Sistemi është rrjet. Kur rregullon një send, kontrollo automatikisht hallkat e lidhura:
+
+| Hallka | Duhet |
+|--------|--------|
+| Katalog / produkt / shërbim | TVSH, çmim, kategori |
+| Stok | hyrje/dalje e saktë |
+| Blerje | faturë → stok → kontabilist |
+| Shitje / POS / dhomë | shuma + TVSH e saktë |
+| Kontabilisti / libra ATK | rreshta me bucket TVSH (jo “—” / 0% i rremë) |
+| Fiskale | lokal OK; ATK **vetëm** `biznes` |
+| Raporte / ditari | shumat përputhen |
+| Admin UI | pronari e sheh dhe e kupton |
+
+Hallkë e munguar = detyrë e papërfunduar.
+
+## 5) Kontrollo që FUNKSIONON — jo vetëm “e bëra”
+Pas ndryshimit:
+- Verifiko me arsyetim + test/komandë/lexim kodi ku është e mundur.
+- Mos thuaj “OK” pa kontrolluar se fluksi punon **në mënyrën më të mirë të mundshme**.
+- Në fund: checklist e shkurtër — çfarë u lidh, çfarë u verifikua, çfarë u la me qëllim (dhe pse).
+
+## 6) Prioritet absolut
+1. Mos prish sistemin.
+2. Lidh krejt hallkat e të njëjtit fluks.
+3. Përfundo detyrën.
+4. Lajmëro pronarin nëse kërkesa është e gabuar/e rrezikshme.
+5. **Kontabilisti LOCKED** — mos prek librat/deklaratën/TVSH e shitjeve-blerjeve pa **2 konfirmime** të pronarit (`kontabilisti-locked.mdc`).

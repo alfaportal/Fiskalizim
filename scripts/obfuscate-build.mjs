@@ -65,6 +65,8 @@ const OBFUSCATE_FILES = [
   "fiscal/fiscal-line-discount.js",
   "fiscal/fiscal-offline-compliance.js",
   "fiscal/atk-dns.js",
+  "fiscal/fiscal-z-report-atk.js",
+  "fiscal/fiscal-repair-wizard.js",
   "protection/cloud-license.js",
   "protection/cloud-health.js",
   "protection/factory-wipe.js",

@@ -1,0 +1,30 @@
+---
+description: LOCKED — Kontabilisti + shitjet/blerjet e librave ATK nuk preken pa 2 konfirmime të pronarit
+alwaysApply: true
+---
+
+# KONTABILISTI ËSHTË I MBYLLUR (LOCKED) — prioritet
+
+Kjo rregull **nuk thyhet** nga asnjë model. Prekja e gabuar e prish TVSH-në, librat ATK dhe deklaratën.
+
+## Ndalim absolut pa 2 konfirmime
+
+**MOS** lexo-për-ndryshim, edito, fshi, rifaktorizo, “pastro” apo “përmirëso” asgjë që mbush Kontabilistin:
+
+- `kontabilisti-atk.js`, `kontabilisti-db.js`, `kontabilisti-html.js`, `kontabilisti-excel.js`, `kontabilisti-pdf.js`
+- UI: `kontabilisti-atk-ui.js`, paneli Kontabilisti / Deklarata / Libri i Shitjes / Libri i Blerjes
+- `getSalesLedger`, `getAtkSalesVatBook`, `getAtkPurchaseVatBook`, `getAtkVatDeclaration`, `buildSalesVatBook`, `buildPurchaseVatBook`, `buildVatDeclaration`, `computeItemsVat`, `vat_buckets`
+- Ndarja e TVSH së shitjeve/blerjeve që shkon te kutizat [9]…[67], [K1], [K2], [30]
+- Teste `tests/kontabilisti-atk.test.js`
+
+Blerjet/shitjet e POS (tavolina, stok, closeTable) **nuk** janë kjo rregull — por **nëse ndryshimi ndryshon shumën ose TVSH-në që hyn te Kontabilisti**, trajtoje si të kyçur.
+
+## Procedura (e detyrueshme)
+
+1. **NDALO.** Mos prek asnjë rresht.
+2. **Pyet herën e 1-rë** — shpjego çfarë rrezikon të prishësh (kutizat, sinkron shitje/blerje).
+3. **Pyet herën e 2-të** — “A je i sigurt? Prekja mund ta prishë Kontabilistin.”
+4. Vetëm pas **dy “po” të qarta** nga pronari lejohet ndryshim i kufizuar.
+5. Nëse ke dyshim → **MOS E PREK** + lajmëro.
+
+Kjo vlen për KAFENE, HOTEL, FURRA, biznes dhe çdo projekt me modul Kontabilisti.

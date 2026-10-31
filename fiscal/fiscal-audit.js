@@ -12,12 +12,15 @@ const ALLOWED_ACTIONS = Object.freeze([
   "receipt_created",
   "receipt_sent",
   "receipt_send_failed",
+  "receipt_emailed",
   "z_report",
+  "z_report_generated",
   "x_report",
   "periodic_report",
   "short_periodic_report",
   "monthly_memory_report",
   "power_recovery",
+  "repair_wizard",
   "setting_changed",
   "correction_created",
   "offline_start",
@@ -671,6 +674,7 @@ function formatAuditActionLabel(action) {
     receipt_sent: "Dërguar te ATK",
     correction_created: "Korrigjim",
     z_report: "Raporti Z",
+    z_report_generated: "Raporti Z (PDF/lokal)",
     x_report: "Raporti X",
     offline_start: "Offline filloi",
     offline_end: "Offline mbaroi",
@@ -710,7 +714,7 @@ function formatAuditDetailText(row) {
     return parts.length ? parts.join(", ") : formatAuditDetailFallback(d);
   }
 
-  if (action === "x_report" || action === "z_report") {
+  if (action === "x_report" || action === "z_report" || action === "z_report_generated") {
     const parts = [
       d.date ? `Data: ${d.date}` : null,
       d.coupon_count != null
@@ -938,6 +942,19 @@ function exportAuditPDF(fromDate, toDate, targetPath) {
   return filePath;
 }
 
+function writeTextReportPdf(plainText, targetPath) {
+  const filePath = String(targetPath || "").trim();
+  if (!filePath) throw new Error("Shtegu PDF mungon");
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, buildTextReportPdfBuffer(plainText));
+  return filePath;
+}
+
+function buildTextReportPdfBuffer(plainText) {
+  const lines = String(plainText || "").split(/\r?\n/);
+  return buildSimplePdf(lines);
+}
+
 module.exports = {
   ALLOWED_ACTIONS,
   FISCAL_AUDIT_EXPORT_ACTIONS,
@@ -946,6 +963,8 @@ module.exports = {
   getAdminFiscalReceiptEntries,
   exportAuditCSV,
   exportAuditPDF,
+  writeTextReportPdf,
+  buildTextReportPdfBuffer,
   pickAuditSaveDialog,
   purgeLegacyAuditNoise,
   getDocumentsDir,

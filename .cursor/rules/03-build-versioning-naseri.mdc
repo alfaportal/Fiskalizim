@@ -1,0 +1,51 @@
+---
+description: Build SEF — versionim patch+1, rollback, të dhëna të vjetra + përmirësim (Naseri)
+alwaysApply: true
+---
+
+# Build SEF — versionim, rollback, të dhëna (Naseri)
+
+## Filozofia
+
+**Version i ri = gjithçka e vjetra + përmirësimet.** Jo reset, jo humbje të dhënash.
+
+- Klienti, kuponët, cilësimet ATK, certifikatat, produkte → **mbeten** pas update/install të versionit të ri
+- Databaza: `%AppData%\biznes-sef\biznes.db` — **e njëjta** për të gjitha versionet (install i ri mbulon `.exe`, jo DB-në)
+- Nëse versioni i ri **nuk punon** si duhet → **rollback**: reinstall nga instaluesi i vjetër (`2.0.0`, etj.) që mbetet në `dist-atk-v2/`
+
+## Kur lejohet build
+
+- **Vetëm** kur Naseri thotë eksplicit: «build», «build të ri», «ok build», etj.
+- **Mos** ekzekuto `npm run build:sef` pa leje.
+
+## Versioni — patch +1 çdo build
+
+1. Para build-it, rrit **`package.json` → `version`** (patch): `2.0.0` → `2.0.1` → `2.0.2` …
+2. `scripts/build-sef.js` **ndalon** nëse `.exe` me të njëjtin version ekziston.
+3. Emri: `Revolution-Fiskalizim-{version}-win-x64.exe`
+
+## Instaluesit e vjetër — MOS i fshi (rollback)
+
+- **Mos fshi** asnjë `Revolution-Fiskalizim-*-win-x64.exe` nga `dist-atk-v2/`
+- **Mos fshi** `dist-atk/`, `dist-atk-build/`, etj. pa leje specifike
+- Build i ri **shton** `.exe` të ri; të vjetrat mbeten për kthim prapa
+
+### Rollback (Naseri)
+
+1. Çinstalo ose mbulo me instaluesin **të vjetër** (p.sh. `Revolution-Fiskalizim-2.0.0-win-x64.exe`)
+2. DB dhe kuponët **nuk humbasin** (e njëjta `biznes.db`)
+3. Njofto Naserin se u kthye te versioni X
+
+## Migrimet në kod — mos prish upgrade
+
+- Migrimet DB: **idempotente**, me **marker** (`settings`), **një herë** kur duhet
+- **Mos** `DELETE` masiv produkte/shitje/kuponë në çdo nisje
+- **Mos** reset `fiscal_receipts`, `orders`, `fiscal_settings`, certifikata
+- Ndryshime katalogu: prefero **UPDATE** / migrim me marker, jo `DELETE FROM products` pa leje
+- Pas install të versionit të ri, përdoruesi duhet të ketë **të njëjtat të dhëna** + fix-et e reja
+
+## Pas build-it
+
+- Njofto path-in e plotë të `.exe` **të ri** dhe versionin (`2.0.1`, etj.)
+- Përmend që instaluesi i vjetër mbetet për rollback nëse duhet
+- Mos sugjero reinstall pa arsye

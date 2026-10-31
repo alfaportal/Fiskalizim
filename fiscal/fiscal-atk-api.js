@@ -34,6 +34,52 @@ const ATK_HTTP_TIMEOUT_MS = Math.max(
   Number(process.env.ATK_HTTP_TIMEOUT_MS) || 25000
 );
 
+const ATK_ERROR_MESSAGES = Object.freeze({
+  400: "Të dhënat e kuponit janë të pavlefshme — kontrolloni artikujt dhe TVSH-në",
+  401: "Certifikata juaj nuk njihet nga ATK — bëni onboarding përsëri",
+  403: "Nuk keni leje për dërgim — kontrolloni Application ID dhe statusin te ATK",
+  404: "Endpoint-i ATK nuk u gjet — kontrolloni URL-në TEST/PROD",
+  409: "Ky kupon është dërguar tashmë te ATK",
+  422: "Formati i të dhënave nuk përputhet me specifikimin ATK",
+  500: "Gabim i brendshëm i serverit ATK — provoni përsëri më vonë",
+  502: "Serveri ATK nuk është i disponueshëm — provoni përsëri më vonë",
+  503: "Serveri ATK nuk është i disponueshëm — provoni përsëri më vonë",
+  504: "Serveri ATK nuk përgjigjet — kontrolloni internetin",
+});
+
+function resolveAtkHttpErrorMessage(status) {
+  const code = Number(status);
+  if (!Number.isFinite(code) || code <= 0) {
+    return "Gabim i panjohur nga ATK — kontrolloni lidhjen ose provoni përsëri";
+  }
+  if (ATK_ERROR_MESSAGES[code]) return ATK_ERROR_MESSAGES[code];
+  return `Gabim i panjohur nga ATK (HTTP ${code}) — kontaktoni mbështetjen teknike`;
+}
+
+function logAtkHttpSendFailure(receiptRow, httpStatus, operatorMessage, extras = {}) {
+  try {
+    const { logFiscalAction } = require("./fiscal-audit");
+    logFiscalAction(
+      "receipt_send_failed",
+      {
+        nuikf: receiptRow?.nuikf || "",
+        fiscal_receipt_id: receiptRow?.id ?? null,
+        status: httpStatus ?? null,
+        atk_http_status: httpStatus ?? null,
+        error: operatorMessage,
+        atk_message_sq: operatorMessage,
+        atk_error_mapped: true,
+        body: extras.body ? String(extras.body).slice(0, 500) : undefined,
+        url: extras.url || undefined,
+      },
+      String(receiptRow?.operator_name || "POS").trim() || "POS",
+      String(receiptRow?.operator_id || "POS").trim() || "POS"
+    );
+  } catch (e) {
+    console.warn("[fiscal-atk-api] audit HTTP error:", e.message || e);
+  }
+}
+
 /**
  * ATK_TEST_MODE — mjedisi TEST ATK (URL test); HTTP bllokohet vetëm me FISCAL_LOCAL_RUN=1.
  */
@@ -383,14 +429,30 @@ async function sendPosCouponToAtk(receiptRow) {
 
   const res = await httpJsonPost(url, body, ATK_HTTP_TIMEOUT_MS);
   if (!res.ok) {
-    const errDetail =
-      res.error ||
-      (res.body ? String(res.body).slice(0, 200) : "") ||
-      (res.status ? `HTTP ${res.status}` : "ATK nuk u përgjigj (lidhje e prerë)");
+    const httpStatus = Number(res.status) || null;
+    let operatorMessage;
+    if (httpStatus != null && httpStatus >= 400) {
+      operatorMessage = resolveAtkHttpErrorMessage(httpStatus);
+      logAtkHttpSendFailure(receiptRow, httpStatus, operatorMessage, {
+        body: res.body,
+        url,
+      });
+    } else if (res.error && /timeout|nuk u përgjigj brenda/i.test(String(res.error))) {
+      operatorMessage = ATK_ERROR_MESSAGES[504];
+    } else {
+      operatorMessage =
+        res.error ||
+        (res.body ? String(res.body).slice(0, 200) : "") ||
+        (httpStatus ? `HTTP ${httpStatus}` : "ATK nuk u përgjigj (lidhje e prerë)");
+    }
+    const httpErrorMapped = httpStatus != null && httpStatus >= 400;
     return {
       sent: false,
-      error: errDetail,
-      status: res.status,
+      error: operatorMessage,
+      atk_message_sq: httpErrorMapped ? operatorMessage : undefined,
+      atk_http_status: httpStatus,
+      atk_error_audited: httpErrorMapped,
+      status: httpStatus,
       body: res.body,
       url,
     };
@@ -409,6 +471,8 @@ async function sendPosCouponToAtk(receiptRow) {
 module.exports = {
   TEST_BASE,
   PROD_BASE,
+  ATK_ERROR_MESSAGES,
+  resolveAtkHttpErrorMessage,
   resolveAtkBaseUrl,
   couponEndpoint,
   isAtkTestMode,

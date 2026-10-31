@@ -662,7 +662,8 @@ function initSchema() {
       sort_order INTEGER NOT NULL DEFAULT 0,
       unit_code TEXT NOT NULL DEFAULT 'EA',
       category_code TEXT NOT NULL DEFAULT 'TT',
-      pos_category TEXT NOT NULL DEFAULT 'Të tjera'
+      pos_category TEXT NOT NULL DEFAULT 'Të tjera',
+      base_weight REAL NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS menu_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -710,6 +711,16 @@ function initSchema() {
     /* kolona ekziston */
   }
   try {
+    sqlite.prepare(`ALTER TABLE products ADD COLUMN base_weight REAL DEFAULT 1`).run();
+  } catch {
+    /* kolona ekziston */
+  }
+  try {
+    sqlite.prepare(`UPDATE products SET base_weight = 1 WHERE base_weight IS NULL OR base_weight <= 0`).run();
+  } catch {
+    /* */
+  }
+  try {
     sqlite.prepare(`ALTER TABLE menu_items ADD COLUMN unit_code TEXT DEFAULT 'EA'`).run();
   } catch {
     /* kolona ekziston */
@@ -748,6 +759,11 @@ function initSchema() {
       console.warn("[biznes] removeDeprecatedCatalogProducts:", e.message);
     }
     syncMenuItemsFromProducts();
+    try {
+      applyBaseWeightFromNamesOnce();
+    } catch (e) {
+      console.warn("[fiskalizim] applyBaseWeightFromNamesOnce:", e.message);
+    }
     try {
       verifyBundledCatalogIntegrity();
     } catch (e) {
@@ -1203,7 +1219,8 @@ function listProducts() {
     .prepare(
       `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
               COALESCE(barcode, '') AS barcode,
-              COALESCE(pos_category, 'Të tjera') AS pos_category
+              COALESCE(pos_category, 'Të tjera') AS pos_category,
+              COALESCE(base_weight, 1) AS base_weight
        FROM products WHERE active = 1
        ORDER BY vat_letter ASC, sort_order ASC, id ASC`
     )
@@ -1231,11 +1248,11 @@ function getProductById(id) {
 function updateProduct(id, fields) {
   const pid = Number(id);
   if (!Number.isFinite(pid) || pid <= 0) throw new Error("ID produkti i pavlefshëm.");
-  const row = sqlite.prepare("SELECT id FROM products WHERE id = ?").get(pid);
+  const row = sqlite.prepare("SELECT id, base_weight FROM products WHERE id = ?").get(pid);
   if (!row) throw new Error("Produkti nuk u gjet.");
   const n = String(fields.name || "").trim();
   if (!n) throw new Error("Emri i produktit është i detyrueshëm.");
-  const p = round2(fields.price);
+  const p = round4(fields.price);
   if (!(p >= 0) || Number.isNaN(p)) throw new Error("Çmimi i pavlefshëm.");
   const L = String(fields.vat_letter || "E").toUpperCase();
   if (!["A", "C", "D", "E"].includes(L)) {
@@ -1250,6 +1267,7 @@ function updateProduct(id, fields) {
       : undefined;
   const barcode =
     fields.barcode != null ? String(fields.barcode).trim().replace(/\s+/g, "") : undefined;
+  const baseWeight = resolveBaseWeightFromName(n, fields.base_weight, row.base_weight);
   if (barcode !== undefined || posCategory !== undefined) {
     const row = sqlite
       .prepare("SELECT barcode, pos_category FROM products WHERE id = ?")
@@ -1262,23 +1280,24 @@ function updateProduct(id, fields) {
     sqlite
       .prepare(
         `UPDATE products SET name = ?, price = ?, vat_letter = ?, vat_category = ?,
-         unit_code = ?, category_code = ?, barcode = ?, pos_category = ? WHERE id = ?`
+         unit_code = ?, category_code = ?, barcode = ?, pos_category = ?, base_weight = ? WHERE id = ?`
       )
-      .run(n, p, L, cat, unitCode, categoryCode, bc, pc, pid);
+      .run(n, p, L, cat, unitCode, categoryCode, bc, pc, baseWeight, pid);
   } else {
     sqlite
       .prepare(
         `UPDATE products SET name = ?, price = ?, vat_letter = ?, vat_category = ?,
-         unit_code = ?, category_code = ? WHERE id = ?`
+         unit_code = ?, category_code = ?, base_weight = ? WHERE id = ?`
       )
-      .run(n, p, L, cat, unitCode, categoryCode, pid);
+      .run(n, p, L, cat, unitCode, categoryCode, baseWeight, pid);
   }
   syncMenuItemsFromProducts();
   return sqlite
     .prepare(
       `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
               COALESCE(barcode, '') AS barcode,
-              COALESCE(pos_category, 'Të tjera') AS pos_category FROM products WHERE id = ?`
+              COALESCE(pos_category, 'Të tjera') AS pos_category,
+              COALESCE(base_weight, 1) AS base_weight FROM products WHERE id = ?`
     )
     .get(pid);
 }
@@ -1291,10 +1310,11 @@ function createProduct({
   category_code,
   barcode,
   pos_category,
+  base_weight,
 }) {
   const n = String(name || "").trim();
   if (!n) throw new Error("Emri i produktit është i detyrueshëm.");
-  const p = round2(price);
+  const p = round4(price);
   if (!(p >= 0) || Number.isNaN(p)) throw new Error("Çmimi i pavlefshëm.");
   const L = String(vat_letter || "E").toUpperCase();
   if (!["A", "C", "D", "E"].includes(L)) {
@@ -1309,19 +1329,21 @@ function createProduct({
   const posCat = normalizePosCategoryLabel(
     pos_category || inferPosCategoryForProduct({ name: n, category_code: categoryCode })
   );
+  const baseWeight = resolveBaseWeightFromName(n, base_weight, 1);
   const result = sqlite
     .prepare(
-      `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, barcode, pos_category)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
+      `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, barcode, pos_category, base_weight)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`
     )
-    .run(n, p, L, cat, sort, unitCode, categoryCode, bc, posCat);
+    .run(n, p, L, cat, sort, unitCode, categoryCode, bc, posCat, baseWeight);
   const id = Number(result.lastInsertRowid);
   syncMenuItemsFromProducts();
   return sqlite
     .prepare(
       `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
               COALESCE(barcode, '') AS barcode,
-              COALESCE(pos_category, 'Të tjera') AS pos_category FROM products WHERE id = ?`
+              COALESCE(pos_category, 'Të tjera') AS pos_category,
+              COALESCE(base_weight, 1) AS base_weight FROM products WHERE id = ?`
     )
     .get(id);
 }
@@ -1393,6 +1415,56 @@ function deleteProduct(id) {
   return { ok: true, id: pid };
 }
 
+function round4(n) {
+  return Math.round((Number(n) || 0) * 10000) / 10000;
+}
+
+function parseBaseWeightFromName(name) {
+  const s = String(name || "");
+  const re = /(\d+(?:[.,]\d+)?)\s*(ml|l|kg|gr|g)\b/gi;
+  let last = null;
+  let m;
+  while ((m = re.exec(s))) last = m;
+  if (!last) return null;
+  const num = Number(String(last[1]).replace(",", "."));
+  if (!Number.isFinite(num) || num <= 0) return null;
+  const unit = String(last[2]).toLowerCase();
+  let v = num;
+  if (unit === "ml" || unit === "g" || unit === "gr") v = num / 1000;
+  return Math.round(v * 1000) / 1000;
+}
+
+function resolveBaseWeightFromName(name, incoming, existing) {
+  const parsed = parseBaseWeightFromName(name);
+  const hasIncoming = incoming != null && String(incoming).trim() !== "";
+  const incomingN = hasIncoming ? normalizeBaseWeight(incoming) : null;
+  const existingN =
+    existing != null && String(existing).trim() !== "" ? normalizeBaseWeight(existing) : 1;
+  if (hasIncoming && incomingN !== 1) return incomingN;
+  if (existingN !== 1) return existingN;
+  if (parsed != null) return parsed;
+  return 1;
+}
+
+function applyBaseWeightFromNamesOnce() {
+  if (String(getSetting("base_weight_from_name_v1") || "") === "1") return;
+  const rows = sqlite.prepare("SELECT id, name, base_weight FROM products").all();
+  const upd = sqlite.prepare("UPDATE products SET base_weight = ? WHERE id = ?");
+  for (const row of rows) {
+    if (normalizeBaseWeight(row.base_weight) !== 1) continue;
+    const parsed = parseBaseWeightFromName(row.name);
+    if (parsed == null || parsed === 1) continue;
+    upd.run(parsed, row.id);
+  }
+  setSetting("base_weight_from_name_v1", "1");
+}
+
+function normalizeBaseWeight(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 1;
+  return Math.round(n * 1000) / 1000;
+}
+
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
@@ -1447,7 +1519,7 @@ function buildSaleLines(items) {
     );
     const lineNet = round2(lineBase - lineDisc + lineSur);
     if (lineNet < 0) throw new Error(`Rreshti "${name}" ka total negativ pas zbritjes`);
-    const unit = qty ? round2(lineNet / qty) : 0;
+    const unit = qty ? round4(lineNet / qty) : 0;
     const L = /^[A-E]$/.test(vatLetter) ? vatLetter : "E";
     // % nga shkronja e produktit (jo nga klienti) — A/C=0, D=8, E=18
     const letter = product?.vat_letter

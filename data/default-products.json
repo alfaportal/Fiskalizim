@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "count": 26,
+  "products": [
+    { "name": "Coca-Cola 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 1 },
+    { "name": "Fanta 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 2 },
+    { "name": "Sprite 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 3 },
+    { "name": "Pepsi 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 4 },
+    { "name": "Red Bull 250ml", "price": 2.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 5 },
+    { "name": "Hell 250ml", "price": 2.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 6 },
+    { "name": "Lëng frutash 1L", "price": 1.2, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 7 },
+    { "name": "Nektar 0.5L", "price": 1.2, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 8 },
+    { "name": "Ujë i gazuar 0.5L", "price": 0.8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 9 },
+    { "name": "Ujë i aromatizuar 0.5L", "price": 0.8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 10 },
+    { "name": "Birra 0.5L", "price": 1.8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 11 },
+    { "name": "Verë 0.75L", "price": 8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 12 },
+    { "name": "Raki 0.5L", "price": 6, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 13 },
+    { "name": "Vodkë 0.7L", "price": 12, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 14 },
+    { "name": "Uiski 0.7L", "price": 12, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 15 },
+    { "name": "Xhin 0.7L", "price": 12, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 16 },
+    { "name": "Cigare (pako)", "price": 3, "vat_letter": "E", "vat_category": "18", "unit_code": "PK", "category_code": "DUH", "sort_order": 17 },
+    { "name": "Kafe espresso (pako)", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 18 },
+    { "name": "Kafe turke (pako)", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 19 },
+    { "name": "Çaj i paketuar (filter)", "price": 1.2, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 20 },
+    { "name": "Ushqim i gatshëm", "price": 3.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 21 },
+    { "name": "Sandviç", "price": 3.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 22 },
+    { "name": "Picë", "price": 3.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 23 },
+    { "name": "Çips", "price": 1.3, "vat_letter": "E", "vat_category": "18", "unit_code": "EA", "category_code": "AU", "sort_order": 24 },
+    { "name": "Snack", "price": 1.3, "vat_letter": "E", "vat_category": "18", "unit_code": "EA", "category_code": "AU", "sort_order": 25 },
+    { "name": "Akullore", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "EA", "category_code": "AU", "sort_order": 26 }
+  ]
+}

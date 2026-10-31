@@ -2028,6 +2028,26 @@
     </div>
   </div>
 
+  <div id="repair-wizard-overlay" class="payment-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="repair-wizard-title">
+    <div class="payment-box" style="max-width:560px;text-align:left">
+      <h2 id="repair-wizard-title" style="margin:0 0 6px">Riparim SEF (48h)</h2>
+      <p id="repair-wizard-deadline" class="sub" style="margin:0 0 10px;line-height:1.45;color:var(--muted)"></p>
+      <div id="repair-wizard-steps" style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;font-size:0.78rem"></div>
+      <h3 id="repair-wizard-step-title" style="margin:0 0 8px;font-size:1rem"></h3>
+      <p id="repair-wizard-step-desc" style="margin:0 0 8px;color:var(--muted);font-size:0.88rem;line-height:1.45"></p>
+      <pre id="repair-wizard-step-result" class="msg" style="white-space:pre-wrap;font-size:0.82rem;line-height:1.45;min-height:48px;margin:0 0 10px"></pre>
+      <div id="repair-wizard-step4-actions" class="hidden" style="margin:0 0 10px">
+        <button type="button" class="btn btn-warn" id="btn-repair-wizard-restore" style="width:auto">Hap rikthimin nga backup</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button type="button" class="btn btn-ghost" id="btn-repair-wizard-retry" style="width:auto">Provë përsëri</button>
+        <button type="button" class="btn btn-ghost" id="btn-repair-wizard-skip" style="width:auto">Kalo te hapi tjetër</button>
+        <button type="button" class="btn btn-primary" id="btn-repair-wizard-next" style="width:auto">Vazhdo</button>
+        <button type="button" class="btn btn-ghost" id="btn-repair-wizard-close">Mbyll</button>
+      </div>
+    </div>
+  </div>
+
   <div id="restore-backup-overlay" class="payment-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="restore-backup-title">
     <div class="payment-box">
       <h2 id="restore-backup-title">Kthe nga backup-i</h2>
@@ -2497,7 +2517,10 @@
     <!-- Z -->
     <section class="panel hidden" id="tab-z" style="grid-column: 1 / -1">
       <h2>Raporti Fiskal Ditor (Z-report)</h2>
-      <button type="button" class="btn btn-warn" id="btn-z" style="max-width:320px">Printo Raportin Z</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" class="btn btn-warn" id="btn-z" style="max-width:320px">Printo Raportin Z</button>
+        <button type="button" class="btn btn-primary" id="btn-z-send-atk" style="max-width:320px">Dërgo te ATK</button>
+      </div>
       <div class="msg" id="z-msg"></div>
     </section>
 
@@ -2847,6 +2870,7 @@
         <button type="button" class="btn btn-primary" id="btn-save-settings" style="width:auto;min-width:200px">Ruaj cilësimet</button>
         <button type="button" class="btn btn-ghost" id="btn-backup" style="width:auto;min-width:220px">Backup në USB / Folder</button>
         <button type="button" class="btn btn-warn" id="btn-restore-backup" style="width:auto;min-width:220px">Kthe nga backup-i</button>
+        <button type="button" class="btn btn-warn" id="btn-repair-wizard-open-settings" style="width:auto;min-width:220px">Riparim SEF (48h)</button>
         <button type="button" class="btn btn-ghost settings-btn-hidden" id="btn-self-test" style="width:auto;min-width:200px">Testo SEF-in</button>
         <button type="button" class="btn btn-warn" id="btn-send-pending" style="display:none;width:auto;min-width:200px" aria-hidden="true">Dërgo kuponët në pritje</button>
       </div>
@@ -6857,6 +6881,24 @@
       }
     }
 
+    function formatZDeliveryStatus(delivery) {
+      if (!delivery) return "";
+      const parts = [];
+      if (delivery.atk_sent) {
+        parts.push("ATK: Raporti Z u dërgua.");
+      } else if (delivery.unsupported || !delivery.atk_supported) {
+        parts.push(
+          "ATK nuk pranon raporte Z përmes sistemit — raporti është ruajtur lokalisht."
+        );
+      } else if (delivery.atk_message) {
+        parts.push(`ATK: ${delivery.atk_message}`);
+      }
+      if (delivery.pdf_path) {
+        parts.push(`PDF lokal: ${delivery.pdf_path}`);
+      }
+      return parts.length ? `\n\n---\n${parts.join("\n")}` : "";
+    }
+
     async function runZ() {
       const msg = document.getElementById("z-msg");
       try {
@@ -6870,9 +6912,34 @@
         setMsg(
           msg,
           (data.text || "") +
-            `\n\n---\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}`,
+            `\n\n---\nPrint: ${data.printed ? "PO" : "JO"} ${data.printMessage || ""}` +
+            formatZDeliveryStatus(data.delivery),
           true
         );
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
+    async function runZSendAtk() {
+      const msg = document.getElementById("z-msg");
+      try {
+        const data = await api("/api/fiscal/z-report/send-atk", {
+          method: "POST",
+          body: JSON.stringify({
+            operator_name: currentOperator(),
+            operator_id: currentOperatorId(),
+          }),
+        });
+        const delivery = data.delivery || {};
+        const text =
+          delivery.atk_sent
+            ? "Raporti Z u dërgua te ATK."
+            : delivery.unsupported || !delivery.atk_supported
+              ? "ATK nuk pranon raporte Z përmes sistemit — raporti është ruajtur lokalisht."
+              : data.message || delivery.atk_message || "Statusi i dërgimit u përditësua.";
+        const pdfLine = delivery.pdf_path ? `\nPDF: ${delivery.pdf_path}` : "";
+        setMsg(msg, text + pdfLine, delivery.atk_sent || !!delivery.pdf_path);
       } catch (e) {
         setMsg(msg, e.message, false);
       }
@@ -7984,6 +8051,7 @@
     populateCorrectionReasonSelect();
     document.getElementById("btn-x").addEventListener("click", runX);
     document.getElementById("btn-z").addEventListener("click", runZ);
+    document.getElementById("btn-z-send-atk").addEventListener("click", runZSendAtk);
     initPaymentUi();
     showTab("pos");
     ensureCartDelegation();
@@ -8124,6 +8192,190 @@
     }
     document.getElementById("btn-audit-csv").addEventListener("click", () => exportAudit("csv"));
     document.getElementById("btn-audit-pdf").addEventListener("click", () => exportAudit("pdf"));
+
+    const repairWizardState = { step: 1, results: {}, context: null, running: false };
+    const REPAIR_WIZARD_STEPS = [
+      {
+        id: 1,
+        title: "Hapi 1: Kontrollo lidhjen me ATK",
+        desc: "Verifikon internetin dhe arritshmërinë e serverit ATK (self-test fiskal).",
+      },
+      {
+        id: 2,
+        title: "Hapi 2: Kontrollo databazën",
+        desc: "Kontrollon tabelat fiskale, zinxhirin hash dhe fiscal_settings.",
+      },
+      {
+        id: 3,
+        title: "Hapi 3: Dërgo kuponët offline",
+        desc: "Dërgon kuponët në radhë që nuk janë dërguar te ATK.",
+      },
+      {
+        id: 4,
+        title: "Hapi 4: Kthe nga backup",
+        desc: "Nëse hapat e mëparshëm dështojnë, rikthe të dhënat nga backup-i i fundit.",
+      },
+      {
+        id: 5,
+        title: "Hapi 5: Konfirmo riparimin",
+        desc: "Përmbledhje e riparimit dhe afatit 48 orë.",
+      },
+    ];
+
+    function renderRepairWizardChrome() {
+      const d = repairWizardState.context?.deadline;
+      const el = document.getElementById("repair-wizard-deadline");
+      if (!el) return;
+      if (!d) {
+        el.textContent = "";
+        return;
+      }
+      const remain = Number(d.hours_remaining);
+      const past = !!d.past_deadline;
+      el.textContent = past
+        ? `KUJDES: Afati 48h i rikthimit SEF është tejkaluar (${d.hours_total}h).`
+        : `Afati rikthimit SEF: ~${Number.isFinite(remain) ? remain : d.hours_total}h mbeten (nga ${d.hours_total}h).`;
+      el.style.color = past ? "#fecaca" : "var(--muted)";
+      const stepsEl = document.getElementById("repair-wizard-steps");
+      if (stepsEl) {
+        stepsEl.innerHTML = REPAIR_WIZARD_STEPS.map((s) => {
+          const cur = s.id === repairWizardState.step;
+          const done = s.id < repairWizardState.step;
+          const mark = done ? "✓" : cur ? "●" : "○";
+          return `<span style="padding:2px 6px;border-radius:4px;border:1px solid var(--line);${cur ? "background:var(--panel2);font-weight:600" : ""}">${mark} ${s.id}</span>`;
+        }).join("");
+      }
+    }
+
+    function renderRepairWizardStepView() {
+      const step = REPAIR_WIZARD_STEPS.find((s) => s.id === repairWizardState.step) || REPAIR_WIZARD_STEPS[0];
+      document.getElementById("repair-wizard-step-title").textContent = step.title;
+      document.getElementById("repair-wizard-step-desc").textContent = step.desc;
+      const res = repairWizardState.results[repairWizardState.step];
+      const box = document.getElementById("repair-wizard-step-result");
+      if (res) {
+        const st = res.status || (res.ok ? "OK" : "Problem");
+        box.textContent = `Status: ${st}\n${res.detail || ""}`;
+        box.classList.toggle("ok", res.ok === true);
+        box.classList.toggle("err", res.ok === false);
+      } else {
+        box.textContent = repairWizardState.running ? "Duke ekzekutuar…" : "Kliko «Provë përsëri» ose «Vazhdo».";
+        box.classList.remove("ok", "err");
+      }
+      document.getElementById("repair-wizard-step4-actions").classList.toggle("hidden", step.id !== 4);
+      document.getElementById("btn-repair-wizard-skip").style.display = step.id >= 5 ? "none" : "";
+      document.getElementById("btn-repair-wizard-retry").style.display = step.id >= 5 ? "none" : "";
+      document.getElementById("btn-repair-wizard-next").textContent = step.id >= 5 ? "Mbyll" : "Vazhdo";
+      renderRepairWizardChrome();
+    }
+
+    async function refreshRepairWizardContext() {
+      const data = await api("/api/fiscal/repair-wizard/context");
+      repairWizardState.context = data;
+      renderRepairWizardChrome();
+    }
+
+    async function runRepairWizardStepApi(stepNum) {
+      repairWizardState.running = true;
+      renderRepairWizardStepView();
+      try {
+        const data = await api("/api/fiscal/repair-wizard/step/" + stepNum, {
+          method: "POST",
+          body: JSON.stringify({
+            operator_name: currentOperator(),
+            operator_id: currentOperatorId(),
+            step_results: repairWizardState.results,
+          }),
+        });
+        repairWizardState.results[stepNum] = data.result || data;
+        return repairWizardState.results[stepNum];
+      } finally {
+        repairWizardState.running = false;
+        renderRepairWizardStepView();
+      }
+    }
+
+    async function openRepairWizard() {
+      repairWizardState.step = 1;
+      repairWizardState.results = {};
+      document.getElementById("repair-wizard-overlay").classList.remove("hidden");
+      try {
+        await refreshRepairWizardContext();
+        await runRepairWizardStepApi(1);
+      } catch (e) {
+        document.getElementById("repair-wizard-step-result").textContent = e.message || "Gabim";
+        document.getElementById("repair-wizard-step-result").classList.add("err");
+      }
+      renderRepairWizardStepView();
+    }
+
+    function closeRepairWizard() {
+      document.getElementById("repair-wizard-overlay").classList.add("hidden");
+    }
+
+    function bindRepairWizardOpen(btnId) {
+      const el = document.getElementById(btnId);
+      if (!el) return;
+      el.addEventListener("click", () => {
+        openRepairWizard().catch((e) => alert(e.message || "Wizard dështoi"));
+      });
+    }
+    bindRepairWizardOpen("btn-repair-wizard-open-settings");
+    document.getElementById("btn-repair-wizard-close").addEventListener("click", closeRepairWizard);
+    document.getElementById("btn-repair-wizard-retry").addEventListener("click", async () => {
+      if (repairWizardState.step >= 5) return;
+      try {
+        if (repairWizardState.step <= 3) {
+          await runRepairWizardStepApi(repairWizardState.step);
+        } else if (repairWizardState.step === 5) {
+          await runRepairWizardStepApi(5);
+        } else {
+          renderRepairWizardStepView();
+        }
+      } catch (e) {
+        alert(e.message || "Gabim");
+      }
+    });
+    document.getElementById("btn-repair-wizard-skip").addEventListener("click", async () => {
+      if (repairWizardState.step >= 5) return;
+      repairWizardState.step += 1;
+      renderRepairWizardStepView();
+      if (repairWizardState.step <= 3) {
+        try {
+          await runRepairWizardStepApi(repairWizardState.step);
+        } catch (e) {
+          alert(e.message || "Gabim");
+        }
+      } else if (repairWizardState.step === 5) {
+        try {
+          await runRepairWizardStepApi(5);
+        } catch (e) {
+          alert(e.message || "Gabim");
+        }
+      }
+    });
+    document.getElementById("btn-repair-wizard-next").addEventListener("click", async () => {
+      if (repairWizardState.step >= 5) {
+        closeRepairWizard();
+        return;
+      }
+      repairWizardState.step += 1;
+      renderRepairWizardStepView();
+      try {
+        if (repairWizardState.step <= 3) {
+          await runRepairWizardStepApi(repairWizardState.step);
+        } else if (repairWizardState.step === 5) {
+          await runRepairWizardStepApi(5);
+        }
+      } catch (e) {
+        alert(e.message || "Gabim");
+      }
+    });
+    document.getElementById("btn-repair-wizard-restore").addEventListener("click", async () => {
+      closeRepairWizard();
+      await runRestoreFromBackup(document.getElementById("btn-restore-backup"));
+      repairWizardState.results[4] = { ok: true, status: "Manual", restore_done: true, detail: "Rikthimi nga backup u nis." };
+    });
 
     async function ngarkoAdminAuditLog() {
       const body = document.getElementById("admin-audit-log-body");

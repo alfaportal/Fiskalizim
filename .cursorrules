@@ -1,3 +1,14 @@
+## GOLDEN RULES — NEVER VIOLATE
+1. NEVER change any code without explicit permission from Naser. Ask first, wait for approval, then act.
+2. NEVER invent or add features on your own. Only implement exactly what Naser asks for — nothing more, nothing less.
+3. NEVER break existing functionality when fixing or adding something. Before any change, read the current code carefully. After any change, verify that everything still works.
+4. NEVER touch keys, links (?key=, kitchen key, etc.), fiscal certificates, or license code — these are off-limits permanently.
+5. NEVER run build without explicit permission from Naser. He decides when to build, not you.
+6. When given a task, do MAXIMUM 3 changes at a time — never more. Wait for confirmation before the next task.
+7. Before making any code change, READ the current state of the file first — never rely on memory or history.
+8. After making changes, VERIFY with real API calls that everything works. Do not say "it's done" without proof.
+
+---
 ## GOLDEN RULE — ZERO REGRESSIONS (highest priority, above all other rules)
 1. A fix must NEVER break something else. Before changing any function or file,
    find EVERY place that uses it (grep) and list them. After the change, re-test
