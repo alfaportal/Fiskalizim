@@ -1,5 +1,21 @@
 # PUNA — FISKALIZIME
 
+## 2026-11-01 — Pazari i ndërrimit si restoranti
+
+- Mbyllja e ndërrimit tani **shtyp** PAZARI I NDERRIMIT (tekst i thjeshtë).
+- Pa logo RKS/MF, pa QR, pa e-kuponi. Hapja mbetet me paratë e nisjes.
+- Skedarë: `fiskalizime-shift-report.js`, `fiskalizime-pos-shift.js`, `server.js`, `package.json`.
+- Nuk u prek ATK, BIZNES. Nuk u bë build.
+- Në PC: vetëm pas Setup të ri + mbyllje e plotë + hapje.
+
+## 2026-10-31 — Build 1.1.21 OK
+
+- `package.json` 1.1.20 → 1.1.21
+- Setup: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.1.21-win-x64.exe` (109133543 byte)
+- Të vjetrat mbeten (1.1.18, 1.1.19, 1.1.20) për kthim.
+- Në asar: `fiskalizime-pos-shift.js` (hapje/mbyllje ndërrimi te Arka).
+- Nuk u dërgua ATK. Në PC: instalo + mbyll plotësisht + hap përsëri.
+
 ## 2026-10-31 — Commit / push / deploy (nderrimi te Arka)
 
 - Commit: hapje/mbyllje ndërrimi te Arka (`fiskalizime-pos-shift.js`, `database.js`, `server.js`, `public/index.html`, `package.json`).

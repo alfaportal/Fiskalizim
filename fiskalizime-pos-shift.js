@@ -405,6 +405,102 @@ function closePosShift(operatorId, closingCashActual) {
   };
 }
 
+function parsePosOrderItems(itemsJson) {
+  let payload = {};
+  try {
+    payload = JSON.parse(itemsJson || "{}");
+  } catch {
+    payload = {};
+  }
+  const list = Array.isArray(payload) ? payload : payload.items;
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((it) => ({
+      name: String(it.name || it.product_name || "").trim(),
+      quantity: Number(it.quantity ?? it.qty) || 1,
+      price: Number(it.price ?? it.unit_price) || 0,
+    }))
+    .filter((it) => it.name && it.quantity > 0);
+}
+
+function getPosShiftSalesDetail(shiftId) {
+  const sid = Number(shiftId);
+  if (!sid) {
+    return { orders: [], item_summary: [], totals: computePosShiftTotals(0) };
+  }
+  const rows = sqliteRef
+    .prepare(
+      `SELECT id, total, payment_method, items_json, discount_total, created_at
+       FROM orders WHERE status = 'completed' AND shift_id = ?
+       ORDER BY datetime(created_at) ASC, id ASC`
+    )
+    .all(sid);
+  const orders = rows.map((e) => {
+    const items = parsePosOrderItems(e.items_json);
+    return {
+      total: round2(e.total),
+      payment_method: e.payment_method || "cash",
+      discount_total: round2(e.discount_total),
+      items,
+    };
+  });
+  const itemMap = new Map();
+  for (const order of orders) {
+    for (const it of order.items) {
+      const key = it.name.toLowerCase();
+      const line = round2(it.price * it.quantity);
+      const prev = itemMap.get(key);
+      if (prev) {
+        prev.quantity += it.quantity;
+        prev.line_total = round2(prev.line_total + line);
+      } else {
+        itemMap.set(key, {
+          name: it.name,
+          price: it.price,
+          quantity: it.quantity,
+          line_total: line,
+        });
+      }
+    }
+  }
+  const item_summary = [...itemMap.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "sq")
+  );
+  return {
+    orders,
+    item_summary,
+    totals: computePosShiftTotals(sid),
+  };
+}
+
+function buildPosShiftZReportData(shiftId) {
+  const sid = Number(shiftId);
+  const row = sqliteRef.prepare(`SELECT * FROM pos_shifts WHERE id = ?`).get(sid);
+  if (!row) throw new Error("Nderrimi nuk u gjet.");
+  if (!row.closed_at) throw new Error("Ky nderrim nuk është mbyllur ende.");
+  const totals = computePosShiftTotals(row.id);
+  return {
+    shift_id: row.id,
+    waiter_name: row.operator_name || "",
+    opened_at: row.opened_at,
+    closed_at: row.closed_at,
+    opening_cash: Number(row.opening_cash) || 0,
+    closing_cash_actual:
+      row.closing_cash_actual != null ? Number(row.closing_cash_actual) : null,
+    expected_closing_cash:
+      row.expected_closing_cash != null ? Number(row.expected_closing_cash) : null,
+    cash_difference: Number(row.cash_difference) || 0,
+    closing_reason: row.closing_reason || "",
+    order_count: totals.order_count,
+    total_sales: totals.total_sales,
+    cash_total: totals.cash_total,
+    card_total: totals.card_total,
+    discount_total: totals.discount_total,
+    by_category: [],
+    item_summary: getPosShiftSalesDetail(sid).item_summary || [],
+  };
+}
+
 let sqliteRef = null;
 
 function bindPosShiftDb(sqlite) {
@@ -418,6 +514,8 @@ module.exports = {
   getPosShiftSummary,
   openPosShift,
   closePosShift,
+  buildPosShiftZReportData,
+  getPosShiftSalesDetail,
   assertShiftReadyForSale,
   computePosShiftTotals,
   listPosShiftsInRange,

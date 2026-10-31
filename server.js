@@ -1728,20 +1728,66 @@ async function boot() {
     }
   });
 
-  app.post("/api/pos/shift/close", (req, res) => {
+  async function tryPrintClosedPosShiftPazar(shiftId) {
+    const printerMod = require("./printer");
+    const config = printerMod.getPrinterConfig(db);
+    const printEnabled = config.waiter_shift_print_enabled !== false;
+    if (!printEnabled) {
+      return {
+        print_enabled: false,
+        printed: false,
+        printMessage: "Printimi i pazarit është çaktivizuar nga pronari.",
+      };
+    }
+    const sid = Number(shiftId);
+    if (!sid) {
+      return { print_enabled: true, printed: false, printMessage: "Ndërrimi nuk u gjet për print." };
+    }
+    try {
+      const posShift = require("./fiskalizime-pos-shift");
+      const data = posShift.buildPosShiftZReportData(sid);
+      const { getFiscalSettings } = require("./fiscal/fiscal-config");
+      const fiscal = getFiscalSettings() || {};
+      const settings = db.getFiscalSettingsRow();
+      const bizName =
+        String(settings?.taxpayer_legal_name || "").trim() ||
+        String(fiscal?.biz_name || "").trim() ||
+        String(db.getSetting("business_name", "") || "").trim();
+      const { buildShiftCloseLines } = require("./fiskalizime-shift-report");
+      const paper = config.paper || "80mm";
+      const text = buildShiftCloseLines({
+        fiscal,
+        restaurantName: bizName,
+        data,
+        paper,
+      }).join("\n");
+      await printerMod.printPlainTextAt(text, db, "bar");
+      return { print_enabled: true, printed: true, printMessage: "Pazari u printua te printeri." };
+    } catch (e) {
+      return {
+        print_enabled: true,
+        printed: false,
+        printMessage: e.message || "Printimi dështoi.",
+      };
+    }
+  }
+
+  app.post("/api/pos/shift/close", async (req, res) => {
     try {
       const operatorDbId = resolveOperatorDbId(req);
       if (!operatorDbId) {
         return res.status(400).json({ ok: false, error: "Shto një punonjës te Punonjësit para se të hapësh nderrimin." });
       }
       const closed = db.closePosShift(operatorDbId, req.body?.closing_cash_actual ?? 0);
+      const print = await tryPrintClosedPosShiftPazar(closed.shift_id);
       res.json({
         ok: true,
         ...closed,
         closed,
         shift_ended: true,
-        print_enabled: false,
-        printed: false,
+        print_enabled: print.print_enabled,
+        printed: print.printed,
+        printMessage: print.printMessage,
       });
     } catch (e) {
       res.status(400).json(shiftErrorPayload(e));
