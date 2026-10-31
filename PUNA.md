@@ -1,5 +1,29 @@
 # PUNA — FISKALIZIME
 
+## 2026-10-31 — Commit / push / deploy (nderrimi te Arka)
+
+- Commit: hapje/mbyllje ndërrimi te Arka (`fiskalizime-pos-shift.js`, `database.js`, `server.js`, `public/index.html`, `package.json`).
+- Nuk u shtuan Setup, `.protected-build`, çelësa.
+- Push `origin/main` + deploy Railway. Nuk u dërgua ATK. Nuk u bë build.
+- Në PC: vetëm pas Setup të ri.
+
+## 2026-10-31 — Nderrimi te Arka (si Butiku)
+
+- Te Arka: **Mbyll nderrimin** pranë MONEDHA NË ARKË.
+- Hapje: sa para ke në arkë. Mbyllje: cash/kartë + paratë e pritshme.
+- Shitjet lidhen me nderrimin. Te Ditari del tabela Nderrimet.
+- Skedarë: `fiskalizime-pos-shift.js`, `database.js`, `server.js`, `public/index.html`, `package.json`.
+- Nuk u prek `fiscal/**`, ATK. Nuk u bë build.
+- Në PC: vetëm pas Setup të ri + mbyllje e plotë + hapje.
+
+## 2026-10-31 — Build 1.1.20 OK
+
+- `package.json` 1.1.19 → 1.1.20
+- Setup: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.1.20-win-x64.exe` (109127318 byte)
+- Të vjetrat mbeten (1.1.18, 1.1.19) për kthim.
+- Në asar: `auto-backup-location.cjs` (një folder pas ikonës).
+- Nuk u dërgua ATK. Në PC: instalo + mbyll plotësisht + hap përsëri.
+
 ## 2026-10-31 — Commit / push / deploy (backup pas ikonës)
 
 - Commit: një folder backup pas ikonës (`auto-backup-location.cjs`, `auto-backup.js`, `main.js`, `server.js`, `PUNA.md`, version 1.1.19).

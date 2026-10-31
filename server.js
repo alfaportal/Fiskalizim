@@ -37,6 +37,27 @@ function resolveBodyOperatorId(req) {
   return String(req.body?.operator_id || "POS").trim() || "POS";
 }
 
+function resolveOperatorDbId(req) {
+  const direct = Number(req.body?.operator_db_id || req.query?.operator_db_id);
+  if (direct > 0) return direct;
+  try {
+    return db.resolveShiftOperatorId(
+      req.body?.operator_id || req.query?.operator_id,
+      req.body?.operator_name || req.query?.operator_name
+    );
+  } catch {
+    return 0;
+  }
+}
+
+function shiftErrorPayload(e) {
+  return {
+    ok: false,
+    shift_required: e && e.code === "SHIFT_OPENING_REQUIRED",
+    error: e && e.message ? e.message : "Nderrimi dështoi.",
+  };
+}
+
 /** Tekst i përbashkët për Modin X, Raportin Z dhe raportin periodik. */
 function buildFiscalDayReportText(details, settings, mode) {
   syncReportLanguage(settings);
@@ -1470,6 +1491,7 @@ async function boot() {
         items: req.body?.items || [],
         payment_method: req.body?.payment_method || "cash",
         operator_name: req.body?.operator_name || "Operator",
+        operator_id: req.body?.operator_id || "POS",
         cart_discount: req.body?.cart_discount || null,
         cart_surcharge: req.body?.cart_surcharge || null,
         payment_splits: req.body?.payment_splits || null,
@@ -1509,6 +1531,9 @@ async function boot() {
         printMessage,
       });
     } catch (e) {
+      if (e && e.code === "SHIFT_OPENING_REQUIRED") {
+        return res.status(409).json(shiftErrorPayload(e));
+      }
       res.status(400).json({ ok: false, error: e.message });
     }
   });
@@ -1675,6 +1700,54 @@ async function boot() {
     }
   });
 
+  app.get("/api/pos/shift", (req, res) => {
+    try {
+      const operatorDbId = resolveOperatorDbId(req);
+      if (!operatorDbId) {
+        return res.status(400).json({ ok: false, error: "Shto një punonjës te Punonjësit para se të hapësh nderrimin." });
+      }
+      const operatorName = String(req.query?.operator_name || "").trim();
+      const summary = db.getPosShiftSummary(operatorDbId, operatorName);
+      res.json({ ok: true, operator_db_id: operatorDbId, ...summary });
+    } catch (e) {
+      res.status(400).json(shiftErrorPayload(e));
+    }
+  });
+
+  app.post("/api/pos/shift/open", (req, res) => {
+    try {
+      const operatorDbId = resolveOperatorDbId(req);
+      if (!operatorDbId) {
+        return res.status(400).json({ ok: false, error: "Shto një punonjës te Punonjësit para se të hapësh nderrimin." });
+      }
+      const operatorName = String(req.body?.operator_name || "Operator").trim() || "Operator";
+      const summary = db.openPosShift(operatorDbId, operatorName, req.body?.opening_cash ?? 0);
+      res.json({ ok: true, operator_db_id: operatorDbId, ...summary });
+    } catch (e) {
+      res.status(400).json(shiftErrorPayload(e));
+    }
+  });
+
+  app.post("/api/pos/shift/close", (req, res) => {
+    try {
+      const operatorDbId = resolveOperatorDbId(req);
+      if (!operatorDbId) {
+        return res.status(400).json({ ok: false, error: "Shto një punonjës te Punonjësit para se të hapësh nderrimin." });
+      }
+      const closed = db.closePosShift(operatorDbId, req.body?.closing_cash_actual ?? 0);
+      res.json({
+        ok: true,
+        ...closed,
+        closed,
+        shift_ended: true,
+        print_enabled: false,
+        printed: false,
+      });
+    } catch (e) {
+      res.status(400).json(shiftErrorPayload(e));
+    }
+  });
+
   function saleSnapshotFromOrderRow(order) {
     if (!order) return null;
     let payload = {};
@@ -1788,6 +1861,7 @@ async function boot() {
         items: req.body?.items || [],
         payment_method: req.body?.payment_method || "cash",
         operator_name: req.body?.operator_name || "Operator",
+        operator_id: req.body?.operator_id || "POS",
         cart_discount: req.body?.cart_discount || null,
         cart_surcharge: req.body?.cart_surcharge || null,
         payment_splits: req.body?.payment_splits || null,
@@ -1850,6 +1924,9 @@ async function boot() {
       });
     } catch (e) {
       console.error("[checkout]", e);
+      if (e && e.code === "SHIFT_OPENING_REQUIRED") {
+        return res.status(409).json(shiftErrorPayload(e));
+      }
       res.status(400).json({ ok: false, error: e.message });
     }
   });
@@ -2787,6 +2864,7 @@ async function boot() {
         items: saleItems,
         payment_method: paymentMethod,
         operator_name: req.body?.operator_name || "Operator",
+        operator_id: req.body?.operator_id || "POS",
       });
 
       const fiscalNew = await processFiscalReceipt(sale.id, sale.payment_method, {

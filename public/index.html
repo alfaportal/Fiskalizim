@@ -133,6 +133,106 @@
       line-height: 1.1;
       color: #fbbf24;
     }
+    .pos-dock-shift-close {
+      white-space: nowrap;
+      width: auto;
+      min-width: 0;
+      padding: 0.4rem 0.7rem;
+      font-size: 0.78rem;
+    }
+    .shift-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(15, 23, 42, 0.55);
+    }
+    .shift-overlay[hidden] { display: none !important; }
+    .shift-start-card {
+      position: relative;
+      width: 100%;
+      max-width: 380px;
+      background: #fff;
+      border-radius: 20px;
+      padding: 1.75rem 1.5rem 1.5rem;
+      text-align: center;
+      color: #0f172a;
+    }
+    .shift-open-dismiss {
+      position: absolute;
+      top: 0.65rem;
+      right: 0.75rem;
+      border: none;
+      background: transparent;
+      font-size: 1.35rem;
+      cursor: pointer;
+      color: #64748b;
+    }
+    .shift-start-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 1rem;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #22c55e, #16a34a);
+      color: #fff;
+      font-size: 1.65rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shift-start-title { margin: 0 0 0.35rem; font-size: 1.25rem; font-weight: 800; color: #0f172a; }
+    .shift-start-q { margin: 0; font-size: 0.92rem; color: #2563eb; font-weight: 600; }
+    .shift-amount-display {
+      background: #f1f5f9;
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      font-size: 2rem;
+      font-weight: 900;
+      color: #0f172a;
+      margin: 0.85rem 0;
+    }
+    .shift-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 0.75rem; }
+    .shift-key {
+      min-height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: #f1f5f9;
+      font-size: 1.15rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #0f172a;
+    }
+    .shift-presets { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-bottom: 0.75rem; }
+    .shift-preset {
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: #0f172a;
+    }
+    .shift-start-btn {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      background: #16a34a;
+      color: #fff;
+      font-weight: 800;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+    }
+    .shift-close-summary { margin: 0.75rem 0 0; text-align: left; font-size: 0.88rem; }
+    .shift-close-summary div { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0; }
+    .shift-close-summary .shift-close-expected { font-weight: 800; border-top: 1px solid #e2e8f0; margin-top: 0.35rem; padding-top: 0.45rem; }
+    .shift-close-actions { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.5rem; }
+    .shift-diff-short { color: #dc2626; }
+    .shift-diff-over { color: #ca8a04; }
+    .shift-diff-ok { color: #16a34a; }
     .topbar-status {
       display: flex;
       align-items: center;
@@ -2121,6 +2221,75 @@
     </div>
   </div>
 
+  <div id="modal-pos-shift-open" class="shift-overlay" hidden>
+    <div class="shift-start-card">
+      <button type="button" class="shift-open-dismiss" id="btn-pos-shift-open-dismiss" aria-label="Mbyll">×</button>
+      <div class="shift-start-icon" aria-hidden="true">€</div>
+      <h2 class="shift-start-title">Mirë se erdhe, <span id="pos-shift-open-operator"></span>!</h2>
+      <p class="shift-start-q">Sa para ke në arkë në fillim të nderrimit?</p>
+      <div class="shift-amount-display" id="pos-shift-open-display">€0</div>
+      <div class="shift-keypad" id="pos-shift-open-keypad">
+        <button type="button" class="shift-key" data-digit="1">1</button>
+        <button type="button" class="shift-key" data-digit="2">2</button>
+        <button type="button" class="shift-key" data-digit="3">3</button>
+        <button type="button" class="shift-key" data-digit="4">4</button>
+        <button type="button" class="shift-key" data-digit="5">5</button>
+        <button type="button" class="shift-key" data-digit="6">6</button>
+        <button type="button" class="shift-key" data-digit="7">7</button>
+        <button type="button" class="shift-key" data-digit="8">8</button>
+        <button type="button" class="shift-key" data-digit="9">9</button>
+        <button type="button" class="shift-key" data-digit=".">.</button>
+        <button type="button" class="shift-key" data-digit="0">0</button>
+        <button type="button" class="shift-key shift-key-back" data-action="back" aria-label="Fshi">⌫</button>
+      </div>
+      <div class="shift-presets">
+        <button type="button" class="shift-preset" data-amount="0">€0</button>
+        <button type="button" class="shift-preset" data-amount="20">€20</button>
+        <button type="button" class="shift-preset" data-amount="50">€50</button>
+        <button type="button" class="shift-preset" data-amount="100">€100</button>
+      </div>
+      <button type="button" class="shift-start-btn" id="btn-pos-shift-open-start">Fillo me 0.00 € në arkë</button>
+      <div id="pos-shift-open-msg" class="msg" style="min-height:1.2em;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div id="modal-pos-shift-close" class="shift-overlay" hidden>
+    <div class="shift-start-card shift-close-card">
+      <h2 class="shift-start-title">Mbyll nderrimin</h2>
+      <p class="shift-start-q">Numëroni paratë në arkë dhe barazoni me raportin.</p>
+      <dl class="shift-close-summary">
+        <div><dt>Paratë e nisjes</dt><dd id="pos-shift-close-opening">0.00 €</dd></div>
+        <div><dt>Shitje cash</dt><dd id="pos-shift-close-cash-sales">0.00 €</dd></div>
+        <div><dt>Shitje kartë</dt><dd id="pos-shift-close-card-sales">0.00 €</dd></div>
+        <div class="shift-close-expected"><dt>Paratë e pritshme në arkë</dt><dd id="pos-shift-close-expected">0.00 €</dd></div>
+      </dl>
+      <div class="shift-amount-display" id="pos-shift-close-display">€0</div>
+      <div class="shift-keypad" id="pos-shift-close-keypad">
+        <button type="button" class="shift-key" data-digit="1">1</button>
+        <button type="button" class="shift-key" data-digit="2">2</button>
+        <button type="button" class="shift-key" data-digit="3">3</button>
+        <button type="button" class="shift-key" data-digit="4">4</button>
+        <button type="button" class="shift-key" data-digit="5">5</button>
+        <button type="button" class="shift-key" data-digit="6">6</button>
+        <button type="button" class="shift-key" data-digit="7">7</button>
+        <button type="button" class="shift-key" data-digit="8">8</button>
+        <button type="button" class="shift-key" data-digit="9">9</button>
+        <button type="button" class="shift-key" data-digit=".">.</button>
+        <button type="button" class="shift-key" data-digit="0">0</button>
+        <button type="button" class="shift-key shift-key-back" data-action="back" aria-label="Fshi">⌫</button>
+      </div>
+      <div id="pos-shift-close-diff-wrap" hidden>
+        <span id="pos-shift-close-diff-label"></span>
+        <strong id="pos-shift-close-diff-value"></strong>
+      </div>
+      <div class="shift-close-actions">
+        <button type="button" class="shift-start-btn" id="btn-pos-shift-close-confirm">Mbyll nderrimin</button>
+        <button type="button" class="btn btn-ghost" id="btn-pos-shift-close-cancel">Anulo</button>
+      </div>
+      <div id="pos-shift-close-msg" class="msg" style="min-height:1.2em;margin-top:8px"></div>
+    </div>
+  </div>
+
   <header class="app-dock">
     <div class="dock-brand">
       <img src="/img/revolution-logo.png" width="36" height="36" alt="Revolution" />
@@ -2145,8 +2314,11 @@
     <div class="dock-session-actions">
       <div class="pos-dock-shift-cash" id="pos-dock-shift-cash">
         <span class="retail-pos-band-lbl">MONEDHA NË ARKË</span>
-        <strong class="retail-pos-band-val" id="pos-shift-drawer-cash">0.00 €</strong>
+        <strong class="retail-pos-band-val pos-shift-drawer-cash-val" id="pos-shift-drawer-cash">0.00 €</strong>
       </div>
+      <button type="button" class="btn btn-warn btn-sm js-pos-shift-close pos-dock-shift-close" id="btn-pos-mbyll-nderrimin-dock">
+        Mbyll nderrimin
+      </button>
     </div>
     <span class="dock-queue" id="footer-offline-queue"></span>
   </header>
@@ -2595,6 +2767,25 @@
         <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">KARTË</div><div id="p2-ditari-card" style="font-weight:800">0.00 €</div></div>
       </div>
       <p class="msg" id="ditari-msg" style="min-height:1.2em;margin:0 0 0.5rem"></p>
+      <h3 style="margin:0.75rem 0 0.4rem;font-size:1rem">Nderrimet</h3>
+      <p id="p2-ditari-shift-count" style="margin:0 0 0.4rem;font-size:0.82rem;color:var(--muted)">0 nderrime</p>
+      <div style="overflow-x:auto;max-height:220px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px">
+        <table style="width:100%;font-size:0.82rem;border-collapse:collapse">
+          <thead>
+            <tr style="color:var(--muted);text-align:left">
+              <th style="padding:0.35rem 0.5rem">Hapur</th>
+              <th style="padding:0.35rem 0.5rem">Mbyllur</th>
+              <th style="padding:0.35rem 0.5rem">Operatori</th>
+              <th style="padding:0.35rem 0.5rem">Cash</th>
+              <th style="padding:0.35rem 0.5rem">Kartë</th>
+              <th style="padding:0.35rem 0.5rem">Totali</th>
+            </tr>
+          </thead>
+          <tbody id="p2-ditari-shifts">
+            <tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka nderrime.</td></tr>
+          </tbody>
+        </table>
+      </div>
       <div style="overflow-x:auto;max-height:460px;border:1px solid var(--line);border-radius:8px">
         <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
           <thead>
@@ -4516,6 +4707,7 @@
         err.disk_full = !!data.disk_full;
         err.db_decrypt_failed = !!data.db_decrypt_failed;
         err.private_key_failed = !!data.private_key_failed;
+        err.shift_required = !!data.shift_required;
         throw err;
       }
       return data;
@@ -6500,6 +6692,10 @@
     }
 
     async function refreshArkaSotCash() {
+      if (window.FiskalizimePosShift && typeof window.FiskalizimePosShift.refresh === "function") {
+        await window.FiskalizimePosShift.refresh();
+        return;
+      }
       const el = document.getElementById("pos-shift-drawer-cash");
       if (!el) return;
       try {
@@ -6784,6 +6980,11 @@
           renderOfflineQueueFooter({ offline_queue_count: f.offline_queue, pending_count: f.offline_queue });
         }
       } catch (e) {
+        if (e.shift_required) {
+          setMsg(msg, e.message || "Hap nderrimin para pagesës.", false);
+          window.FiskalizimePosShift?.refresh?.();
+          return;
+        }
         setMsg(msg, e.message, false);
         if (e.db_decrypt_failed) applyDbDecryptUi(true);
         if (e.private_key_failed && e.message) {
@@ -8587,6 +8788,29 @@
         if (toEl && data.dateTo) toEl.value = String(data.dateTo).slice(0, 10);
         paintDitariPeriodButtons();
         renderDitariList();
+        const shifts = Array.isArray(data.shifts) ? data.shifts : [];
+        const stBody = document.getElementById("p2-ditari-shifts");
+        const stCount = document.getElementById("p2-ditari-shift-count");
+        if (stCount) stCount.textContent = `${shifts.length} nderrime`;
+        if (stBody) {
+          if (!shifts.length) {
+            stBody.innerHTML = '<tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka nderrime për këtë periudhë.</td></tr>';
+          } else {
+            stBody.innerHTML = shifts
+              .map(
+                (s) =>
+                  `<tr>` +
+                  `<td style="padding:0.35rem 0.5rem">${esc(s.open_label || "—")}</td>` +
+                  `<td style="padding:0.35rem 0.5rem">${esc(s.is_open ? "Hapur" : s.close_label || "—")}</td>` +
+                  `<td style="padding:0.35rem 0.5rem">${esc(s.operator_name || "—")}</td>` +
+                  `<td style="padding:0.35rem 0.5rem">${euro(s.cash_total)}</td>` +
+                  `<td style="padding:0.35rem 0.5rem">${euro(s.card_total)}</td>` +
+                  `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(s.total_sales)}</td>` +
+                  `</tr>`
+              )
+              .join("");
+          }
+        }
         if (msg) setMsg(msg, data.periodLabel || "", true);
       } catch (e) {
         ditariEntriesCache = [];
@@ -9797,6 +10021,7 @@
       renderCart();
       loadSettings().catch(() => {});
       refreshArkaSotCash();
+      window.FiskalizimePosShift?.refresh?.();
       refreshOfflineQueueUi().catch(() => {});
       refreshDiskStatusUi().catch(() => {});
       watchAutoBackupOnStartup().catch(() => {});
@@ -10145,6 +10370,255 @@
           btn.innerHTML = "🔗 Lidhu me ATK — numri i ri (certifikatë e re)";
         }
       } catch (e) {}
+    })();
+
+    (function bindFiskalizimePosShift() {
+      function euroShift(n) {
+        return `${Number(n || 0).toFixed(2)} €`;
+      }
+      function operatorDbId() {
+        return Number(state.operator_db_id) || 0;
+      }
+      function syncMbyllButton(s) {
+        const open = !!(s && s.shift_open && !s.needs_opening_cash);
+        document.querySelectorAll(".js-pos-shift-close").forEach((btn) => {
+          btn.disabled = !open;
+          btn.textContent = open ? "Mbyll nderrimin" : "Nderrimi u mbyll";
+        });
+      }
+      function paintSummary(s) {
+        if (!s) return;
+        const drawer =
+          s.drawer_cash != null ? s.drawer_cash : (Number(s.opening_cash) || 0) + (Number(s.cash_total) || 0);
+        const cashText = s.needs_opening_cash ? "—" : euroShift(drawer);
+        document.querySelectorAll(".pos-shift-drawer-cash-val").forEach((el) => {
+          el.textContent = cashText;
+        });
+        syncMbyllButton(s);
+      }
+      function createCashKeypad(cfg) {
+        let raw = String(cfg.initial ?? "0");
+        function normalize() {
+          if (!raw || raw === ".") raw = "0";
+          const parts = raw.split(".");
+          if (parts.length > 2) raw = `${parts[0]}.${parts.slice(1).join("")}`;
+          if (parts[1]?.length > 2) raw = `${parts[0]}.${parts[1].slice(0, 2)}`;
+        }
+        function render() {
+          normalize();
+          const n = Number(raw) || 0;
+          let text = raw.includes(".") ? raw : String(n);
+          if (!raw.includes(".") && n > 0) text = String(Math.round(n) === n ? n : n.toFixed(2));
+          if (cfg.displayEl) cfg.displayEl.textContent = `€${text}`;
+          cfg.onChange?.(n, raw);
+        }
+        cfg.keypadEl?.querySelectorAll(".shift-key").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (btn.dataset.action === "back") raw = raw.length <= 1 ? "0" : raw.slice(0, -1);
+            else {
+              const d = btn.dataset.digit;
+              if (d === "." && raw.includes(".")) return;
+              raw = raw === "0" && d !== "." ? d : raw + d;
+            }
+            render();
+          });
+        });
+        cfg.presetRoot?.querySelectorAll(".shift-preset").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            raw = String(btn.dataset.amount || "0");
+            render();
+          });
+        });
+        render();
+        return {
+          getValue() {
+            normalize();
+            return Number(raw) || 0;
+          },
+          setValue(v) {
+            raw = String(v ?? "0");
+            render();
+          },
+        };
+      }
+      let openPad = null;
+      let closePad = null;
+      let closePreview = null;
+      function showOpenModal(summary) {
+        const modal = document.getElementById("modal-pos-shift-open");
+        if (!modal) return;
+        const nameEl = document.getElementById("pos-shift-open-operator");
+        if (nameEl) nameEl.textContent = currentOperator();
+        if (!openPad) {
+          openPad = createCashKeypad({
+            displayEl: document.getElementById("pos-shift-open-display"),
+            keypadEl: document.getElementById("pos-shift-open-keypad"),
+            presetRoot: document.querySelector("#modal-pos-shift-open .shift-presets"),
+            initial: "0",
+            onChange: (n) => {
+              const btn = document.getElementById("btn-pos-shift-open-start");
+              if (btn) btn.textContent = `Fillo me ${euroShift(n)} në arkë`;
+            },
+          });
+        } else {
+          openPad.setValue(summary?.opening_cash != null ? summary.opening_cash : 0);
+        }
+        modal.hidden = false;
+      }
+      function hideOpenModal() {
+        const modal = document.getElementById("modal-pos-shift-open");
+        if (modal) modal.hidden = true;
+      }
+      function showCloseModal(summary) {
+        const modal = document.getElementById("modal-pos-shift-close");
+        if (!modal) return;
+        closePreview = summary;
+        const set = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = euroShift(val);
+        };
+        set("pos-shift-close-opening", Number(summary?.opening_cash) || 0);
+        set("pos-shift-close-cash-sales", Number(summary?.cash_total) || 0);
+        set("pos-shift-close-card-sales", Number(summary?.card_total) || 0);
+        set("pos-shift-close-expected", Number(summary?.expected_closing_cash) || 0);
+        if (!closePad) {
+          closePad = createCashKeypad({
+            displayEl: document.getElementById("pos-shift-close-display"),
+            keypadEl: document.getElementById("pos-shift-close-keypad"),
+            initial: String(Number(summary?.expected_closing_cash) || 0),
+            onChange: (actual) => {
+              const exp = Number(closePreview?.expected_closing_cash) || 0;
+              const diff = Math.round((actual - exp) * 100) / 100;
+              const wrap = document.getElementById("pos-shift-close-diff-wrap");
+              const val = document.getElementById("pos-shift-close-diff-value");
+              const lbl = document.getElementById("pos-shift-close-diff-label");
+              if (!wrap || !val || !lbl) return;
+              wrap.hidden = false;
+              val.textContent = (diff >= 0 ? "+" : "") + euroShift(diff);
+              val.className =
+                diff < -0.005 ? "shift-diff-short" : diff > 0.005 ? "shift-diff-over" : "shift-diff-ok";
+              lbl.textContent = Math.abs(diff) < 0.005 ? "Barazim" : diff < 0 ? "Mungesë" : "Tepricë";
+            },
+          });
+        } else {
+          closePad.setValue(Number(summary?.expected_closing_cash) || 0);
+        }
+        modal.hidden = false;
+      }
+      function hideCloseModal() {
+        const modal = document.getElementById("modal-pos-shift-close");
+        if (modal) modal.hidden = true;
+      }
+      async function refresh() {
+        try {
+          const q = new URLSearchParams({
+            operator_id: currentOperatorId(),
+            operator_name: currentOperator(),
+          });
+          if (operatorDbId()) q.set("operator_db_id", String(operatorDbId()));
+          const s = await api(`/api/pos/shift?${q.toString()}`);
+          if (s.operator_db_id) state.operator_db_id = s.operator_db_id;
+          paintSummary(s);
+          if (s.needs_opening_cash || !s.shift_open) showOpenModal(s);
+          return s;
+        } catch {
+          return null;
+        }
+      }
+      async function openShiftSubmit() {
+        if (!openPad) return;
+        const msg = document.getElementById("pos-shift-open-msg");
+        try {
+          const data = await api("/api/pos/shift/open", {
+            method: "POST",
+            body: JSON.stringify({
+              operator_id: currentOperatorId(),
+              operator_db_id: operatorDbId() || undefined,
+              operator_name: currentOperator(),
+              opening_cash: openPad.getValue(),
+            }),
+          });
+          if (data.operator_db_id) state.operator_db_id = data.operator_db_id;
+          if (msg) msg.textContent = "";
+          hideOpenModal();
+          paintSummary(data);
+          if (document.getElementById("tab-ditari") && !document.getElementById("tab-ditari").classList.contains("hidden")) {
+            loadDitari().catch(() => {});
+          }
+        } catch (e) {
+          if (msg) {
+            msg.textContent = e.message || "Hapja dështoi";
+            msg.classList.add("err");
+          }
+        }
+      }
+      async function closeShiftSubmit() {
+        if (!closePad) return;
+        const msg = document.getElementById("pos-shift-close-msg");
+        const confirmBtn = document.getElementById("btn-pos-shift-close-confirm");
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = "Duke mbyllur...";
+        }
+        try {
+          const res = await api("/api/pos/shift/close", {
+            method: "POST",
+            body: JSON.stringify({
+              operator_id: currentOperatorId(),
+              operator_db_id: operatorDbId() || undefined,
+              operator_name: currentOperator(),
+              closing_cash_actual: closePad.getValue(),
+            }),
+          });
+          if (msg) msg.textContent = "";
+          hideCloseModal();
+          if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Mbyll nderrimin";
+          }
+          paintSummary({
+            shift_open: false,
+            drawer_cash: null,
+            needs_opening_cash: true,
+            opening_cash: null,
+            cash_total: 0,
+          });
+          const diff = Number(res.cash_difference) || 0;
+          alert(
+            `Nderrimi u mbyll.\nPorosi: ${res.order_count || 0}\nShitje: ${euroShift(res.total_sales)}\nCash: ${euroShift(res.cash_total)} · Kartë: ${euroShift(res.card_total)}\nArka (fakt): ${euroShift(res.closing_cash_actual)}` +
+              (Math.abs(diff) >= 0.005 ? `\n${diff < 0 ? "Mungesë" : "Tepricë"}: ${euroShift(Math.abs(diff))}` : "") +
+              `\n\nHerën tjetër që hyni, vendosni paratë e nisjes.`
+          );
+          showOpenModal(null);
+          if (document.getElementById("tab-ditari") && !document.getElementById("tab-ditari").classList.contains("hidden")) {
+            loadDitari().catch(() => {});
+          }
+        } catch (e) {
+          if (msg) {
+            msg.textContent = e.message || "Mbyllja dështoi";
+            msg.classList.add("err");
+          }
+          if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = "Mbyll nderrimin";
+          }
+        }
+      }
+      document.querySelectorAll(".js-pos-shift-close").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const s = await refresh();
+          if (!s?.shift_open) {
+            showOpenModal(s);
+            return;
+          }
+          showCloseModal(s);
+        });
+      });
+      document.getElementById("btn-pos-shift-open-start")?.addEventListener("click", openShiftSubmit);
+      document.getElementById("btn-pos-shift-close-confirm")?.addEventListener("click", closeShiftSubmit);
+      document.getElementById("btn-pos-shift-open-dismiss")?.addEventListener("click", hideOpenModal);
+      document.getElementById("btn-pos-shift-close-cancel")?.addEventListener("click", hideCloseModal);
+      window.FiskalizimePosShift = { refresh, showOpenModal, paintSummary };
     })();
   </script>
   <script src="/js/licenca-app.js"></script>

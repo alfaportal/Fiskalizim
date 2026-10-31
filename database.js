@@ -1100,6 +1100,7 @@ async function initDatabase() {
     sqlite = wrapDb(rawDb);
     try {
       initSchema();
+      require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
     } catch (e) {
       if (/not a database|malformed|corrupt/i.test(String(e.message || e))) {
         if (!dbDecryptFailed) {
@@ -1108,6 +1109,7 @@ async function initDatabase() {
         rawDb = new SQL.Database();
         sqlite = wrapDb(rawDb);
         initSchema();
+        require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
         if (!dbDecryptFailed) {
           saveDb();
           console.warn("[biznes] u krijua biznes.db e re (skema e pastër)");
@@ -1198,6 +1200,11 @@ async function reloadDatabaseFromDisk() {
   rawDb = nextRaw;
   sqlite = wrapDb(rawDb);
   module.exports.db = sqlite;
+  try {
+    require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
+  } catch (e) {
+    console.warn("[biznes] pos-shift reload:", e.message);
+  }
 
   try {
     const keysDir = path.join(DB_DIR, "fiscal-keys");
@@ -1587,10 +1594,29 @@ function previewSaleTotals({ items, cart_discount, cart_surcharge }) {
   return { items: normalized, subtotal, discount_total: cartDisc, surcharge_total: cartSur, total };
 }
 
+function resolveShiftOperatorId(operatorId, operatorName) {
+  const pin = String(operatorId || "").trim();
+  if (pin && pin !== "POS") {
+    const op = getOperatorByPin(pin);
+    if (op?.id) return Number(op.id);
+  }
+  const name = String(operatorName || "").trim();
+  if (name) {
+    const hit = getOperators({ includeInactive: false }).find(
+      (o) => String(o.name || "").trim() === name
+    );
+    if (hit?.id) return Number(hit.id);
+  }
+  const first = getOperators({ includeInactive: false })[0];
+  if (first?.id) return Number(first.id);
+  throw new Error("Shto një punonjës te Punonjësit para se të hapësh nderrimin.");
+}
+
 function createSale({
   items,
   payment_method,
   operator_name,
+  operator_id,
   cart_discount,
   cart_surcharge,
   payment_splits,
@@ -1622,6 +1648,9 @@ function createSale({
 
   const payment = normalizePaymentMethod(payment_method, splits);
   const op = String(operator_name || "Operator").trim() || "Operator";
+  const oid = resolveShiftOperatorId(operator_id, op);
+  const shiftMod = require("./fiskalizime-pos-shift");
+  const shift = shiftMod.assertShiftReadyForSale(oid, op);
 
   const payload = {
     items: normalized,
@@ -1632,10 +1661,10 @@ function createSale({
 
   const result = sqlite
     .prepare(
-      `INSERT INTO orders (items_json, total, subtotal, discount_total, payment_method, waiter_name, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'completed')`
+      `INSERT INTO orders (items_json, total, subtotal, discount_total, payment_method, waiter_name, status, shift_id, operator_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'completed', ?, ?)`
     )
-    .run(JSON.stringify(payload), total, subtotal, cartDisc, payment, op);
+    .run(JSON.stringify(payload), total, subtotal, cartDisc, payment, op, shift.id, oid);
 
   const orderId = Number(result.lastInsertRowid);
   return {
@@ -1648,6 +1677,8 @@ function createSale({
     payment_method: payment,
     payment_splits: splits,
     operator_name: op,
+    shift_id: shift.id,
+    operator_db_id: oid,
   };
 }
 
@@ -1963,6 +1994,13 @@ function getDitari(opts = {}) {
     totalKarte: round2(totalKarte),
     orderCount: completed.length,
     entries: parsed,
+    shifts: (() => {
+      try {
+        return require("./fiskalizime-pos-shift").listPosShiftsInRange(range.from, range.to);
+      } catch {
+        return [];
+      }
+    })(),
   };
 }
 
@@ -2000,6 +2038,11 @@ module.exports = {
   deleteOperator,
   countActiveOperators,
   getDitari,
+  resolveShiftOperatorId,
+  getPosShiftSummary: (...a) => require("./fiskalizime-pos-shift").getPosShiftSummary(...a),
+  openPosShift: (...a) => require("./fiskalizime-pos-shift").openPosShift(...a),
+  closePosShift: (...a) => require("./fiskalizime-pos-shift").closePosShift(...a),
+  listPosShiftsInRange: (...a) => require("./fiskalizime-pos-shift").listPosShiftsInRange(...a),
   DB_PATH,
   DB_DIR,
   flushDatabase: saveDb,
