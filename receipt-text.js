@@ -171,6 +171,18 @@ function resolveVenueLine({ tableNumber = 0, sourceLabel = "" } = {}) {
   return "";
 }
 
+function thermalPaymentDisplay(paymentMethod) {
+  const p = String(paymentMethod || "").trim().toLowerCase();
+  if (!p) return "";
+  if (p === "debit_card" || p === "debit") return "Kartë Debit";
+  if (p === "credit_card" || p === "credit" || p === "kredit") return "Kartë Kredit";
+  if (p === "karte" || p === "card" || p === "kartë" || p === "kartelë" || p === "pos") return "Kartë";
+  if (p === "mixed" || p === "perzier" || p === "e përzier") return "Përzier";
+  if (p === "bank_account" || p === "transfer bankar") return "Bankë";
+  if (p === "cash" || p === "para") return "Cash";
+  return String(paymentMethod);
+}
+
 function buildReceiptLineItems({
   restaurantName = "",
   phone = "",
@@ -246,9 +258,7 @@ function buildReceiptLineItems({
   const totalLine = formatTotalLine(total, w);
   lines.push(markedTotal ? `^R^B${totalLine}` : totalLine);
 
-  const paymentLabel = kind === "final"
-    ? (String(paymentMethod || "").toLowerCase() === "karte" ? "Kartë" : paymentMethod ? "Cash" : "")
-    : "";
+  const paymentLabel = kind === "final" ? thermalPaymentDisplay(paymentMethod) : "";
   if (paymentLabel) lines.push(`Pagesa: ${paymentLabel}`);
   lines.push(divider(w));
   lines.push(pad("Faleminderit!", w, "center"));

@@ -106,6 +106,33 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .dock-session-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .pos-dock-shift-cash {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.05rem;
+      line-height: 1.1;
+      margin-right: 0.35rem;
+    }
+    .retail-pos-band-lbl {
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      color: #e2e8f0;
+    }
+    .retail-pos-band-val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: #fbbf24;
+    }
     .topbar-status {
       display: flex;
       align-items: center;
@@ -2115,6 +2142,12 @@
     </div>
     <span class="sr-only" id="header-env-badge">Revolution Invest SH.P.K. · v2.0.3</span>
     <span class="sr-only" id="operator-badge">Operator: —</span>
+    <div class="dock-session-actions">
+      <div class="pos-dock-shift-cash" id="pos-dock-shift-cash">
+        <span class="retail-pos-band-lbl">MONEDHA NË ARKË</span>
+        <strong class="retail-pos-band-val" id="pos-shift-drawer-cash">0.00 €</strong>
+      </div>
+    </div>
     <span class="dock-queue" id="footer-offline-queue"></span>
   </header>
 
@@ -6463,6 +6496,18 @@
       resetCartAdjustments();
       resetPaymentToDefault();
       renderCart();
+      refreshArkaSotCash();
+    }
+
+    async function refreshArkaSotCash() {
+      const el = document.getElementById("pos-shift-drawer-cash");
+      if (!el) return;
+      try {
+        const data = await api("/api/ditari?period=sot");
+        el.textContent = euro(data.totalSales);
+      } catch {
+        /* */
+      }
     }
 
     function applyPosThermalPrintFeedback(thermal, msgEl) {
@@ -6708,7 +6753,7 @@
           if (th.printed) line += " · kupon termik u printua";
           else if (th.printMessage) line += ` · Print: ${th.printMessage}`;
           setMsg(msg, line, th.printed !== false && !th.printMessage);
-          showPosPostPayThermalModal({ order_id: data.order_id, receipt_number: nr });
+          finalizePosPostPaySuccess();
           return;
         }
         const f = data.fiscal || {};
@@ -6734,6 +6779,7 @@
           );
         }
         refreshOfflineQueueUi().catch(() => {});
+        refreshArkaSotCash();
         if (f.offline_queue != null) {
           renderOfflineQueueFooter({ offline_queue_count: f.offline_queue, pending_count: f.offline_queue });
         }
@@ -8535,6 +8581,10 @@
         if (cnt) cnt.textContent = String(data.orderCount || 0);
         if (cash) cash.textContent = euro(data.totalCash);
         if (card) card.textContent = euro(data.totalKarte);
+        const fromEl = document.getElementById("p2-ditari-from");
+        const toEl = document.getElementById("p2-ditari-to");
+        if (fromEl && data.dateFrom) fromEl.value = String(data.dateFrom).slice(0, 10);
+        if (toEl && data.dateTo) toEl.value = String(data.dateTo).slice(0, 10);
         paintDitariPeriodButtons();
         renderDitariList();
         if (msg) setMsg(msg, data.periodLabel || "", true);
@@ -9746,6 +9796,7 @@
       await loadProducts();
       renderCart();
       loadSettings().catch(() => {});
+      refreshArkaSotCash();
       refreshOfflineQueueUi().catch(() => {});
       refreshDiskStatusUi().catch(() => {});
       watchAutoBackupOnStartup().catch(() => {});
@@ -10071,6 +10122,7 @@
     refreshDiskStatusUi().catch(() => {});
     refreshOfflineQueueUi().catch(() => {});
     refreshAtkTimeSyncUi().catch(() => {});
+    refreshArkaSotCash();
     updateE2eSourceUi();
     setInterval(() => refreshDiskStatusUi().catch(() => {}), 30 * 60 * 1000);
     setInterval(() => refreshOfflineQueueUi().catch(() => {}), 15 * 1000);

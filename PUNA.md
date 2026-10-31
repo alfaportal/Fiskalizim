@@ -1,5 +1,44 @@
 # PUNA — FISKALIZIME
 
+## 2026-10-31 — Pa dritare «Pagesa u krye»
+
+- Pas pagesës me kupon termik nuk del më dritarja «Pagesa u krye / Shtyp Kuponin / Vazhdo».
+- Shporta pastrohet menjëherë (`finalizePosPostPaySuccess`).
+- Skedar: `public/index.html`. Nuk u prek `fiscal/**`, ATK, build.
+
+## 2026-10-31 — Monedha në arkë te Arka
+
+- Te header i Arkës: **MONEDHA NË ARKË** me totalin e shitjeve të sotme (`GET /api/ditari?period=sot` → `totalSales`).
+- Rifreskohet pas pagesës dhe kur hyn operatori.
+- Nuk u shtua ndërrim / Mbyll ndërrimin / Dil — ky projekt s’i ka.
+- Skedar: `public/index.html`. Nuk u prek `fiscal/**`, ATK.
+- Në PC: mbyll programin plotësisht + hapje (ose rifresko Arka).
+
+## 2026-10-31 — Ditari 404 + pagesa te kupon termik
+
+- E kuqja «Not Found» te Ditari: `/api/ditari` mungonte te serveri i hapur (i vjetër). Shitjet ISHIN te `orders` (17 sot, 151.18 €).
+- Pas nisjes së `server.js` të ri: `GET /api/ditari?period=sot` OK — 17 porosi, Cash 131.18, Kartë 20.
+- Data nga/deri mbushen nga API (`public/index.html`).
+- Kupon termik: `Pagesa: Cash / Kartë Debit / Kartë Kredit / Përzier` (`receipt-text.js`, `server.js` e kalon `payment_method` siç është).
+- Raporti X mbetet 0 për kupon TERMIK — X lexon vetëm `fiscal_receipts`, jo termik. Nuk u prek `fiscal/**`.
+- Nuk u dërgua ATK. Nuk u bë build.
+
+## 2026-10-31 — Build 1.1.18 OK
+
+- Version `package.json` 1.1.18
+- Setup i plotë: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.1.18-win-x64.exe` (109126420 byte)
+- Kopje edhe te Desktop. 1.1.10–1.1.15 mbeten për kthim.
+- NSIS te `dist-atk-v2` dështoi (197 KB); u bë te Temp me emër të shkurtër, pastaj u kopjua.
+- Nuk i fshiva stubet e vegjël 1.1.16/1.1.17. Nuk u dërgua ATK.
+- Në PC: instalo Setup 1.1.18 → mbyll plotësisht → hape përsëri.
+
+## 2026-10-31 — Build 1.1.16 / 1.1.17 DËSHTOI
+
+- Version 1.1.15 → 1.1.16 → 1.1.17
+- NSIS: «Can't open output file» — Setup doli 197 KB (i prishur), jo ~109 MB
+- Të vjetrat mbeten: 1.1.10–1.1.15
+- Nuk i fshiva skedarët e vegjël. Nuk u dërgua ATK.
+
 ## 2026-10-31 — Skeda Ditari
 
 - Skedë e re **Ditari** te pronari (pas Kuponët): shitjet, TOTALI, POROSI, CASH, KARTË.

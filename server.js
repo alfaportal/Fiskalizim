@@ -1670,17 +1670,6 @@ async function boot() {
     }
   });
 
-  function posThermalPaymentLabel(method) {
-    const m = String(method || "cash").toLowerCase();
-    if (m === "credit_card" || m === "debit_card" || m === "card" || m === "karte" || m === "kartë" || m === "pos") {
-      return "karte";
-    }
-    if (m === "bank_account") return "Transfer bankar";
-    if (m === "mixed") return "E përzier";
-    if (m === "cash") return "Cash";
-    return method || "Cash";
-  }
-
   function saleSnapshotFromOrderRow(order) {
     if (!order) return null;
     let payload = {};
@@ -1724,7 +1713,7 @@ async function boot() {
       total: sale.total,
       receiptNumber,
       closedAt: new Date().toISOString(),
-      paymentMethod: posThermalPaymentLabel(sale.payment_method),
+      paymentMethod: sale.payment_method,
       slipKind: "final",
       paper,
       discountTotal: sale.discount_total || 0,
