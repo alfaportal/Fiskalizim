@@ -96,7 +96,17 @@ function getFiscalQrPrintOpts(extra = {}) {
   };
 }
 
+function bufferHasNativeEscPosQr(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 4) return false;
+  for (let i = 0; i <= buf.length - 3; i += 1) {
+    if (buf[i] === 0x1d && buf[i + 1] === 0x28 && buf[i + 2] === 0x6b) return true;
+  }
+  return false;
+}
+
 function withQrPrintDensity(buffer, printDensity) {
+  if (!buffer || !buffer.length) return buffer;
+  if (bufferHasNativeEscPosQr(buffer)) return buffer;
   const { prependPrintDensityEscPos } = require("../receipt-text");
   let printerName = "";
   try {
@@ -538,6 +548,47 @@ function buildFiscalQrReceiptData(receiptRow, settings) {
   };
 }
 
+function reportNowStampParts() {
+  let d = new Date();
+  try {
+    const { getFiscalNow } = require("./fiscal-time-sync");
+    d = getFiscalNow();
+  } catch {
+    /* */
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  return {
+    fiscal_date: `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`,
+    fiscal_time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
+function resolveReportFiscalDateTime(details) {
+  const d = details && typeof details === "object" ? details : {};
+  const fd = String(d.fiscalization_date || "").trim();
+  const ft = String(d.fiscalization_time || "").trim();
+  if (fd && ft.length >= 4) {
+    return { fiscal_date: fd, fiscal_time: ft.slice(0, 5) };
+  }
+  const dt = String(d.fiscalization_datetime || "").trim();
+  if (dt) {
+    const m = dt.match(/^(\d{2}\.\d{2}\.\d{4})\s+(\d{1,2}:\d{2})/);
+    if (m) {
+      const timePart = m[2];
+      const fiscal_time =
+        timePart.length === 4 ? `0${timePart}` : timePart.slice(0, 5);
+      return { fiscal_date: m[1], fiscal_time };
+    }
+  }
+  const dateRaw = String(d.date || d.from_date || "")
+    .split("→")[0]
+    .trim()
+    .slice(0, 10);
+  const nowParts = reportNowStampParts();
+  const fiscal_date = ymdToFiscalDate(dateRaw) || nowParts.fiscal_date;
+  return { fiscal_date, fiscal_time: nowParts.fiscal_time };
+}
+
 function buildReportVerificationNo(details, mode) {
   const crypto = require("crypto");
   const { getSefIdentifier } = require("./fiscal-numbering");
@@ -566,15 +617,7 @@ async function generateFiscalReportQR(reportDetails, opts = {}) {
   const d = reportDetails && typeof reportDetails === "object" ? reportDetails : {};
   const mode = String(opts.reportMode || d.mode || "X").toUpperCase();
   const nuikf = buildReportVerificationNo(d, mode);
-  const dateRaw = String(d.date || d.from_date || "")
-    .split("→")[0]
-    .trim()
-    .slice(0, 10);
-  const fiscal_date =
-    ymdToFiscalDate(dateRaw) ||
-    ymdToFiscalDate(new Date().toISOString().slice(0, 10));
-  const now = new Date();
-  const fiscal_time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const { fiscal_date, fiscal_time } = resolveReportFiscalDateTime(d);
 
   const row = {
     nuikf,

@@ -15,6 +15,7 @@ const {
   distributeCartAdjustment,
   getVatRate,
   getVatNormLetter,
+  couponVatLetterForTaxpayer,
   round4,
   lineTotalAmount,
   normalizeQty,
@@ -35,6 +36,13 @@ const {
   validateFiscalReceiptInsert,
   getFiscalReceiptById,
 } = require("./fiscal-db");
+
+function applyOfflinePrintBanner(orderData, fiscalData) {
+  fiscalData.is_offline = true;
+  fiscalData.print_offline_banner = true;
+  return generateFiscalReceipt(orderData, fiscalData);
+}
+
 const {
   isFiscalMemoryOnly,
   isAtkTransmissionBlocked,
@@ -229,12 +237,15 @@ function loadMenuVatMap(items) {
   return map;
 }
 
-function normalizeItems(items) {
+function normalizeItems(items, taxpayerVatNumber) {
   const list = items || [];
   const vatByMenuId = loadMenuVatMap(list);
   const { getVatRate } = require("./fiscal-vat");
   return list.map((item) => {
-    const letter = resolveItemVatNorm(item, vatByMenuId);
+    const letter = couponVatLetterForTaxpayer(
+      resolveItemVatNorm(item, vatByMenuId),
+      taxpayerVatNumber
+    );
     const fromLib = getVatRate(letter);
     const rate =
       fromLib != null
@@ -299,6 +310,23 @@ function taxFromBreakdown(items, turnoverBreak, opts = {}) {
 let lastFiscalPrintKey = "";
 let lastFiscalPrintAt = 0;
 
+function buildEkuponiEscPosAfterLogo(db) {
+  const { resolvePrintWidth } = require("./fiscal-print");
+  const { t, syncLanguageFromSettings } = require("./fiscal-i18n");
+  const { pad, prepareCp1252Text, encodeCp1252 } = require("../receipt-text");
+  syncLanguageFromSettings(db.getSetting("language", "sq"));
+  const w = resolvePrintWidth();
+  const line = prepareCp1252Text(pad(t("e_kuponi"), w, "center"));
+  return Buffer.concat([
+    Buffer.from([0x1b, 0x4d, 0x00]),
+    Buffer.from([0x1d, 0x21, 0x00]),
+    Buffer.from([0x1b, 0x61, 0x01]),
+    encodeCp1252(line),
+    Buffer.from("\n", "ascii"),
+    Buffer.from([0x1b, 0x61, 0x00]),
+  ]);
+}
+
 async function printFiscalBundle(printText, qrResult, printOpts = {}) {
   const printer = require("../printer");
   const database = require("../database");
@@ -307,7 +335,7 @@ async function printFiscalBundle(printText, qrResult, printOpts = {}) {
     appendEscPosCut,
     bufferHasEscPosCut,
   } = require("../receipt-text");
-  const { getFiscalLogoForPrint } = require("./fiscal-logo");
+  const { getFiscalLogoForPrint, getBusinessLogoForPrint } = require("./fiscal-logo");
   const {
     validateReceiptBeforePrint,
   } = require("./fiscal-receipt-guard");
@@ -333,9 +361,12 @@ async function printFiscalBundle(printText, qrResult, printOpts = {}) {
       lastFiscalPrintAt = now;
     }
 
+    const { normalizePrintDensity } = require("../receipt-text");
+    const printDensity = normalizePrintDensity(database.getSetting("printer_density", "10"));
+
     let logo = null;
     try {
-      logo = getFiscalLogoForPrint();
+      logo = getFiscalLogoForPrint({ printDensity });
     } catch (e) {
       console.warn("[fiscal-main] Logo:", e.message);
     }
@@ -382,22 +413,37 @@ async function printFiscalBundle(printText, qrResult, printOpts = {}) {
       textForPrint = `${printText}\n${String(qrResult.ascii).trim()}\n`;
     }
 
-    // Tysso: i njëjti ESC/POS si test print (legacy) — fiscalEmphasized/GS density shpesh nuk printon
-    const textBuf = buildEscPosFromPlainText(textForPrint, tysso
-      ? { cut: false, keepAlbanian: true, dark: false, fiscalEmphasized: false }
-      : {
-          cut: false,
-          dark: true,
-          fiscalEmphasized: true,
-          allowDoubleSize: true,
-          keepAlbanian: true,
-        });
-    const parts = [textBuf];
+    const printerName = database.getSetting("printer_name", "") || "";
+    const textBuf = buildEscPosFromPlainText(textForPrint, {
+      cut: false,
+      keepAlbanian: true,
+      dark: false,
+      fiscalEmphasized: false,
+      lightPrint: true,
+      allowDoubleSize: false,
+      fiscalFontA1: true,
+      lineEmphasis: true,
+      printDensity,
+      printerName,
+    });
+    const parts = [];
+    try {
+      const bizLogo = getBusinessLogoForPrint({ printDensity, printerName });
+      if (bizLogo && bizLogo.buffer && bizLogo.buffer.length) {
+        parts.push(bizLogo.buffer);
+      }
+    } catch (e) {
+      console.warn("[fiscal-main] Logo biznesi:", e.message);
+    }
+    parts.push(textBuf);
 
     if (qrAttached) {
       try {
         const { buildFiscalQrEscPosBuffer, getFiscalQrPrintOpts } = require("./fiscal-qr");
-        const qrBuf = buildFiscalQrEscPosBuffer(qrResult, getFiscalQrPrintOpts());
+        const qrBuf = buildFiscalQrEscPosBuffer(
+          qrResult,
+          getFiscalQrPrintOpts({ printDensity }),
+        );
         if (qrBuf && qrBuf.length) {
           console.log('[QR-DEBUG] qrBuf length:', qrBuf.length, 'bytes');
           parts.push(qrBuf);
@@ -409,18 +455,12 @@ async function printFiscalBundle(printText, qrResult, printOpts = {}) {
       }
     }
 
-    // Logo RKS/MF — bitmap ESC/POS (160×80) si kërkesa ATK
-    if (logoAttached) {
+    if (logoAttached && logo?.buffer?.length) {
+      if (qrAttached) {
+        parts.push(Buffer.from([0x1b, 0x64, 0x01]));
+      }
       parts.push(logo.buffer);
-    }
-
-    // Vijë mbyllëse pas logos (si layout ATK)
-    try {
-      const { resolvePrintWidth, divider } = require("./fiscal-print");
-      const w = resolvePrintWidth();
-      parts.push(Buffer.from(`\n${divider("-", w)}\n`, "ascii"));
-    } catch {
-      parts.push(Buffer.from("\n==========================================\n", "ascii"));
+      parts.push(buildEkuponiEscPosAfterLogo(database));
     }
 
     let full = Buffer.concat(parts);
@@ -476,9 +516,12 @@ async function printFiscalReportText(printText, printOpts = {}) {
       }
     }
 
+    const { normalizePrintDensity } = require("../receipt-text");
+    const printDensity = normalizePrintDensity(database.getSetting("printer_density", "10"));
+
     let logo = null;
     try {
-      logo = getFiscalLogoForPrint();
+      logo = getFiscalLogoForPrint({ printDensity });
     } catch (e) {
       console.warn("[fiscal-main] Logo raport:", e.message);
     }
@@ -487,52 +530,55 @@ async function printFiscalReportText(printText, printOpts = {}) {
       qrResult &&
       (qrResult.escpos_base64 || qrResult.payload || qrResult.png_base64 || qrResult.png_buffer)
     );
-    const tysso = await printer.isTyssoReceiptPrinter(database);
 
-    const textBuf = buildEscPosFromPlainText(printText, tysso
-      ? { cut: false, keepAlbanian: true, dark: false, fiscalEmphasized: false }
-      : {
-          cut: false,
-          dark: true,
-          fiscalEmphasized: true,
-          allowDoubleSize: false,
-          keepAlbanian: true,
-        });
+    const printerName = database.getSetting("printer_name", "") || "";
+    const textBuf = buildEscPosFromPlainText(printText, {
+      cut: false,
+      keepAlbanian: true,
+      dark: false,
+      fiscalEmphasized: false,
+      lightPrint: true,
+      allowDoubleSize: false,
+      fiscalFontA1: true,
+      printDensity,
+      printerName,
+    });
     const parts = [textBuf];
 
     if (qrAttached) {
       try {
-        const qrBuf = buildFiscalQrEscPosBuffer(qrResult, getFiscalQrPrintOpts());
+        const qrBuf = buildFiscalQrEscPosBuffer(
+          qrResult,
+          getFiscalQrPrintOpts({ printDensity }),
+        );
         if (qrBuf && qrBuf.length) parts.push(qrBuf);
       } catch (e) {
         console.warn("[fiscal-main] QR raport print:", e.message);
       }
     }
 
-    // Logo RKS/MF — bitmap ESC/POS (160×80), poshtë QR-së
-    if (logoAttached) {
+    if (logoAttached && logo?.buffer?.length) {
+      if (qrAttached) {
+        parts.push(Buffer.from([0x1b, 0x64, 0x01]));
+      }
       parts.push(logo.buffer);
-    }
-
-    try {
-      const { resolvePrintWidth, divider } = require("./fiscal-print");
-      const w = resolvePrintWidth();
-      parts.push(Buffer.from(`\n${divider("-", w)}\n`, "ascii"));
-    } catch {
-      parts.push(Buffer.from("\n==========================================\n", "ascii"));
+      parts.push(buildEkuponiEscPosAfterLogo(database));
     }
 
     let full = Buffer.concat(parts);
     if (!bufferHasEscPosCut(full)) {
       full = appendEscPosCut(full);
     }
-    const { printerName, paper } = await printer.ensureReceiptPrinter(database, station);
+    const { printerName: receiptPrinter, paper } = await printer.ensureReceiptPrinter(
+      database,
+      station,
+    );
     await printer.printEscPosReceiptAt(full.toString("base64"), database, station);
     printed = true;
     return {
       printed: true,
       printMessage: "",
-      printer: printerName,
+      printer: receiptPrinter,
       paper,
       output: "escpos-fiscal-report",
       station,
@@ -719,7 +765,10 @@ async function processFiscalReceipt(orderId, paymentMethod, opts = {}) {
   );
   console.log("[fiscal-main] processFiscalReceipt language=", receiptLang);
   const orderPayload = parseOrderPayload(order.items_json);
-  const items = normalizeItems(opts.items || orderPayload.items);
+  const items = normalizeItems(
+    opts.items || orderPayload.items,
+    settings.taxpayer_vat_number
+  );
   if (!items.length) {
     throw new Error("Porosia nuk ka artikuj për fiskalizim");
   }
@@ -1125,6 +1174,7 @@ async function processFiscalReceipt(orderId, paymentMethod, opts = {}) {
         } else {
           atkError = String(sendResult?.error || sendResult?.status || "dështoi");
           printOfflineBanner = true;
+          printText = applyOfflinePrintBanner(orderData, fiscalData);
           logFiscalAction(
             "receipt_send_failed",
             {
@@ -1147,6 +1197,7 @@ async function processFiscalReceipt(orderId, paymentMethod, opts = {}) {
     } catch (e) {
       atkError = e.message || "ATK send exception";
       printOfflineBanner = true;
+      printText = applyOfflinePrintBanner(orderData, fiscalData);
       console.warn("[fiscal-main] ATK send:", atkError);
       try {
         logFiscalAction(
@@ -1301,7 +1352,7 @@ async function printTestFiscalCoupon() {
   console.log("[fiscal-main] printTestFiscalCoupon language=", receiptLang);
   const rawItems = getAtkTestCouponItems();
   validateInternalTestCouponStructure(rawItems);
-  const items = normalizeItems(rawItems);
+  const items = normalizeItems(rawItems, settings.taxpayer_vat_number);
   const totals = computeAtkTestCouponTotals(items);
   const totalRounded = totals.total;
   const tax = totals.tax;

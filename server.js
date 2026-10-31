@@ -1064,6 +1064,7 @@ async function boot() {
         ...body,
         unit_code: unitCode,
         category_code: categoryCode,
+        base_weight: body.base_weight,
       });
       res.status(201).json({ ok: true, product });
     } catch (e) {
@@ -1085,7 +1086,7 @@ async function boot() {
     try {
       const blocked = recordsGuardResponse(res);
       if (blocked) return blocked;
-      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category } =
+      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category, base_weight } =
         req.body || {};
       const product = db.updateProduct(req.params.id, {
         name,
@@ -1095,6 +1096,7 @@ async function boot() {
         category_code: category_code || "TT",
         barcode,
         pos_category,
+        base_weight,
       });
       res.json({ ok: true, success: true, product });
     } catch (e) {
@@ -1106,6 +1108,49 @@ async function boot() {
     try {
       const result = db.deleteProduct(req.params.id);
       res.json(result);
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.get("/api/fiscal/business-logo", (_req, res) => {
+    try {
+      const { hasBusinessLogo } = require("./fiscal/fiscal-logo");
+      res.json({ ok: true, has_logo: hasBusinessLogo() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.get("/api/fiscal/business-logo/file", (_req, res) => {
+    try {
+      const { hasBusinessLogo, getBusinessLogoPath } = require("./fiscal/fiscal-logo");
+      if (!hasBusinessLogo()) {
+        return res.status(404).json({ ok: false, error: "Nuk ka logo" });
+      }
+      res.setHeader("Cache-Control", "no-store");
+      res.type("png");
+      res.sendFile(getBusinessLogoPath());
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.put("/api/fiscal/business-logo", (req, res) => {
+    try {
+      const { saveBusinessLogoPng } = require("./fiscal/fiscal-logo");
+      const raw = req.body?.png_base64 || req.body?.image_base64 || "";
+      const saved = saveBusinessLogoPng(raw);
+      res.json(saved);
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.delete("/api/fiscal/business-logo", (_req, res) => {
+    try {
+      const { removeBusinessLogo } = require("./fiscal/fiscal-logo");
+      res.json(removeBusinessLogo());
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
     }
@@ -1230,6 +1275,48 @@ async function boot() {
     }
   });
 
+  app.get("/api/fiscal/time-sync", async (_req, res) => {
+    try {
+      const {
+        fetchServerTimeMs,
+        getTimeSyncStatus,
+        startFiscalTimeSyncMonitor,
+      } = require("./fiscal/fiscal-time-sync");
+      startFiscalTimeSyncMonitor();
+      const hit = await fetchServerTimeMs();
+      const wall = Date.now();
+      let driftMs = 0;
+      let reachable = false;
+      let source = null;
+      if (hit && Number.isFinite(hit.ms)) {
+        reachable = true;
+        source = hit.source;
+        driftMs = hit.ms - wall;
+      } else {
+        const st = getTimeSyncStatus();
+        driftMs = Number(st.drift_ms) || 0;
+        source = st.last_sync_source || null;
+        reachable = !!st.synced;
+      }
+      const offsetMin = new Date().getTimezoneOffset();
+      const timezoneOk = offsetMin === -60 || offsetMin === -120;
+      const timeOk = Math.abs(driftMs) <= 2 * 60 * 1000;
+      const alarm = !timeOk || !timezoneOk;
+      res.json({
+        ok: true,
+        alarm,
+        time_ok: timeOk,
+        timezone_ok: timezoneOk,
+        drift_ms: driftMs,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        source,
+        reachable,
+      });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message, alarm: true });
+    }
+  });
+
   app.get("/api/fiscal/offline-compliance", (_req, res) => {
     try {
       const { evaluateOfflineCompliance } = require("./fiscal/fiscal-offline-compliance");
@@ -1345,7 +1432,17 @@ async function boot() {
       if (!serial) {
         return res.status(400).json({
           ok: false,
-          error: "Numri serik i bllokut letër mungon",
+          error: "Numri serik i kuponit mungon",
+        });
+      }
+
+      const blockCode = String(
+        req.body?.block_code || req.body?.block_batch || ""
+      ).trim();
+      if (!blockCode) {
+        return res.status(400).json({
+          ok: false,
+          error: "Kodi unik i bllokut letër mungon",
         });
       }
 
@@ -1375,6 +1472,7 @@ async function boot() {
 
       const paper = issuePaperBlockCoupon({
         serial_no: serial,
+        block_code: blockCode,
         items: sale.items,
         subtotal: sale.subtotal,
         discount_amount: sale.discount_total,
@@ -1706,19 +1804,29 @@ async function boot() {
         });
       }
 
-      const { processFiscalReceipt } = require("./fiscal/fiscal-main");
-      const fiscal = await processFiscalReceipt(sale.id, sale.payment_method, {
-        items: sale.items,
-        operator_name: sale.operator_name,
-        operator_id: resolveBodyOperatorId(req),
-        total_amount: sale.total,
-        subtotal: sale.subtotal,
-        discount_amount: sale.discount_total,
-        surcharge_amount: sale.surcharge_total,
-        payment_splits: sale.payment_splits,
-        language: req.body?.language,
-        skip_print: !!req.body?.skip_print,
-      });
+      let fiscal;
+      try {
+        const { processFiscalReceipt } = require("./fiscal/fiscal-main");
+        fiscal = await processFiscalReceipt(sale.id, sale.payment_method, {
+          items: sale.items,
+          operator_name: sale.operator_name,
+          operator_id: resolveBodyOperatorId(req),
+          total_amount: sale.total,
+          subtotal: sale.subtotal,
+          discount_amount: sale.discount_total,
+          surcharge_amount: sale.surcharge_total,
+          payment_splits: sale.payment_splits,
+          language: req.body?.language,
+          skip_print: !!req.body?.skip_print,
+        });
+      } catch (fiscalErr) {
+        try {
+          db.db.prepare("DELETE FROM orders WHERE id = ?").run(Number(sale.id));
+        } catch (rollbackErr) {
+          console.error("[checkout] rollback", rollbackErr);
+        }
+        return res.status(400).json({ ok: false, error: fiscalErr.message });
+      }
 
       res.json({
         ok: true,
@@ -1762,8 +1870,14 @@ async function boot() {
         type === "cancel" ? "cancel" : type === "return" ? "return" : "storno";
       const { createCorrectionReceipt } = require("./fiscal/fiscal-correction");
       const { printFiscalBundle } = require("./fiscal/fiscal-main");
-      const { generateFiscalQR } = require("./fiscal/fiscal-qr");
+      const { buildFiscalQrReceiptData, generateFiscalQR } = require("./fiscal/fiscal-qr");
       const { isAtkTransmissionBlocked } = require("./fiscal/fiscal-test-mode-store");
+      const { checkInternetConnection } = require("./fiscal/fiscal-offline");
+
+      let noInternet = false;
+      if (!isAtkTransmissionBlocked()) {
+        noInternet = (await checkInternetConnection()) === false;
+      }
 
       const result = createCorrectionReceipt(
         nuikf,
@@ -1773,18 +1887,16 @@ async function boot() {
         {
           operator_name: req.body?.operator_name || "Operator",
           operator_id: resolveBodyOperatorId(req),
+          no_internet: noInternet,
         }
       );
 
       let qrResult = null;
       try {
         const settings = db.getFiscalSettingsRow();
-        qrResult = await generateFiscalQR({
-          nuikf: result.nuikf,
-          total_amount: result.total_amount,
-          fiscal_date: result.fiscal_date,
-          taxpayer_nui: settings.taxpayer_nui,
-        });
+        qrResult = await generateFiscalQR(
+          buildFiscalQrReceiptData(result, settings)
+        );
       } catch (qe) {
         console.warn("[storno] QR:", qe.message);
       }
@@ -1904,20 +2016,51 @@ async function boot() {
     }
   });
 
-  /** Print Preview — tekst i kuponit, pa printim letre. */
-  app.get("/api/fiscal/receipts/:id/preview", (req, res) => {
+  /** Print Preview — tekst i kuponit + QR PNG (base64), pa printim letre. */
+  app.get("/api/fiscal/receipts/:id/preview", async (req, res) => {
     try {
-      const { getFiscalReceiptPreview } = require("./fiscal/fiscal-receipts-list");
-      const preview = getFiscalReceiptPreview(req.params.id);
+      const { getFiscalReceiptPreviewWithQr } = require("./fiscal/fiscal-receipts-list");
+      const preview = await getFiscalReceiptPreviewWithQr(req.params.id);
       if (!preview) throw new Error("Fiskalizimi nuk është aktiv");
       res.json({
         ok: true,
         receipt_id: preview.id,
         nuikf: preview.nuikf,
         text: preview.print_text,
+        qr_png_base64: preview.qr_png_base64,
+        qr_verify_url: preview.qr_verify_url,
+        qr_error: preview.qr_error,
       });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/fiscal/receipts/:id/email", async (req, res) => {
+    try {
+      const { emailFiscalReceiptToConsumer } = require("./fiscal/fiscal-receipt-email");
+      const operatorName = req.body?.operator_name || "Operator";
+      const operatorId = resolveBodyOperatorId(req);
+      const email = String(req.body?.email || "").trim();
+      const result = await emailFiscalReceiptToConsumer({
+        receipt_id: req.params.id,
+        email,
+        operator_name: operatorName,
+        operator_id: operatorId,
+      });
+      if (!result.ok) {
+        return res.status(400).json({ ok: false, error: result.error, nuikf: result.nuikf });
+      }
+      res.json({
+        ok: true,
+        queued: !!result.queued,
+        nuikf: result.nuikf,
+        email: result.email,
+        message: result.message || "Kuponi u dërgua me email.",
+      });
+    } catch (e) {
+      console.error("[receipt/email]", e);
+      res.status(400).json({ ok: false, error: e.message || "Dërgimi i emailit dështoi" });
     }
   });
 
@@ -1926,7 +2069,8 @@ async function boot() {
     try {
       const { prepareFiscalReceiptReprint } = require("./fiscal/fiscal-receipts-list");
       const { printFiscalBundle } = require("./fiscal/fiscal-main");
-      const { generateFiscalQR } = require("./fiscal/fiscal-qr");
+      const { buildFiscalQrReceiptData, generateFiscalQR } = require("./fiscal/fiscal-qr");
+      const { getFiscalReceiptById } = require("./fiscal/fiscal-db");
       let reprint;
       if (req.body?.print_text && req.body?.nuikf) {
         reprint = {
@@ -1942,15 +2086,13 @@ async function boot() {
       }
       let qrResult = null;
       try {
-        qrResult = await generateFiscalQR({
-          nuikf: reprint.nuikf,
-          total_amount: reprint.total_amount,
-          fiscal_date: reprint.fiscal_date,
-          taxpayer_nui:
-            reprint.taxpayer_nui ||
-            db.getFiscalSettingsRow()?.taxpayer_nui ||
-            "",
-        });
+        const settings = db.getFiscalSettingsRow();
+        const rid = Number(reprint.id) || Number(req.params.id) || 0;
+        const qrRow =
+          rid > 0 ? getFiscalReceiptById(rid) || reprint : reprint;
+        qrResult = await generateFiscalQR(
+          buildFiscalQrReceiptData(qrRow, settings)
+        );
       } catch (qe) {
         console.warn("[print] QR:", qe.message);
       }
@@ -1986,17 +2128,18 @@ async function boot() {
     try {
       const { prepareFiscalReceiptCopy } = require("./fiscal/fiscal-receipts-list");
       const { printFiscalBundle } = require("./fiscal/fiscal-main");
-      const { generateFiscalQR } = require("./fiscal/fiscal-qr");
+      const { buildFiscalQrReceiptData, generateFiscalQR } = require("./fiscal/fiscal-qr");
+      const { getFiscalReceiptById } = require("./fiscal/fiscal-db");
 
       const copy = prepareFiscalReceiptCopy(req.params.id);
       let qrResult = null;
       try {
-        qrResult = await generateFiscalQR({
-          nuikf: copy.nuikf,
-          total_amount: copy.total_amount,
-          fiscal_date: copy.fiscal_date,
-          taxpayer_nui: copy.taxpayer_nui,
-        });
+        const settings = db.getFiscalSettingsRow();
+        const rid = Number(copy.id) || Number(req.params.id) || 0;
+        const qrRow = rid > 0 ? getFiscalReceiptById(rid) || copy : copy;
+        qrResult = await generateFiscalQR(
+          buildFiscalQrReceiptData(qrRow, settings)
+        );
       } catch (qe) {
         console.warn("[print-copy] QR:", qe.message);
       }
@@ -2172,7 +2315,11 @@ async function boot() {
       if (!req.body?.skip_print) {
         try {
           const { printFiscalReportText } = require("./fiscal/fiscal-main");
-          const pr = await printFiscalReportText(text);
+          const pr = await printFiscalReportText(text, {
+            reportDetails: details,
+            reportMode: details.mode || "SHORT_PERIODIC",
+            operatorId,
+          });
           printed = pr.printed;
           if (!pr.printed) {
             printMessage = pr.printMessage || "Printimi i raportit të shkurtër dështoi";
@@ -2227,7 +2374,11 @@ async function boot() {
       if (!req.body?.skip_print) {
         try {
           const { printFiscalReportText } = require("./fiscal/fiscal-main");
-          const pr = await printFiscalReportText(text);
+          const pr = await printFiscalReportText(text, {
+            reportDetails: details,
+            reportMode: details.mode || "MONTHLY_MEMORY",
+            operatorId,
+          });
           printed = pr.printed;
           if (!pr.printed) printMessage = pr.printMessage || "Printimi i raportit mujor dështoi";
         } catch (pe) {
@@ -2526,19 +2677,14 @@ async function boot() {
       );
 
       const { processFiscalReceipt, printFiscalBundle } = require("./fiscal/fiscal-main");
-      const { generateFiscalQR } = require("./fiscal/fiscal-qr");
+      const { buildFiscalQrReceiptData, generateFiscalQR } = require("./fiscal/fiscal-qr");
       const { isAtkTransmissionBlocked } = require("./fiscal/fiscal-test-mode-store");
 
       // Kthimi komplet (si /api/fiscal/storno): QR → ATK → print — para shitjes së re
       let qr = null;
       try {
         const settings = db.getFiscalSettingsRow();
-        qr = await generateFiscalQR({
-          nuikf: ret.nuikf,
-          total_amount: ret.total_amount,
-          fiscal_date: ret.fiscal_date,
-          taxpayer_nui: settings.taxpayer_nui,
-        });
+        qr = await generateFiscalQR(buildFiscalQrReceiptData(ret, settings));
       } catch {
         /* */
       }
