@@ -1657,9 +1657,24 @@ async function boot() {
     }
   });
 
+  app.get("/api/ditari", (req, res) => {
+    try {
+      const data = db.getDitari({
+        period: req.query.period,
+        from: req.query.from,
+        to: req.query.to,
+      });
+      res.json({ ok: true, ...data });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
   function posThermalPaymentLabel(method) {
     const m = String(method || "cash").toLowerCase();
-    if (m === "credit_card" || m === "debit_card") return "Kartelë";
+    if (m === "credit_card" || m === "debit_card" || m === "card" || m === "karte" || m === "kartë" || m === "pos") {
+      return "karte";
+    }
     if (m === "bank_account") return "Transfer bankar";
     if (m === "mixed") return "E përzier";
     if (m === "cash") return "Cash";

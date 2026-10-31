@@ -1790,6 +1790,182 @@ function countActiveOperators() {
   return Number(row?.c) || 0;
 }
 
+function todayIsoLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDaysIsoLocal(iso, days) {
+  const [y, m, d] = String(iso || todayIsoLocal())
+    .slice(0, 10)
+    .split("-")
+    .map(Number);
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + Number(days || 0));
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function paymentLabel(pm) {
+  const p = String(pm || "cash").toLowerCase();
+  if (
+    p === "card" ||
+    p === "karte" ||
+    p === "kartë" ||
+    p === "credit_card" ||
+    p === "debit_card" ||
+    p === "pos"
+  ) {
+    return "Kartë";
+  }
+  if (p === "mixed" || p === "perzier") return "Përzier";
+  if (p === "bank_account") return "Bankë";
+  return "Cash";
+}
+
+function isCardPayment(method) {
+  const m = String(method || "")
+    .trim()
+    .toLowerCase();
+  return (
+    m === "karte" ||
+    m === "card" ||
+    m === "kartë" ||
+    m === "debit_card" ||
+    m === "credit_card" ||
+    m === "pos"
+  );
+}
+
+function parseOrderPayload(row) {
+  try {
+    const raw = JSON.parse(row?.items_json || "{}");
+    if (Array.isArray(raw)) return { items: raw, payment_splits: [] };
+    return {
+      items: Array.isArray(raw.items) ? raw.items : [],
+      payment_splits: Array.isArray(raw.payment_splits) ? raw.payment_splits : [],
+    };
+  } catch {
+    return { items: [], payment_splits: [] };
+  }
+}
+
+function cashFromOrderRow(row) {
+  const total = round2(row.total);
+  const splits = parseOrderPayload(row).payment_splits;
+  if (splits.length) {
+    return round2(
+      splits
+        .filter((p) => !isCardPayment(p.method))
+        .reduce((s, p) => s + round2(p.amount), 0)
+    );
+  }
+  return isCardPayment(row.payment_method) ? 0 : total;
+}
+
+function cardFromOrderRow(row) {
+  const total = round2(row.total);
+  const splits = parseOrderPayload(row).payment_splits;
+  if (splits.length) {
+    return round2(
+      splits
+        .filter((p) => isCardPayment(p.method))
+        .reduce((s, p) => s + round2(p.amount), 0)
+    );
+  }
+  return isCardPayment(row.payment_method) ? total : 0;
+}
+
+function resolveDitariRange(opts = {}) {
+  const period = String(opts.period || "sot").toLowerCase();
+  const today = todayIsoLocal();
+  let from = opts.from || opts.dateFrom;
+  let to = opts.to || opts.dateTo;
+  if (period === "custom") {
+    from = String(from || today).slice(0, 10);
+    to = String(to || from || today).slice(0, 10);
+  } else if (period === "java") {
+    from = addDaysIsoLocal(today, -6);
+    to = today;
+  } else if (period === "muaj") {
+    from = `${today.slice(0, 7)}-01`;
+    to = today;
+  } else {
+    from = today;
+    to = today;
+  }
+  from = String(from || today).slice(0, 10);
+  to = String(to || today).slice(0, 10);
+  let label = "Sot";
+  if (period === "java") label = "Kjo javë";
+  else if (period === "muaj") label = "Ky muaj";
+  else if (period === "custom") label = `${from} – ${to}`;
+  return { from, to, label };
+}
+
+function getDitari(opts = {}) {
+  const periodRaw = String(opts.period || "").trim().toLowerCase();
+  const period =
+    periodRaw || (opts.from && opts.to ? "custom" : "sot");
+  const range = resolveDitariRange({
+    period,
+    from: opts.from,
+    to: opts.to,
+  });
+  const rows = sqlite
+    .prepare(
+      `SELECT id, total, payment_method, waiter_name, status, created_at, items_json
+       FROM orders
+       WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
+       ORDER BY datetime(created_at) DESC, id DESC`
+    )
+    .all(range.from, range.to);
+  const parsed = rows.map((e) => {
+    const created = String(e.created_at || "");
+    const date = created.slice(0, 10);
+    const time = created.length >= 19 ? created.slice(11, 19) : created.slice(11) || "00:00:00";
+    const payload = parseOrderPayload(e);
+    const items = payload.items;
+    return {
+      id: e.id,
+      date,
+      time,
+      waiter_name: e.waiter_name || "Operator",
+      payment_method: e.payment_method || "cash",
+      payment_label: paymentLabel(e.payment_method),
+      artikujt: items.map((i) => `${i.quantity || 1}× ${i.name}`).join(", "),
+      items,
+      total: Number(e.total) || 0,
+      status: e.status || "completed",
+      cash_amount: cashFromOrderRow(e),
+      card_amount: cardFromOrderRow(e),
+    };
+  });
+  const completed = parsed.filter((e) => String(e.status || "") !== "cancelled");
+  const totalSales = completed.reduce((sum, e) => sum + e.total, 0);
+  let totalCash = 0;
+  let totalKarte = 0;
+  for (const e of completed) {
+    totalCash += e.cash_amount;
+    totalKarte += e.card_amount;
+  }
+  return {
+    periodLabel: range.label,
+    dateFrom: range.from,
+    dateTo: range.to,
+    totalSales: round2(totalSales),
+    totalCash: round2(totalCash),
+    totalKarte: round2(totalKarte),
+    orderCount: completed.length,
+    entries: parsed,
+  };
+}
+
 module.exports = {
   initDatabase,
   reloadDatabaseFromDisk,
@@ -1823,6 +1999,7 @@ module.exports = {
   deactivateOperator,
   deleteOperator,
   countActiveOperators,
+  getDitari,
   DB_PATH,
   DB_DIR,
   flushDatabase: saveDb,

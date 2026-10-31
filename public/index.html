@@ -2102,6 +2102,7 @@
       <button type="button" class="active" data-tab="pos">Arka</button>
       <button type="button" data-tab="products">Produktet</button>
       <button type="button" data-tab="receipts">Kuponët</button>
+      <button type="button" data-tab="ditari">Ditari</button>
       <button type="button" data-tab="x">Raporti X</button>
       <button type="button" data-tab="z">Raporti Z</button>
       <button type="button" data-tab="periodic">Periodik</button>
@@ -2537,6 +2538,47 @@
         <button type="button" class="btn btn-ghost" id="btn-monthly-memory" style="width:auto">Raporti mujor</button>
       </div>
       <div class="msg" id="periodic-msg"></div>
+    </section>
+
+    <section class="panel hidden" id="tab-ditari" style="grid-column: 1 / -1">
+      <h2>Ditari</h2>
+      <p style="margin:0 0 0.65rem;font-size:0.88rem;color:var(--muted)">Shitjet e arkës — Cash dhe Kartë.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
+        <input type="search" id="p2-ditari-search" placeholder="Kërko produkt ose operator…" autocomplete="off" style="max-width:260px" />
+        <button type="button" class="btn btn-primary" data-ditari-period="sot" style="width:auto">Sot</button>
+        <button type="button" class="btn btn-ghost" data-ditari-period="java" style="width:auto">Kjo javë</button>
+        <button type="button" class="btn btn-ghost" data-ditari-period="muaj" style="width:auto">Ky muaj</button>
+        <button type="button" class="btn btn-ghost" id="p2-ditari-refresh" style="width:auto">Rifresko</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px">
+        <div><label for="p2-ditari-from">Data nga</label><input type="date" id="p2-ditari-from" /></div>
+        <div><label for="p2-ditari-to">Data deri</label><input type="date" id="p2-ditari-to" /></div>
+        <button type="button" class="btn btn-primary" id="p2-ditari-kerko" style="width:auto">Kërko</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(8rem,1fr));gap:8px;margin-bottom:12px">
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">TOTALI</div><div id="p2-ditari-total" style="font-weight:800">0.00 €</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">POROSI</div><div id="p2-ditari-count" style="font-weight:800">0</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">CASH</div><div id="p2-ditari-cash" style="font-weight:800">0.00 €</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">KARTË</div><div id="p2-ditari-card" style="font-weight:800">0.00 €</div></div>
+      </div>
+      <p class="msg" id="ditari-msg" style="min-height:1.2em;margin:0 0 0.5rem"></p>
+      <div style="overflow-x:auto;max-height:460px;border:1px solid var(--line);border-radius:8px">
+        <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
+          <thead>
+            <tr style="color:var(--muted);text-align:left">
+              <th style="padding:0.35rem 0.5rem">Data</th>
+              <th style="padding:0.35rem 0.5rem">Ora</th>
+              <th style="padding:0.35rem 0.5rem">Operatori</th>
+              <th style="padding:0.35rem 0.5rem">Pagesa</th>
+              <th style="padding:0.35rem 0.5rem">Artikujt</th>
+              <th style="padding:0.35rem 0.5rem">Totali</th>
+            </tr>
+          </thead>
+          <tbody id="p2-ditari-list">
+            <tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <!-- Audit -->
@@ -4727,6 +4769,33 @@
       paintPaymentStatusBar();
     }
 
+    function selectedCardPayMethod() {
+      const active = getActivePaymentMethods();
+      const debit = active.includes("debit_card");
+      const credit = active.includes("credit_card");
+      if (debit && !credit) return "debit_card";
+      if (credit && !debit) return "credit_card";
+      return "";
+    }
+
+    function ownerPaymentLabel(pm, fallback) {
+      const p = String(pm || fallback || "").toLowerCase();
+      if (
+        p === "card" ||
+        p === "karte" ||
+        p === "kartë" ||
+        p === "kartelë" ||
+        p === "credit_card" ||
+        p === "debit_card" ||
+        p === "pos"
+      ) {
+        return "Kartë";
+      }
+      if (p === "mixed" || p === "perzier" || p === "kombinuar") return "Përzier";
+      if (p === "cash" || p === "para") return "Cash";
+      return fallback || pm || "—";
+    }
+
     function lineAdjInputValue(adj) {
       const n = normalizeAdj(adj);
       return n ? String(n.value) : "0";
@@ -6721,7 +6790,7 @@
             <td>${r.daily_number} / ${r.total_number}</td>
             <td>${euro(r.total_amount)}</td>
             <td>${esc(r.fiscal_date)} ${esc(r.fiscal_time)}</td>
-            <td>${esc(r.payment_method)}</td>
+            <td>${esc(ownerPaymentLabel(r.payment_label, r.payment_method))}</td>
             <td><strong style="color:${atkColor}">${atkLbl}</strong>${sentDisplay ? `<br><small style="color:var(--muted)">${esc(sentDisplay)}</small>` : ""}</td>
             <td style="white-space:nowrap">
               <button type="button" class="btn btn-ghost" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-preview-id="${r.id}">Preview</button>
@@ -7903,6 +7972,7 @@
       document.getElementById("tab-x").classList.toggle("hidden", name !== "x");
       document.getElementById("tab-z").classList.toggle("hidden", name !== "z");
       document.getElementById("tab-periodic").classList.toggle("hidden", name !== "periodic");
+      document.getElementById("tab-ditari")?.classList.toggle("hidden", name !== "ditari");
       document.getElementById("tab-audit").classList.toggle("hidden", name !== "audit");
       document.getElementById("tab-atk-test").classList.toggle("hidden", name !== "atk-test");
       document.getElementById("tab-paper-block").classList.toggle("hidden", name !== "paper-block");
@@ -7921,6 +7991,9 @@
       if (name === "paper-block") {
         refreshPaperBlockUi().catch(console.error);
         ensurePaperIssueFormReady();
+      }
+      if (name === "ditari") {
+        loadDitari().catch(console.error);
       }
       if (name === "audit") {
         ngarkoAdminAuditLog().catch(console.error);
@@ -7990,12 +8063,24 @@
       finalizePosPostPaySuccess();
     });
     document.getElementById("btn-pay-cash-submit")?.addEventListener("click", async () => {
-      setQuickPayment("cash");
-      syncPayReceivedToTotal(true);
+      const cardMethod = selectedCardPayMethod();
+      const active = getActivePaymentMethods();
+      const hasCard = active.includes("debit_card") || active.includes("credit_card");
+      if (cardMethod) {
+        setQuickPayment(cardMethod);
+      } else if (!hasCard) {
+        setQuickPayment("cash");
+        syncPayReceivedToTotal(true);
+      }
       await checkout();
     });
     document.getElementById("btn-pay-card")?.addEventListener("click", async () => {
-      setQuickPayment("credit_card");
+      const cardMethod = selectedCardPayMethod();
+      if (cardMethod) {
+        setQuickPayment(cardMethod);
+      } else if (!getActivePaymentMethods().includes("debit_card")) {
+        setQuickPayment("credit_card");
+      }
       await checkout();
     });
     document.getElementById("btn-pay-proforma")?.addEventListener("click", () => {
@@ -8377,6 +8462,109 @@
       repairWizardState.results[4] = { ok: true, status: "Manual", restore_done: true, detail: "Rikthimi nga backup u nis." };
     });
 
+    let ditariPeriod = "sot";
+    let ditariEntriesCache = [];
+
+    function paintDitariPeriodButtons() {
+      document.querySelectorAll("[data-ditari-period]").forEach((b) => {
+        const on = b.getAttribute("data-ditari-period") === ditariPeriod;
+        b.classList.toggle("btn-primary", on);
+        b.classList.toggle("btn-ghost", !on);
+      });
+    }
+
+    function renderDitariList() {
+      const tbody = document.getElementById("p2-ditari-list");
+      if (!tbody) return;
+      const q = String(document.getElementById("p2-ditari-search")?.value || "")
+        .trim()
+        .toLowerCase();
+      const rows = (ditariEntriesCache || []).filter((e) => {
+        if (String(e.status || "") === "cancelled") return false;
+        if (!q) return true;
+        const op = String(e.waiter_name || "").toLowerCase();
+        const pay = String(e.payment_label || e.payment_method || "").toLowerCase();
+        const art = String(e.artikujt || "").toLowerCase();
+        return op.includes(q) || pay.includes(q) || art.includes(q);
+      });
+      if (!rows.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka shitje për këtë periudhë.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows
+        .map(
+          (e) =>
+            `<tr>` +
+            `<td style="padding:0.35rem 0.5rem">${esc(e.date || "")}</td>` +
+            `<td style="padding:0.35rem 0.5rem">${esc(e.time || "")}</td>` +
+            `<td style="padding:0.35rem 0.5rem">${esc(e.waiter_name || "—")}</td>` +
+            `<td style="padding:0.35rem 0.5rem">${esc(e.payment_label || "—")}</td>` +
+            `<td style="padding:0.35rem 0.5rem">${esc(e.artikujt || "—")}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(e.total)}</td>` +
+            `</tr>`
+        )
+        .join("");
+    }
+
+    async function loadDitari(opts = {}) {
+      const msg = document.getElementById("ditari-msg");
+      const tbody = document.getElementById("p2-ditari-list");
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
+      const q = new URLSearchParams();
+      if (opts.customRange) {
+        const from = document.getElementById("p2-ditari-from")?.value || "";
+        const to = document.getElementById("p2-ditari-to")?.value || "";
+        if (from && to) {
+          q.set("period", "custom");
+          q.set("from", from);
+          q.set("to", to);
+          ditariPeriod = "custom";
+        }
+      } else {
+        q.set("period", ditariPeriod || "sot");
+      }
+      try {
+        const data = await api(`/api/ditari?${q.toString()}`);
+        ditariEntriesCache = Array.isArray(data.entries) ? data.entries : [];
+        const tot = document.getElementById("p2-ditari-total");
+        const cnt = document.getElementById("p2-ditari-count");
+        const cash = document.getElementById("p2-ditari-cash");
+        const card = document.getElementById("p2-ditari-card");
+        if (tot) tot.textContent = euro(data.totalSales);
+        if (cnt) cnt.textContent = String(data.orderCount || 0);
+        if (cash) cash.textContent = euro(data.totalCash);
+        if (card) card.textContent = euro(data.totalKarte);
+        paintDitariPeriodButtons();
+        renderDitariList();
+        if (msg) setMsg(msg, data.periodLabel || "", true);
+      } catch (e) {
+        ditariEntriesCache = [];
+        if (tbody) {
+          tbody.innerHTML =
+            `<tr><td colspan="6" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
+        }
+        if (msg) setMsg(msg, e.message || "Ditari nuk u ngarkua", false);
+      }
+    }
+
+    document.querySelectorAll("[data-ditari-period]").forEach((b) => {
+      b.addEventListener("click", () => {
+        ditariPeriod = b.getAttribute("data-ditari-period") || "sot";
+        paintDitariPeriodButtons();
+        loadDitari().catch(console.error);
+      });
+    });
+    document.getElementById("p2-ditari-refresh")?.addEventListener("click", () => {
+      loadDitari().catch(console.error);
+    });
+    document.getElementById("p2-ditari-kerko")?.addEventListener("click", () => {
+      loadDitari({ customRange: true }).catch(console.error);
+    });
+    document.getElementById("p2-ditari-search")?.addEventListener("input", () => {
+      renderDitariList();
+    });
+
     async function ngarkoAdminAuditLog() {
       const body = document.getElementById("admin-audit-log-body");
       const status = document.getElementById("admin-audit-log-status");
@@ -8416,7 +8604,7 @@
               + `<td style="padding:0.35rem 0.5rem">${dt}</td>`
               + `<td style="padding:0.35rem 0.5rem">${esc(e.receipt_number || "—")}</td>`
               + `<td style="padding:0.35rem 0.5rem">${esc(shuma)}</td>`
-              + `<td style="padding:0.35rem 0.5rem">${esc(e.payment_label || e.payment_method || "—")}</td>`
+              + `<td style="padding:0.35rem 0.5rem">${esc(ownerPaymentLabel(e.payment_label, e.payment_method))}</td>`
               + `<td style="padding:0.35rem 0.5rem;max-width:200px;word-break:break-word">${esc(e.fiscal_code || "—")}</td>`
               + `<td style="padding:0.35rem 0.5rem">${esc(e.veprim || "Print")}</td>`
               + `</tr>`
