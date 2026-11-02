@@ -1,5 +1,13 @@
 # PUNA — FISKALIZIME
 
+## 2026-11-02 — ENABLE_RLS.sql (vetëm skedar, pa ekzekutim)
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `supabase/ENABLE_RLS.sql` | ENABLE RLS + REVOKE anon/authenticated për 4 tabela live (`oqquiuisreztzcyehpiq`) |
+
+**Nuk u ekzekutua** SQL. Nuk u bë build/git.
+
 ## 2026-11-02 — Super Admin: set-password / owner-email
 
 Rrugë admin për email/fjalëkalim pronari (model HOTEL). bcrypt 12. `users` + `clients.email` në Supabase Fiskalizim.
