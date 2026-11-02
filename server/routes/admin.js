@@ -13,6 +13,8 @@ const {
   setLicenseStatus,
   deleteLicense,
   deleteClient,
+  setOwnerPasswordForClient,
+  setOwnerEmailForClient,
 } = require("../adminService");
 
 const router = express.Router();
@@ -77,6 +79,37 @@ router.patch("/clients/:id", async (req, res) => {
     res.status(400).json({ ok: false, gabim: e.message });
   }
 });
+
+async function handleSetPassword(req, res) {
+  try {
+    const password = req.body?.password || req.body?.new_password;
+    const result = await setOwnerPasswordForClient(req.params.id, password, {
+      email: req.body?.email || req.body?.owner_email,
+      emri: req.body?.emri,
+    });
+    res.json({ ok: true, ...result, product_line: "fiskale" });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+}
+
+async function handleOwnerEmail(req, res) {
+  try {
+    const email = req.body?.email || req.body?.owner_email;
+    const result = await setOwnerEmailForClient(req.params.id, email, {
+      emri: req.body?.emri,
+    });
+    res.json({ ok: true, ...result, product_line: "fiskale" });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message });
+  }
+}
+
+router.post("/dashboard/clients/:id/set-password", handleSetPassword);
+router.post("/clients/:id/set-password", handleSetPassword);
+router.post("/clients/:id/password", handleSetPassword);
+router.patch("/dashboard/clients/:id/owner-email", handleOwnerEmail);
+router.patch("/clients/:id/owner-email", handleOwnerEmail);
 
 router.patch("/licenses/:id", async (req, res) => {
   try {

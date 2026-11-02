@@ -1,5 +1,28 @@
 # PUNA — FISKALIZIME
 
+## 2026-11-02 — Super Admin: set-password / owner-email
+
+Rrugë admin për email/fjalëkalim pronari (model HOTEL). bcrypt 12. `users` + `clients.email` në Supabase Fiskalizim.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server/routes/admin.js` | POST set-password / password, PATCH owner-email |
+| `server/adminService.js` | `setOwnerPasswordForClient`, `setOwnerEmailForClient` |
+| `server/package.json` | `bcryptjs` |
+| `supabase/users.sql` | tabelë `users` + RLS (nuk u ekzekutua) |
+
+Provë: `node --check`. Commit/push/deploy te ky hap. Duhet ekzekutuar `users.sql` në Supabase Fiskalizim para se rrugët të shkruajnë `users`.
+
+**Nuk preka:** `fiscal/**`, ATK, çelësa, desktop Setup.
+
+---
+
+## 2026-11-01 — Setup 1.1.22
+
+Version `1.1.21` → `1.1.22`. `node scripts/obfuscate-build.mjs` exit 0.
+Setup: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.1.22-win-x64.exe` (115965602 byte).
+PC: instalo Setup 1.1.22 → mbyll programin → hape përsëri.
+
 ## 2026-11-01 — Pazari i ndërrimit si restoranti
 
 - Mbyllja e ndërrimit tani **shtyp** PAZARI I NDERRIMIT (tekst i thjeshtë).

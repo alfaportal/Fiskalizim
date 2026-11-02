@@ -1,6 +1,7 @@
 /**
  * Super Admin — klientë + licenca (Fiskalizim Supabase, service_role).
  */
+const bcrypt = require("bcryptjs");
 const { getSupabase } = require("./db");
 const { genLicenseKey } = require("./licenseKey");
 const {
@@ -356,6 +357,167 @@ async function deleteClient(id) {
   return { ok: true, id: cid, emri: existing.emri };
 }
 
+function isMissingUsersTable(error) {
+  const code = String(error?.code || "");
+  const msg = String(error?.message || error?.details || "");
+  return (
+    code === "42P01"
+    || code === "PGRST205"
+    || /could not find the table|relation .*users.* does not exist|schema cache/i.test(msg)
+  );
+}
+
+function usersMissingError() {
+  return new Error("Tabela users mungon. Ekzekutoni supabase/users.sql në Supabase Fiskalizim.");
+}
+
+function sanitizeOwner(row) {
+  if (!row) return row;
+  const { passwordi, ...safe } = row;
+  return safe;
+}
+
+async function setOwnerPasswordForClient(clientId, password, { email, emri } = {}) {
+  const pw = String(password || "").trim();
+  if (pw.length < 6) throw new Error("Fjalëkalimi min. 6 karaktere.");
+  const db = getSupabase();
+  const cid = String(clientId || "").trim();
+  if (!cid) throw new Error("Mungon ID e klientit.");
+
+  const { data: client, error: cErr } = await db
+    .from("clients")
+    .select("id, emri, email")
+    .eq("id", cid)
+    .maybeSingle();
+  if (cErr) throw cErr;
+  if (!client) throw new Error("Klienti nuk u gjet.");
+
+  const mail = (email != null ? String(email).trim().toLowerCase() : "")
+    || String(client.email || "").trim().toLowerCase();
+  if (!mail) throw new Error("Vendos email të klientit para se të vendosësh fjalëkalimin.");
+  const name = String(emri || client.emri || "Pronar").trim();
+  const hash = await bcrypt.hash(pw, 12);
+  const now = new Date().toISOString();
+
+  const { error: emailErr } = await db.from("clients").update({ email: mail }).eq("id", cid);
+  if (emailErr) throw emailErr;
+
+  const { data: owners, error: uErr } = await db
+    .from("users")
+    .select("id, emri, email, roli, client_id")
+    .eq("client_id", cid)
+    .eq("roli", "client_admin");
+  if (uErr) {
+    if (isMissingUsersTable(uErr)) throw usersMissingError();
+    throw uErr;
+  }
+
+  if (owners && owners.length) {
+    const updated = [];
+    for (const o of owners) {
+      const patch = { passwordi: hash, password_set_at: now, email: mail, emri: name };
+      let { data, error } = await db
+        .from("users")
+        .update(patch)
+        .eq("id", o.id)
+        .eq("roli", "client_admin")
+        .select("id, emri, email, roli, client_id")
+        .single();
+      if (error && /password_set_at|aktiv/i.test(error.message || "")) {
+        delete patch.password_set_at;
+        ({ data, error } = await db
+          .from("users")
+          .update(patch)
+          .eq("id", o.id)
+          .eq("roli", "client_admin")
+          .select("id, emri, email, roli, client_id")
+          .single());
+      }
+      if (error) throw error;
+      updated.push(sanitizeOwner(data));
+    }
+    return { owners: updated, created: false, product_line: "fiskale" };
+  }
+
+  const row = {
+    client_id: cid,
+    emri: name,
+    email: mail,
+    roli: "client_admin",
+    aktiv: true,
+    passwordi: hash,
+    password_set_at: now,
+  };
+  let { data: created, error: insErr } = await db
+    .from("users")
+    .insert(row)
+    .select("id, emri, email, roli, client_id")
+    .single();
+  if (insErr && /aktiv|password_set_at/i.test(insErr.message || "")) {
+    delete row.aktiv;
+    delete row.password_set_at;
+    ({ data: created, error: insErr } = await db
+      .from("users")
+      .insert(row)
+      .select("id, emri, email, roli, client_id")
+      .single());
+  }
+  if (insErr) {
+    if (isMissingUsersTable(insErr)) throw usersMissingError();
+    throw insErr;
+  }
+  return { owners: [sanitizeOwner(created)], created: true, product_line: "fiskale" };
+}
+
+async function setOwnerEmailForClient(clientId, email, { emri } = {}) {
+  const mail = String(email || "").trim().toLowerCase();
+  if (!mail) throw new Error("Email është i detyrueshëm.");
+  const db = getSupabase();
+  const cid = String(clientId || "").trim();
+  if (!cid) throw new Error("Mungon ID e klientit.");
+
+  const { data: client, error: cErr } = await db
+    .from("clients")
+    .select("id, emri, email")
+    .eq("id", cid)
+    .maybeSingle();
+  if (cErr) throw cErr;
+  if (!client) throw new Error("Klienti nuk u gjet.");
+
+  const { error: emailErr } = await db.from("clients").update({ email: mail }).eq("id", cid);
+  if (emailErr) throw emailErr;
+
+  const { data: owners, error: uErr } = await db
+    .from("users")
+    .select("id, emri, email, roli, client_id")
+    .eq("client_id", cid)
+    .eq("roli", "client_admin");
+  if (uErr) {
+    if (isMissingUsersTable(uErr)) throw usersMissingError();
+    throw uErr;
+  }
+  if (!owners || !owners.length) {
+    throw new Error("Nuk ka llogari pronari për këtë klient. Vendos email + fjalëkalim së pari.");
+  }
+
+  const name = emri != null ? String(emri).trim() : "";
+  const updated = [];
+  for (const o of owners) {
+    const patch = { email: mail };
+    if (name) patch.emri = name;
+    const { data, error } = await db
+      .from("users")
+      .update(patch)
+      .eq("id", o.id)
+      .eq("roli", "client_admin")
+      .select("id, emri, email, roli, client_id")
+      .single();
+    if (error) throw error;
+    updated.push(sanitizeOwner(data));
+  }
+  return { owners: updated, client_email: mail, product_line: "fiskale" };
+}
+
 module.exports = {
   genLicenseKey,
   genUniqueLicenseKey,
@@ -371,4 +533,6 @@ module.exports = {
   setLicenseStatus,
   deleteLicense,
   deleteClient,
+  setOwnerPasswordForClient,
+  setOwnerEmailForClient,
 };
