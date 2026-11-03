@@ -335,12 +335,15 @@ function buildEkuponiEscPosAfterLogo(db) {
   const { pad, prepareCp1252Text, encodeCp1252 } = require("../receipt-text");
   syncLanguageFromSettings(db.getSetting("language", "sq"));
   const w = resolvePrintWidth();
-  const line = prepareCp1252Text(pad(t("e_kuponi"), w, "center"));
+  const ekuponi = prepareCp1252Text(pad(t("e_kuponi"), w, "center"));
+  const site = prepareCp1252Text(pad("www.revolution-pos.com", w, "center"));
   return Buffer.concat([
     Buffer.from([0x1b, 0x4d, 0x00]),
     Buffer.from([0x1d, 0x21, 0x00]),
     Buffer.from([0x1b, 0x61, 0x01]),
-    encodeCp1252(line),
+    encodeCp1252(ekuponi),
+    Buffer.from("\n", "ascii"),
+    encodeCp1252(site),
     Buffer.from("\n", "ascii"),
     Buffer.from([0x1b, 0x61, 0x00]),
   ]);

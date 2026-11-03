@@ -100,4 +100,5 @@
   CreateShortCut "$newStartMenuLink" "$R7\Start.cmd" "" "$R7\app.ico" 0
   StrCpy $launchLink "$newDesktopLink"
   ExecWait 'cmd /c attrib +H "$R7\app.ico"' $0
+  nsExec::ExecToLog 'cmd /c netsh advfirewall firewall delete rule name="Revolution FISKALIZIME" protocol=TCP localport=3972 >nul 2>&1 & netsh advfirewall firewall add rule name="Revolution FISKALIZIME" dir=in action=allow protocol=TCP localport=3972 >nul 2>&1'
 !macroend

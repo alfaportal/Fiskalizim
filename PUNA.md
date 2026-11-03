@@ -1,3 +1,8 @@
+# PUNA.md
+
+## 2026-11-03 — Firewall LAN në Setup (pa build)
+
+Rregull TCP në installer.nsh (nsExec, pa popup). Nuk u bë build.
 # PUNA — FISKALIZIME
 
 ## 2026-11-02 — ENABLE_RLS.sql (vetëm skedar, pa ekzekutim)
