@@ -1,5 +1,11 @@
 # PUNA.md
 
+## 2026-11-06 — Raporti Z pas obfuskimit
+
+`scripts/obfuscate-build.mjs`: `printFiscalReportText` dhe funksionet e printit Z nuk riemërtohen mes skedarëve. Pa këtë, Setup-i hedh «is not a function» kur shtypet Raporti Z. Butoni i hyrjes «Kyçu» mbetet. Nuk u bë build.
+
+
+
 ## 2026-11-06 — Email pronari pas 44 orësh pa heartbeat
 
 Një email te `clients.email` kur `last_seen` kalon 44 orë (`app_type` fiskalizim). Nuk përsëritet derisa heartbeat-i të kthehet. Teksti: kuponi fiskal nuk është dërguar te ATK.
