@@ -1,5 +1,21 @@
 # PUNA.md
 
+## 2026-11-06 — Email pronari pas 44 orësh pa heartbeat
+
+Një email te `clients.email` kur `last_seen` kalon 44 orë (`app_type` fiskalizim). Nuk përsëritet derisa heartbeat-i të kthehet. Teksti: kuponi fiskal nuk është dërguar te ATK.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server/mailer.js` | Resend |
+| `server/offlineNotificationService.js` | kontrolli 44 orë |
+| `server/jobs/offlineNotifications.js` | cron çdo orë |
+| `server/index.js` | nismë e cron-it |
+| `server/sql/offline_notifications.sql` | tabela + RLS |
+
+`node --check` kaloi. Nuk u ekzekutua SQL. Nuk u bë push.
+
+
+
 ## 2026-11-03 — Firewall LAN në Setup (pa build)
 
 Rregull TCP në installer.nsh (nsExec, pa popup). Nuk u bë build.

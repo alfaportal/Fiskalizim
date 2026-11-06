@@ -74,6 +74,12 @@ app.use((err, req, res, _next) => {
   }
 });
 
+try {
+  require("./jobs/offlineNotifications").startOfflineNotificationCron();
+} catch (e) {
+  console.warn("[fiskalizim] offline email:", e.message || e);
+}
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`[fiskalizim-license] listening on :${PORT}`);
   console.log("[fiskalizim-license] POST /fiskalizim/api/license/validate|heartbeat|activate|by-hardware");
