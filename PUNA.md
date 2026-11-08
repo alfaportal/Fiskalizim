@@ -1,5 +1,46 @@
 # PUNA.md
 
+## 2026-11-08 — Stornoja e pagesës së përzier ndahet cash dhe kartë
+
+| Skedar | Rreshta | Pse |
+|--------|---------|-----|
+| `fiscal/fiscal-correction.js` | 71–116, 486 | Storno dhe kthimi marrin ndarjen cash/kartë të shitjes |
+| `database.js` | 1889–1903, 1981, 2038 | Ditari e zbret sipas asaj ndarjeje |
+| `fiskalizime-pos-shift.js` | 27–43, 116, 127 | Arka e zbret njësoj |
+
+Prova e njëjtë: cash 53.90 €, kartë 75.00 €, total 128.90 €, arka e pritur 103.90 €. Storno cash −72.00 € vetëm nga cash. Storno kartë −8.00 € vetëm nga kartë. Databaza e provës u fshi. Nuk u bë build.
+
+## 2026-11-08 — TVSH e njëjtë te Z dhe Ditari, arka zbret stornon
+
+| Skedar | Rreshta | Pse |
+|--------|---------|-----|
+| `database.js` | 1942–1970, 1976–2103 | Ditari merr TVSH-në e ruajtur te kuponi, njësoj si Z |
+| `public/index.html` | 8726–8729 | Ekrani tregon atë TVSH, nuk e llogarit përsëri |
+| `fiskalizime-pos-shift.js` | 110–137, 166–170, 210–214 | Mbyllja e ndërrimit zbret stornon dhe kthimin |
+
+Prova e njëjtë: Z 57.20 €, TVSH 6.22 €. Ditari 57.20 €, TVSH 6.22 €. Arka: cash 46.40 €, kartë 10.80 €, total 57.20 €, pritet 46.40 €. Databaza e provës u fshi. Nuk u bë build.
+
+## 2026-11-08 — Storno dhe kthimi me minus, Ditari, TVSH e Z në cent
+
+| Skedar | Rreshta | Pse |
+|--------|---------|-----|
+| `fiscal/fiscal-correction.js` | 391–399, 431–435, 520–524 | Storno, anulim dhe kthim ruhen me shumë negative |
+| `database.js` | 1980–2035 | Ditari i tregon këto rreshta dhe i zbret nga totali |
+| `fiscal/fiscal-numbering.js` | 303–305 | TVSH e Z rrumbullakohet në cent |
+
+Printimi i kuponit mbetet me shumat e letës si më parë. Prova me databazë të përkohshme: Z 133.20 €, Ditari 133.20 €, storno −17.00 € (Pa −16.11, TVSH −0.89), kthimi −20.00 € (Pa −16.95, TVSH −3.05). TVSH e Z: D 4.98 €, E 8.54 €. Databaza e provës u fshi. Nuk u bë build.
+
+## 2026-11-08 — TVSH te zbritja dhe kolonat në Ditari
+
+Udhëzimi i mëparshëm (kthim pa NUIKF, Raporti Z me shitje termike) nuk kishte prekur asnjë skedar. Kthimi mbetet me NUIKF. Raporti Z lexon vetëm kuponët fiskalë.
+
+| Skedar | Rreshta | Pse |
+|--------|---------|-----|
+| `public/index.html` | 6202–6206 | TVSH llogaritet mbi çmimin pas zbritjes |
+| `public/index.html` | 2798–2804, 8723–8849 | Ditari tregon Pa TVSH, TVSH dhe Totalin |
+
+Prova e llogaritjes: 2× 5.50 € me 20% = 8.80 € → TVSH 0.65 €. Shitja 41.00 € (18%+8%) → Pa TVSH 35.61 €, TVSH 5.39 €. Nuk u hap programi. Nuk u bë build.
+
 ## 2026-11-06 — Raporti Z pas obfuskimit
 
 `scripts/obfuscate-build.mjs`: `printFiscalReportText` dhe funksionet e printit Z nuk riemërtohen mes skedarëve. Pa këtë, Setup-i hedh «is not a function» kur shtypet Raporti Z. Butoni i hyrjes «Kyçu» mbetet. Nuk u bë build.

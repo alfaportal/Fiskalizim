@@ -68,6 +68,56 @@ function normalizeItem(item) {
   };
 }
 
+function isCardPayMethod(method) {
+  const m = String(method || "").trim().toLowerCase();
+  return m === "karte" || m === "card" || m === "kartë" || m === "debit_card" || m === "credit_card" || m === "pos";
+}
+
+function correctionSplitJson(saleId, signedTotal) {
+  const sid = Number(saleId);
+  if (!sid) return null;
+  let order = null;
+  try {
+    order = require("../database").getOrder(sid);
+  } catch {
+    order = null;
+  }
+  if (!order) return null;
+  let payload = {};
+  try {
+    payload = JSON.parse(order.items_json || "{}");
+  } catch {
+    payload = {};
+  }
+  const splits = Array.isArray(payload.payment_splits) ? payload.payment_splits : [];
+  if (!splits.length) return null;
+  let cash = 0;
+  let card = 0;
+  for (const p of splits) {
+    const amt = Math.round((Number(p.amount) || 0) * 100) / 100;
+    if (isCardPayMethod(p.method)) card += amt;
+    else cash += amt;
+  }
+  cash = Math.round(cash * 100) / 100;
+  card = Math.round(card * 100) / 100;
+  if (!(cash > 0 && card > 0)) return null;
+  const base = Math.round((cash + card) * 100) / 100;
+  const absTotal = Math.round(Math.abs(Number(signedTotal) || 0) * 100) / 100;
+  if (!(base > 0) || !(absTotal > 0)) return null;
+  const sign = Number(signedTotal) < 0 ? -1 : 1;
+  let partCash = Math.round(((cash * absTotal) / base) * 100) / 100;
+  let partCard = Math.round(((card * absTotal) / base) * 100) / 100;
+  const drift = Math.round((absTotal - partCash - partCard) * 100) / 100;
+  if (drift) {
+    if (cash >= card) partCash = Math.round((partCash + drift) * 100) / 100;
+    else partCard = Math.round((partCard + drift) * 100) / 100;
+  }
+  return JSON.stringify([
+    { method: "cash", amount: Math.round(sign * partCash * 100) / 100 },
+    { method: "card", amount: Math.round(sign * partCard * 100) / 100 },
+  ]);
+}
+
 function itemMatchKey(item) {
   const it = normalizeItem(item);
   return `${it.name}\0${round4(it.price)}`;
@@ -388,8 +438,16 @@ function createCorrectionReceipt(originalNuikf, correctionType, items, reason, o
     correction_reason: reasonText,
   });
 
+  const storedTotal = round4(-Math.abs(totalAmount));
+  const storedWithout = round4(-Math.abs(totalWithoutTax));
+  const storedSubtotal = round4(-Math.abs(subtotal));
+  const storedVat = {};
+  for (const L of ["A", "B", "C", "D", "E"]) {
+    const n = Number(vatBreak && vatBreak[L]) || 0;
+    storedVat[L] = n ? round4(-Math.abs(n)) : 0;
+  }
   const itemsJson = JSON.stringify(correctionItems);
-  const vatJson = JSON.stringify(vatBreak);
+  const vatJson = JSON.stringify(storedVat);
 
   let printOfflineBanner = opts.no_internet === true || opts.print_offline_banner === true;
   if (!printOfflineBanner) {
@@ -420,12 +478,13 @@ function createCorrectionReceipt(originalNuikf, correctionType, items, reason, o
     taxpayer_name: taxpayerName,
     taxpayer_address: taxpayerAddress,
     items_json: itemsJson,
-    subtotal,
+    subtotal: storedSubtotal,
     discount_amount: discount,
-    total_amount: totalAmount,
-    total_without_tax: totalWithoutTax,
+    total_amount: storedTotal,
+    total_without_tax: storedWithout,
     vat_breakdown_json: vatJson,
     payment_method: original.payment_method || "cash",
+    payment_splits_json: correctionSplitJson(original.sale_id, storedTotal),
     currency: "EUR",
     qr_code_data: qrPayload,
     digital_signature: null,
@@ -487,7 +546,7 @@ function createCorrectionReceipt(originalNuikf, correctionType, items, reason, o
         original_nuikf: original.nuikf,
         receipt_type: type,
         reason: reasonText,
-        total: totalAmount,
+        total: storedTotal,
       },
       operatorName,
       operatorId
@@ -509,11 +568,11 @@ function createCorrectionReceipt(originalNuikf, correctionType, items, reason, o
     operator_name: operatorName,
     operator_id: operatorId,
     items: correctionItems,
-    subtotal,
+    subtotal: storedSubtotal,
     discount_amount: discount,
-    total_amount: totalAmount,
-    total_without_tax: totalWithoutTax,
-    vat_breakdown: vatBreak,
+    total_amount: storedTotal,
+    total_without_tax: storedWithout,
+    vat_breakdown: storedVat,
     payment_method: original.payment_method || "cash",
     currency: "EUR",
     correction_reason: reasonText,

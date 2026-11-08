@@ -1886,9 +1886,21 @@ function parseOrderPayload(row) {
   }
 }
 
+function rowPaymentSplits(row) {
+  if (row && row.payment_splits_json) {
+    try {
+      const raw = typeof row.payment_splits_json === "string" ? JSON.parse(row.payment_splits_json) : row.payment_splits_json;
+      if (Array.isArray(raw) && raw.length) return raw;
+    } catch {
+      /* */
+    }
+  }
+  return parseOrderPayload(row).payment_splits;
+}
+
 function cashFromOrderRow(row) {
   const total = round2(row.total);
-  const splits = parseOrderPayload(row).payment_splits;
+  const splits = rowPaymentSplits(row);
   if (splits.length) {
     return round2(
       splits
@@ -1901,7 +1913,7 @@ function cashFromOrderRow(row) {
 
 function cardFromOrderRow(row) {
   const total = round2(row.total);
-  const splits = parseOrderPayload(row).payment_splits;
+  const splits = rowPaymentSplits(row);
   if (splits.length) {
     return round2(
       splits
@@ -1939,6 +1951,23 @@ function resolveDitariRange(opts = {}) {
   return { from, to, label };
 }
 
+function parseStoredVatLetters(raw) {
+  const letters = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+  try {
+    const vb = typeof raw === "string" ? JSON.parse(raw || "{}") : raw || {};
+    for (const L of ["A", "B", "C", "D", "E"]) {
+      letters[L] = Number(vb[L] ?? vb[L.toLowerCase()]) || 0;
+    }
+  } catch {
+    /* */
+  }
+  return letters;
+}
+
+function isDitariCorrectionType(receiptType) {
+  return ["cancel", "storno", "return"].includes(String(receiptType || "").toLowerCase());
+}
+
 function getDitari(opts = {}) {
   const periodRaw = String(opts.period || "").trim().toLowerCase();
   const period =
@@ -1956,12 +1985,32 @@ function getDitari(opts = {}) {
        ORDER BY datetime(created_at) DESC, id DESC`
     )
     .all(range.from, range.to);
+  let fiscalRows = [];
+  try {
+    fiscalRows = sqlite
+      .prepare(
+        `SELECT id, sale_id, receipt_type, total_amount, total_without_tax, vat_breakdown_json,
+                payment_method, payment_splits_json, operator_name, created_at, items_json
+         FROM fiscal_receipts
+         WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)`
+      )
+      .all(range.from, range.to);
+  } catch {
+    fiscalRows = [];
+  }
+  const regularBySale = new Map();
+  for (const r of fiscalRows) {
+    if (isDitariCorrectionType(r.receipt_type)) continue;
+    const sid = Number(r.sale_id);
+    if (sid && !regularBySale.has(sid)) regularBySale.set(sid, r);
+  }
   const parsed = rows.map((e) => {
     const created = String(e.created_at || "");
     const date = created.slice(0, 10);
     const time = created.length >= 19 ? created.slice(11, 19) : created.slice(11) || "00:00:00";
     const payload = parseOrderPayload(e);
     const items = payload.items;
+    const receipt = regularBySale.get(Number(e.id));
     return {
       id: e.id,
       date,
@@ -1975,9 +2024,54 @@ function getDitari(opts = {}) {
       status: e.status || "completed",
       cash_amount: cashFromOrderRow(e),
       card_amount: cardFromOrderRow(e),
+      _letters: receipt ? parseStoredVatLetters(receipt.vat_breakdown_json) : null,
     };
   });
-  const completed = parsed.filter((e) => String(e.status || "") !== "cancelled");
+  const corrections = fiscalRows.filter((r) => isDitariCorrectionType(r.receipt_type)).map((r) => {
+      const created = String(r.created_at || "").replace("T", " ");
+      const date = created.slice(0, 10);
+      const time = created.length >= 19 ? created.slice(11, 19) : created.slice(11) || "00:00:00";
+      const rawItems = parseOrderPayload({ items_json: r.items_json }).items;
+      const items = rawItems.map((it) => {
+        const letter = String(it.vat_letter || it.vat_norm || "E").toUpperCase();
+        return {
+          name: it.name,
+          quantity: Number(it.quantity ?? it.qty) || 0,
+          price: Number(it.price ?? it.unit_price) || 0,
+          vat_letter: letter,
+          vat_norm: letter,
+        };
+      });
+      const total = round2(r.total_amount);
+      const payRow = {
+        total,
+        payment_method: r.payment_method || "cash",
+        items_json: r.items_json,
+        payment_splits_json: r.payment_splits_json,
+      };
+      return {
+        id: r.id,
+        date,
+        time,
+        waiter_name: r.operator_name || "Operator",
+        payment_method: payRow.payment_method,
+        payment_label: paymentLabel(payRow.payment_method),
+        artikujt: items.map((i) => `${i.quantity || 1}× ${i.name}`).join(", "),
+        items,
+        total,
+        status: String(r.receipt_type || "").toLowerCase(),
+        cash_amount: cashFromOrderRow(payRow),
+        card_amount: cardFromOrderRow(payRow),
+        _letters: parseStoredVatLetters(r.vat_breakdown_json),
+      };
+    });
+  const merged = [...parsed, ...corrections].sort((a, b) => {
+    const ka = `${a.date || ""} ${a.time || ""}`;
+    const kb = `${b.date || ""} ${b.time || ""}`;
+    if (ka !== kb) return kb.localeCompare(ka);
+    return Number(b.id) - Number(a.id);
+  });
+  const completed = merged.filter((e) => String(e.status || "") !== "cancelled");
   const totalSales = completed.reduce((sum, e) => sum + e.total, 0);
   let totalCash = 0;
   let totalKarte = 0;
@@ -1985,15 +2079,51 @@ function getDitari(opts = {}) {
     totalCash += e.cash_amount;
     totalKarte += e.card_amount;
   }
+  const letterSum = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+  const fiscalEntries = completed.filter((e) => e._letters);
+  for (const e of fiscalEntries) {
+    for (const L of ["A", "B", "C", "D", "E"]) letterSum[L] += e._letters[L];
+  }
+  let totalTvsh = 0;
+  for (const L of ["A", "B", "C", "D", "E"]) {
+    letterSum[L] = round2(letterSum[L]);
+    totalTvsh += letterSum[L];
+  }
+  totalTvsh = round2(totalTvsh);
+  let shownTvsh = 0;
+  for (const e of fiscalEntries) {
+    const raw = ["A", "B", "C", "D", "E"].reduce((s, L) => s + e._letters[L], 0);
+    e.tvsh = round2(raw);
+    e.pa_tvsh = round2((Number(e.total) || 0) - e.tvsh);
+    shownTvsh += e.tvsh;
+  }
+  shownTvsh = round2(shownTvsh);
+  const tvshDrift = round2(totalTvsh - shownTvsh);
+  if (tvshDrift && fiscalEntries.length) {
+    let pick = fiscalEntries[0];
+    let best = -1;
+    for (const e of fiscalEntries) {
+      const raw = ["A", "B", "C", "D", "E"].reduce((s, L) => s + e._letters[L], 0);
+      const rem = Math.abs(raw - e.tvsh);
+      if (rem >= best) {
+        best = rem;
+        pick = e;
+      }
+    }
+    pick.tvsh = round2(pick.tvsh + tvshDrift);
+    pick.pa_tvsh = round2((Number(pick.total) || 0) - pick.tvsh);
+  }
+  for (const e of merged) delete e._letters;
   return {
     periodLabel: range.label,
     dateFrom: range.from,
     dateTo: range.to,
     totalSales: round2(totalSales),
+    totalTvsh,
     totalCash: round2(totalCash),
     totalKarte: round2(totalKarte),
     orderCount: completed.length,
-    entries: parsed,
+    entries: merged,
     shifts: (() => {
       try {
         return require("./fiskalizime-pos-shift").listPosShiftsInRange(range.from, range.to);

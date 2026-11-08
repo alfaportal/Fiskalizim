@@ -24,15 +24,27 @@ function isCardPayment(method) {
   );
 }
 
-function cashFromOrderRow(row) {
-  const total = round2(row.total);
+function rowPaymentSplits(row) {
+  if (row && row.payment_splits_json) {
+    try {
+      const raw = typeof row.payment_splits_json === "string" ? JSON.parse(row.payment_splits_json) : row.payment_splits_json;
+      if (Array.isArray(raw) && raw.length) return raw;
+    } catch {
+      /* */
+    }
+  }
   let items = {};
   try {
     items = JSON.parse(row.items_json || "{}");
   } catch {
     items = {};
   }
-  const splits = Array.isArray(items.payment_splits) ? items.payment_splits : [];
+  return Array.isArray(items.payment_splits) ? items.payment_splits : [];
+}
+
+function cashFromOrderRow(row) {
+  const total = round2(row.total);
+  const splits = rowPaymentSplits(row);
   if (splits.length) {
     return round2(
       splits
@@ -45,13 +57,7 @@ function cashFromOrderRow(row) {
 
 function cardFromOrderRow(row) {
   const total = round2(row.total);
-  let items = {};
-  try {
-    items = JSON.parse(row.items_json || "{}");
-  } catch {
-    items = {};
-  }
-  const splits = Array.isArray(items.payment_splits) ? items.payment_splits : [];
+  const splits = rowPaymentSplits(row);
   if (splits.length) {
     return round2(
       splits
@@ -107,6 +113,35 @@ function getOpenPosShift(operatorId) {
     .get(oid);
 }
 
+function correctionRowsForShift(shiftId, from, to) {
+  if (!sqliteRef) return [];
+  try {
+    if (from && to) {
+      return sqliteRef
+        .prepare(
+          `SELECT fr.total_amount AS total, fr.payment_method, fr.items_json, fr.payment_splits_json
+           FROM fiscal_receipts fr
+           INNER JOIN orders o ON o.id = fr.sale_id
+           WHERE o.shift_id = ?
+             AND lower(COALESCE(fr.receipt_type, '')) IN ('cancel', 'storno', 'return')
+             AND date(fr.created_at) >= date(?) AND date(fr.created_at) <= date(?)`
+        )
+        .all(shiftId, from, to);
+    }
+    return sqliteRef
+      .prepare(
+        `SELECT fr.total_amount AS total, fr.payment_method, fr.items_json, fr.payment_splits_json
+         FROM fiscal_receipts fr
+         INNER JOIN orders o ON o.id = fr.sale_id
+         WHERE o.shift_id = ?
+           AND lower(COALESCE(fr.receipt_type, '')) IN ('cancel', 'storno', 'return')`
+      )
+      .all(shiftId);
+  } catch {
+    return [];
+  }
+}
+
 function computePosShiftTotals(shiftId) {
   const sid = Number(shiftId);
   if (!sid) {
@@ -131,6 +166,11 @@ function computePosShiftTotals(shiftId) {
   for (const row of rows) {
     sales += round2(row.total);
     discount += round2(row.discount_total);
+    cash += cashFromOrderRow(row);
+    card += cardFromOrderRow(row);
+  }
+  for (const row of correctionRowsForShift(sid)) {
+    sales += round2(row.total);
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }
@@ -170,6 +210,11 @@ function computePosShiftTotalsInRange(shiftId, from, to) {
   for (const row of rows) {
     sales += round2(row.total);
     discount += round2(row.discount_total);
+    cash += cashFromOrderRow(row);
+    card += cardFromOrderRow(row);
+  }
+  for (const row of correctionRowsForShift(sid, f, t)) {
+    sales += round2(row.total);
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }

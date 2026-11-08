@@ -2795,11 +2795,13 @@
               <th style="padding:0.35rem 0.5rem">Operatori</th>
               <th style="padding:0.35rem 0.5rem">Pagesa</th>
               <th style="padding:0.35rem 0.5rem">Artikujt</th>
+              <th style="padding:0.35rem 0.5rem">Pa TVSH</th>
+              <th style="padding:0.35rem 0.5rem">TVSH</th>
               <th style="padding:0.35rem 0.5rem">Totali</th>
             </tr>
           </thead>
           <tbody id="p2-ditari-list">
-            <tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
+            <tr><td colspan="8" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
           </tbody>
         </table>
       </div>
@@ -6197,8 +6199,9 @@
       let tax0 = 0;
       let tax8 = 0;
       let tax18 = 0;
+      const payScale = prev.sub > 0 ? prev.total / prev.sub : 1;
       for (const c of state.cart) {
-        const line = lineNet(c);
+        const line = roundMoney(lineNet(c) * payScale);
         const pct = Number(c.vat_percent ?? c.vat_rate ?? vatPercent(c.vat_letter));
         const tax = taxFromGross(line, pct);
         if (pct === 8) tax8 += tax;
@@ -8720,6 +8723,32 @@
       });
     }
 
+    function ditariVatParts(e) {
+      if (e && e.tvsh != null && e.pa_tvsh != null && Number.isFinite(Number(e.tvsh)) && Number.isFinite(Number(e.pa_tvsh))) {
+        return { pa: roundMoney(e.pa_tvsh), tvsh: roundMoney(e.tvsh) };
+      }
+      const items = Array.isArray(e.items) ? e.items : [];
+      let base = 0;
+      const lines = [];
+      for (const it of items) {
+        const gross = Math.abs(Number(it.price) || 0) * Math.abs(Number(it.quantity ?? it.qty) || 0);
+        const letter = String(it.vat_letter || it.vat_norm || "E").toUpperCase();
+        let pct = Number(it.vat_rate ?? it.vat_percent);
+        if (!Number.isFinite(pct)) {
+          pct = letter === "D" ? 8 : letter === "A" || letter === "C" || letter === "B" ? 0 : 18;
+        }
+        base += gross;
+        lines.push({ gross, pct });
+      }
+      const paid = Number(e.total) || 0;
+      const scale = base > 0 ? Math.abs(paid) / base : 1;
+      let tax = 0;
+      for (const line of lines) tax += taxFromGross(roundMoney(line.gross * scale), line.pct);
+      tax = roundMoney(tax);
+      if (paid < 0) tax = -tax;
+      return { pa: roundMoney(paid - tax), tvsh: tax };
+    }
+
     function renderDitariList() {
       const tbody = document.getElementById("p2-ditari-list");
       if (!tbody) return;
@@ -8736,28 +8765,32 @@
       });
       if (!rows.length) {
         tbody.innerHTML =
-          '<tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka shitje për këtë periudhë.</td></tr>';
+          '<tr><td colspan="8" style="padding:0.5rem;color:var(--muted)">Nuk ka shitje për këtë periudhë.</td></tr>';
         return;
       }
       tbody.innerHTML = rows
-        .map(
-          (e) =>
+        .map((e) => {
+          const vat = ditariVatParts(e);
+          return (
             `<tr>` +
             `<td style="padding:0.35rem 0.5rem">${esc(e.date || "")}</td>` +
             `<td style="padding:0.35rem 0.5rem">${esc(e.time || "")}</td>` +
             `<td style="padding:0.35rem 0.5rem">${esc(e.waiter_name || "—")}</td>` +
             `<td style="padding:0.35rem 0.5rem">${esc(e.payment_label || "—")}</td>` +
             `<td style="padding:0.35rem 0.5rem">${esc(e.artikujt || "—")}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.pa)}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh)}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(e.total)}</td>` +
             `</tr>`
-        )
+          );
+        })
         .join("");
     }
 
     async function loadDitari(opts = {}) {
       const msg = document.getElementById("ditari-msg");
       const tbody = document.getElementById("p2-ditari-list");
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
       const q = new URLSearchParams();
       if (opts.customRange) {
         const from = document.getElementById("p2-ditari-from")?.value || "";
@@ -8816,7 +8849,7 @@
         ditariEntriesCache = [];
         if (tbody) {
           tbody.innerHTML =
-            `<tr><td colspan="6" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
+            `<tr><td colspan="8" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
         }
         if (msg) setMsg(msg, e.message || "Ditari nuk u ngarkua", false);
       }

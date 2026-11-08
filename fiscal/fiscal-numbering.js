@@ -11,7 +11,6 @@ const {
   memResetDailyCounter,
 } = require("./fiscal-test-mode-store");
 const { getFiscalLocalYmd, getFiscalNow } = require("./fiscal-time-sync");
-const { round4 } = require("./fiscal-vat");
 
 const ALPHANUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const NUIKF_LEN = 16;
@@ -301,7 +300,7 @@ function getSefIdentifier() {
 }
 
 function round2(n) {
-  return round4(n);
+  return Math.round((Number(n) || 0) * 100) / 100;
 }
 
 /**
