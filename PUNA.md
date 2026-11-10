@@ -1,5 +1,59 @@
 # PUNA.md
 
+## 2026-11-10 — Ditari dhe ndërrimi, kutia Kartë
+
+Kutia «Kartë» te Ditari dhe te mbyllja e ndërrimit tani mblidhin debit, kredit, mobile (`sms`), çek, transfer, voucher dhe kartë. Pagesa e përzier mbetet vetëm pjesa jo-cash.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | `isCardPayment` për Ditarin |
+| `fiskalizime-pos-shift.js` | `isCardPayment` për `card_total` e ndërrimit |
+
+Provë në databazë të re: 9 shitje. Ditari, ndërrimi i hapur dhe i mbyllur: cash 3.50 €, kartë 15.00 €, shitje 18.50 €. E përziera (1 € cash + 1 € mobile) hyri 1 € te kartë. Butonat e arkës janë të njëjtët me MARKET. Nuk u dërgua asgjë te ATK. Databaza e instaluar nuk u prek. Nuk u bë Setup.
+
+## 2026-11-10 — Setup 1.100.0
+
+Version `1.1.22` → `1.100.0` te `package.json`. `node scripts/obfuscate-build.mjs` përfundoi me kod 0.
+
+Setup: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.100.0-win-x64.exe` (115979440 byte). Setup-et 1.1.21 dhe 1.1.22 mbetën. Nuk u prek databaza e instaluar.
+
+PC: instalo Setup 1.100.0 → mbyll programin plotësisht → hape përsëri.
+
+## 2026-11-10 — TVSH 8% në shportë, kolonat në Ditari, blloku i letrës bosh
+
+Shporta tregon veç TVSH 8% dhe TVSH 18%, plus TVSH totale. Butoni 🔄 te Produktet mbetet në kod, por nuk shfaqet. Ditari ka kolonat TVSH 8% dhe TVSH 18%. Instalimi i ri nuk fut qarkullim. Katër kuponët provë të 25.10.2026 (GAP-1792968225491, GAP-CHK-1792968226311, PB1792968292481-OK, PB1792968292481-CHK1) hiqen një herë në nisjen tjetër. Nuk u dërgua asgjë te ATK. Nuk u bë Setup. Databaza e instaluar në AppData nuk u hap.
+
+| Skedar | Rreshta | Pse |
+|--------|---------|-----|
+| `public/index.html` | 1705, 2502–2504, 2838, 8834–8911 | Rreshti 8% shihet; butoni fshihet; Ditari ndan 8% dhe 18% |
+| `database.js` | 19, 1030–1095, 1205, 2020, 2272 | Ditari kthen tvsh_8 dhe tvsh_18; nisja e re është bosh; kuponët provë të 25.10.2026 hiqen një herë |
+
+Prova: Bukë 0.50 + Coca-Cola 1.00 → TVSH 8% 0.04 €, TVSH 18% 0.15 €, TVSH totale 0.19 €. Ditari: Pa TVSH 1.31 €, 0.04 €, 0.15 €, 0.19 €, total 1.50 €. Blloku i letrës: 0 kuponë. Databazat e provës janë në Temp.
+
+## 2026-11-09 — Forma e produktit: 5 fusha + Më shumë
+
+Forma «Ndrysho» dhe «Shto» tregon Emri, Kategoria, Çmimi, TVSH dhe Ruaje / Anulo. Barkodi, njësia, kategoria ATK dhe përshkrimi janë te «Më shumë». Përshkrimi ruhet. «Printo etiketë» kërkon barkod dhe hap një faqe të shkurtër. Nuk ka stok të ruajtur në këtë projekt. Butoni «Përditëso TVSH» nuk ishte në faqe. Butoni 🔄 i auto-kategorizimit mbetet.
+
+Prova në databazë të re: pas ndryshimit përshkrimi «ndryshuar fiskal», çmimi 1.40, TVSH E. Databaza e provës u fshi. Databaza e instaluar nuk u prek. Nuk u bë Setup.
+
+## 2026-11-09 — Katalogu 200 produkte, 20 kategori
+
+U hoqën 26 produktet e vjetra. U vendosën 200 të reja. 40 me TVSH 8%, 160 me TVSH 18%. Sheqeri, fasulja, salca, thjerrëzat dhe Bepanthen Krem janë 18%. Të tjerat në bukë, bulmet, vezë, ushqim bazë dhe barna janë 8%. Krejt pjesa tjetër është 18%.
+
+Prova në databazë të re: 200 produkte, 20 kategori. Bukë e bardhë 0.50 € me 8%. Sheqer 1.10 € me 18%. Paracetamol 1.00 € me 8%. Bepanthen 3.50 € me 18%. Coca-Cola 1.00 € me 18%. Kostum 120.00 € me 18%. Produktet e vjetra (Pepsi, Akullore, Cigare) nuk janë. Databaza e provës u fshi. Databaza e instaluar nuk u prek. Nuk u bë Setup.
+
+Në nisjen e parë të programit të ri, zëvendësohen vetëm produktet. Shitjet, punonjësit, licenca, printeri dhe fiskali mbeten.
+
+| Skedar | Ndryshimi |
+|---|---|
+| `data/default-products.json` | 200 produkte me çmim, kategori dhe TVSH |
+| `database.js` | kategoritë e reja; zëvendësimi i katalogut një herë |
+| `public/index.html` | 20 kategoritë në arkë; shfaqen edhe produktet me 8% |
+
+## 2026-11-09 — Kuponi pa kamarier
+
+Te kuponi u hoq «Kamarieri» dhe «Pranuar nga». Mbeti operatori. Në fund shkruhet «Ju faleminderit për vizitën!». Nuk u bë Setup.
+
 ## 2026-11-08 — Stornoja e pagesës së përzier ndahet cash dhe kartë
 
 | Skedar | Rreshta | Pse |

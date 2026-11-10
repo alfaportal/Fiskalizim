@@ -20,6 +20,10 @@ function isCardPayment(method) {
     m === "kartë" ||
     m === "debit_card" ||
     m === "credit_card" ||
+    m === "sms" ||
+    m === "check" ||
+    m === "bank_account" ||
+    m === "voucher" ||
     m === "pos"
   );
 }
