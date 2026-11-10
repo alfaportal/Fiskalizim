@@ -1,22 +1,29 @@
 const { getSupabase } = require("./db");
 const { isEmailConfigured, sendOwnerOfflineEmail } = require("./mailer");
 
-const MILESTONES = [44];
-const MS_HOUR = 60 * 60 * 1000;
+const OFFLINE_MS = 48 * 60 * 60 * 1000;
+const ONLINE_MS = 15 * 60 * 1000;
 const APP_TYPE = "fiskalizim";
+const FISCAL_PRODUCT = true;
+const businesses = new Map();
 
-function hoursSince(iso) {
-  if (!iso) return Infinity;
-  const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return 0;
-  return ms / MS_HOUR;
+function blankState() {
+  return { last_seen_online: 0, offline_email_sent: false };
 }
 
-function normalizeOfflineSince(iso) {
-  if (!iso) return new Date(0).toISOString();
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return new Date(0).toISOString();
-  return d.toISOString();
+function decideOfflineEmail(state, { seenAtMs, fiscalActive, now }) {
+  if (!fiscalActive || !state) return "skip";
+  const seenOk = Number.isFinite(seenAtMs) && seenAtMs > 0 && seenAtMs <= now + 60 * 1000;
+  const onlineNow = seenOk && now - seenAtMs <= ONLINE_MS;
+  if (onlineNow) {
+    state.last_seen_online = seenAtMs;
+    state.offline_email_sent = false;
+    return "online";
+  }
+  if (seenOk && seenAtMs > state.last_seen_online) state.last_seen_online = seenAtMs;
+  if (!state.last_seen_online || state.offline_email_sent) return "wait";
+  if (now - state.last_seen_online < OFFLINE_MS) return "wait";
+  return "send";
 }
 
 function isRevokedStatus(status) {
@@ -24,7 +31,7 @@ function isRevokedStatus(status) {
   return s === "revoked" || s === "revokuar";
 }
 
-async function fetchClientOfflineSnapshots() {
+async function fetchBusinesses() {
   const db = getSupabase();
   let licQuery = db.from("licenses").select("id, client_id, status, clients(id, emri, email)");
   if (APP_TYPE) licQuery = licQuery.eq("app_type", APP_TYPE);
@@ -33,161 +40,86 @@ async function fetchClientOfflineSnapshots() {
     db.from("terminalet_e_licences").select("license_id, last_seen"),
   ]);
   if (licErr) throw licErr;
-  if (termErr) {
-    console.warn("[cron] offlineNotifications terminals:", termErr.message || termErr);
-  }
+  if (termErr) console.warn("[offline-48h] terminals:", termErr.message || termErr);
 
   const seenByLicense = new Map();
   for (const t of terminals || []) {
     if (!t.license_id || !t.last_seen) continue;
-    const prev = seenByLicense.get(t.license_id);
-    if (!prev || new Date(t.last_seen) > new Date(prev)) {
-      seenByLicense.set(t.license_id, t.last_seen);
-    }
+    const ms = new Date(t.last_seen).getTime();
+    if (!Number.isFinite(ms)) continue;
+    const prev = seenByLicense.get(t.license_id) || 0;
+    if (ms > prev) seenByLicense.set(t.license_id, ms);
   }
 
   const byClient = new Map();
   for (const lic of licenses || []) {
     if (!lic?.client_id || isRevokedStatus(lic.status)) continue;
-    const lastSeen = seenByLicense.get(lic.id);
-    if (!lastSeen) continue;
+    const seenAtMs = seenByLicense.get(lic.id) || 0;
+    if (!seenAtMs) continue;
     const client = lic.clients || {};
-    const clientId = lic.client_id;
-    const hours = hoursSince(lastSeen);
-    const prev = byClient.get(clientId);
-    if (prev && hours >= prev.hours_offline) continue;
-    byClient.set(clientId, {
-      client_id: clientId,
-      license_id: lic.id,
-      client_name: client.emri || "—",
+    const slug = String(client.id || lic.client_id).trim().toLowerCase();
+    if (!slug) continue;
+    const prev = byClient.get(slug);
+    if (prev && seenAtMs <= prev.seenAtMs) continue;
+    byClient.set(slug, {
+      slug,
+      client_name: client.emri || slug,
       client_email: client.email || "",
-      last_seen_at: lastSeen,
-      offline_since: normalizeOfflineSince(lastSeen),
-      hours_offline: hours,
+      seenAtMs,
+      fiscalActive: FISCAL_PRODUCT,
     });
   }
-
-  return [...byClient.values()].filter((c) => c.hours_offline >= MILESTONES[0]);
+  return [...byClient.values()];
 }
 
-async function fetchSentMilestones(clientId, offlineSince) {
-  const db = getSupabase();
-  const { data, error } = await db
-    .from("offline_notifications")
-    .select("milestone_hours")
-    .eq("client_id", clientId)
-    .eq("offline_since", offlineSince);
-  if (error) {
-    if (/offline_notifications|schema cache|does not exist/i.test(error.message || "")) {
-      const err = new Error(
-        "Tabela offline_notifications mungon. Ekzekutoni server/sql/offline_notifications.sql",
-      );
-      err.code = "MISSING_OFFLINE_NOTIFICATIONS_TABLE";
-      throw err;
-    }
-    throw error;
-  }
-  return new Set((data || []).map((r) => Number(r.milestone_hours)));
-}
-
-async function notifiedAfterLastSeen(clientId, lastSeenAt) {
-  const db = getSupabase();
-  const { data, error } = await db
-    .from("offline_notifications")
-    .select("sent_at")
-    .eq("client_id", clientId)
-    .order("sent_at", { ascending: false })
-    .limit(8);
-  if (error) throw error;
-  const seenMs = new Date(lastSeenAt).getTime();
-  if (!Number.isFinite(seenMs)) return false;
-  return (data || []).some((r) => {
-    const sentMs = new Date(r.sent_at).getTime();
-    return Number.isFinite(sentMs) && sentMs >= seenMs;
-  });
-}
-
-async function recordMilestone(row, milestoneHours) {
-  const db = getSupabase();
-  const { error } = await db.from("offline_notifications").upsert(
-    {
-      client_id: row.client_id,
-      license_id: row.license_id || null,
-      offline_since: row.offline_since,
-      milestone_hours: milestoneHours,
-      sent_at: new Date().toISOString(),
-    },
-    { onConflict: "client_id,offline_since,milestone_hours" },
-  );
-  if (error) throw error;
-}
-
-async function processOfflineNotifications() {
+async function processOfflineNotifications(now = Date.now()) {
   if (!isEmailConfigured()) {
-    console.log("[cron] offlineNotifications: RESEND_API_KEY mungon — anashkalohet.");
     return { skipped: true, reason: "email_not_configured" };
   }
-
-  const offline = await fetchClientOfflineSnapshots();
-  const stats = { checked: offline.length, sent: 0, skipped: 0, no_email: 0, errors: 0 };
-
-  for (const row of offline) {
-    let sentSet;
-    try {
-      sentSet = await fetchSentMilestones(row.client_id, row.offline_since);
-    } catch (err) {
-      if (err.code === "MISSING_OFFLINE_NOTIFICATIONS_TABLE") {
-        console.error("[cron] offlineNotifications:", err.message);
-        return { skipped: true, reason: "missing_table" };
-      }
-      throw err;
+  const rows = await fetchBusinesses();
+  const stats = { checked: rows.length, sent: 0, online: 0, wait: 0, errors: 0 };
+  for (const row of rows) {
+    let state = businesses.get(row.slug);
+    if (!state) {
+      state = blankState();
+      businesses.set(row.slug, state);
     }
-
+    const action = decideOfflineEmail(state, {
+      seenAtMs: row.seenAtMs,
+      fiscalActive: row.fiscalActive,
+      now,
+    });
+    if (action === "online") {
+      stats.online += 1;
+      continue;
+    }
+    if (action !== "send") {
+      stats.wait += 1;
+      continue;
+    }
+    state.offline_email_sent = true;
     const ownerEmail = String(row.client_email || "").trim().toLowerCase();
     if (!ownerEmail) {
-      stats.no_email += 1;
-      console.warn(
-        `[cron] offlineNotifications: pa email pronari — ${row.client_name} (${row.client_id})`,
-      );
+      state.offline_email_sent = false;
+      stats.wait += 1;
       continue;
     }
-
-    if (await notifiedAfterLastSeen(row.client_id, row.last_seen_at)) {
-      stats.skipped += 1;
-      continue;
-    }
-
-    for (const milestone of MILESTONES) {
-      if (row.hours_offline < milestone) continue;
-      if (sentSet.has(milestone)) {
-        stats.skipped += 1;
-        continue;
-      }
-      try {
-        await sendOwnerOfflineEmail({
-          to: ownerEmail,
-          clientName: row.client_name,
-        });
-        await recordMilestone(row, milestone);
-        sentSet.add(milestone);
-        stats.sent += 1;
-      } catch (err) {
-        stats.errors += 1;
-        console.error(
-          `[cron] offlineNotifications client ${row.client_id} @${milestone}h:`,
-          err.message || err,
-        );
-      }
+    try {
+      await sendOwnerOfflineEmail({ to: ownerEmail, clientName: row.client_name });
+      stats.sent += 1;
+    } catch (err) {
+      state.offline_email_sent = false;
+      stats.errors += 1;
+      console.error(`[offline-48h] ${row.slug}:`, err.message || err);
     }
   }
-
-  console.log(
-    `[cron] offlineNotifications: checked=${stats.checked} sent=${stats.sent} skipped=${stats.skipped} no_email=${stats.no_email} errors=${stats.errors}`,
-  );
   return stats;
 }
 
 module.exports = {
   processOfflineNotifications,
-  MILESTONES,
+  decideOfflineEmail,
+  businesses,
+  OFFLINE_MS,
+  ONLINE_MS,
 };

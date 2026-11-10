@@ -1,5 +1,19 @@
 # PUNA.md
 
+## 2026-11-10 — Email-i offline vetëm pas 48 orëve
+
+Serveri i licencës dërgonte email çdo orë. Tani një email pas 48 orëve offline, vetëm për licencën fiskale aktive. Pastaj hesht derisa programi të kthehet online dhe të rrijë prapë 48 orë offline. Tabela `owner_notification_preferences` krijohet në nisje nëse ka `DATABASE_URL` dhe `pg`. Nuk ka raport javor, stok apo raport AI me email. Nuk ka skedë Njoftimet te paneli i pronarit. Nuk u deploy-ua.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server/offlineNotificationService.js` | 48 orë, vetëm fiskal |
+| `server/jobs/offlineNotifications.js` | Kontrolli, jo çdo orë |
+| `server/ownerNotificationPreferences.js` | Tabela |
+| `server/routes/ownerPreferences.js` | GET dhe PUT |
+| `server/index.js` | Rrugët |
+| `server/mailer.js` | Teksti 48 orë |
+| `server/package.json` | `pg` për tabelën |
+
 ## 2026-11-10 — Arka gjen barkodin e etiketës
 
 Fusha te arka është `#pos-scan`. Etiketa «Printo etiketë» shkruan barkodin e ruajtur, jo kodin `590` + id. Kërkimi: barkodi i ruajtur, pastaj vetëm shifrat. Nëse gjendet, `addProduct` e fut në shportë.

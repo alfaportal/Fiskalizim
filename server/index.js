@@ -48,6 +48,9 @@ app.get("/fiskalizim/health", (_req, res) => {
   res.json(healthPayload());
 });
 
+const ownerPreferencesRouter = require("./routes/ownerPreferences");
+app.use("/api/owner", ownerPreferencesRouter);
+app.use("/fiskalizim/api/owner", ownerPreferencesRouter);
 app.use("/fiskalizim/api/license", licenseRouter);
 app.use("/fiskalizim/api/admin", adminRouter);
 
@@ -73,6 +76,16 @@ app.use((err, req, res, _next) => {
     res.status(500).json({ gabim: err?.message || "Gabim i brendshëm serveri." });
   }
 });
+
+try {
+  require("./ownerNotificationPreferences").ensureOwnerNotificationPreferences()
+    .then((ok) => {
+      if (!ok) console.warn("[fiskalizim] preferencat e email-it: vendosni DATABASE_URL");
+    })
+    .catch((e) => console.warn("[fiskalizim] preferencat:", e.message || e));
+} catch (e) {
+  console.warn("[fiskalizim] preferencat:", e.message || e);
+}
 
 try {
   require("./jobs/offlineNotifications").startOfflineNotificationCron();

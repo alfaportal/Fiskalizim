@@ -1,7 +1,7 @@
 const DEFAULT_EMAIL_FROM = "Revolution POS <noreply@revolution-pos.com>";
 
 const OFFLINE_NOTICE =
-  "Kuponi fiskal nuk është dërguar te ATK prej 44 orësh. Kontrolloni lidhjen.";
+  "Programi fiskal është offline prej rreth 48 orësh. Ky është njoftimi i vetëm. Kontrolloni lidhjen dhe hapeni përsëri.";
 
 function resolveEmailFrom() {
   const raw = String(process.env.EMAIL_FROM || "").trim();
