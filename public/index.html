@@ -5953,8 +5953,17 @@
       const idFromBc = state.barcodeLookup?.get(needle);
       if (idFromBc) return findProduct(idFromBc);
       const list = state.allProducts || [];
-      const exactBc = list.find((x) => String(x.barcode || "").trim().toLowerCase() === needle);
+      const exactBc = list.find((x) => String(x.barcode || "").trim().toLowerCase().replace(/\s+/g, "") === needle);
       if (exactBc) return exactBc;
+      const loose = needle.replace(/[\s_-]+/g, "");
+      const byLoose = list.find((x) => String(x.barcode || "").trim().toLowerCase().replace(/[\s_-]+/g, "") === loose);
+      if (byLoose) return byLoose;
+      const digits = needle.replace(/\D/g, "");
+      if (digits.length >= 4) {
+        const byDigits = list.find((x) => String(x.barcode || "").replace(/\D/g, "") === digits);
+        if (byDigits) return byDigits;
+        if (/^\d{6,}$/.test(digits) && digits.length === needle.length) return null;
+      }
       const norm = normalizeProdName(code);
       if (norm) {
         const byName = list.find((x) => normalizeProdName(x.name) === norm);

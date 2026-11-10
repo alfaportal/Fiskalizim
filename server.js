@@ -1112,7 +1112,7 @@ async function boot() {
     try {
       const blocked = recordsGuardResponse(res);
       if (blocked) return blocked;
-      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category, base_weight } =
+      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category, base_weight, description } =
         req.body || {};
       const product = db.updateProduct(req.params.id, {
         name,
@@ -1123,6 +1123,7 @@ async function boot() {
         barcode,
         pos_category,
         base_weight,
+        description,
       });
       res.json({ ok: true, success: true, product });
     } catch (e) {

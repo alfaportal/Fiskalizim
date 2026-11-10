@@ -1,5 +1,15 @@
 # PUNA.md
 
+## 2026-11-10 — Arka gjen barkodin e etiketës
+
+Fusha te arka është `#pos-scan`. Etiketa «Printo etiketë» shkruan barkodin e ruajtur, jo kodin `590` + id. Kërkimi: barkodi i ruajtur, pastaj vetëm shifrat. Nëse gjendet, `addProduct` e fut në shportë.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Kërkimi te arka |
+
+Nuk u bë Setup.
+
 ## 2026-11-10 — Produktet: dy rreshta, barkod, kategoritë ATK
 
 Te paneli, skeda Produktet, forma qëndron në dy rreshta pa rrëshqitje anash. Rreshti i parë: Barkod, Emri i produktit, Kategoria, Çmimi, TVSH. Rreshti i dytë: Njësia ATK, Kategoria ATK (25: TT deri SHN, MPM «Mish/produkte mishi»), Më shumë, Shto. Skaneri hyn te Barkod. Nëse barkodi ekziston, shfaqen emri, çmimi, kategoria, TVSH, njësia dhe kategoria ATK, dhe nuk krijohet i dyti. Zgjedhja ATK ruhet. Kodi jashtë listës mbetet TT.

@@ -227,10 +227,6 @@ function buildReceiptLineItems({
   lines.push(divider(w));
   if (nr) lines.push(`Nr. Fatures: ${nr}`);
   if (venue) lines.push(venue);
-  if (waiterName) {
-    lines.push(kind === "order" ? `Klienti: ${waiterName}` : `Kamarieri: ${waiterName}`);
-  }
-  if (acceptedBy) lines.push(`Pranuar nga: ${acceptedBy}`);
   if (registerName) lines.push(`Arka: ${registerName}`);
   if (cashierName) lines.push(`Operatori: ${cashierName}`);
   lines.push(`Data: ${date}  Ora: ${time}`);
@@ -261,7 +257,7 @@ function buildReceiptLineItems({
   const paymentLabel = kind === "final" ? thermalPaymentDisplay(paymentMethod) : "";
   if (paymentLabel) lines.push(`Pagesa: ${paymentLabel}`);
   lines.push(divider(w));
-  lines.push(pad("Faleminderit!", w, "center"));
+  lines.push(pad("Ju faleminderit për vizitën!", w, "center"));
 
   return lines;
 }
@@ -285,8 +281,8 @@ function finalizeReceiptText(text, paper = "80mm") {
       pagesaLine = trimmed;
       continue;
     }
-    if (/Faleminderit!/i.test(trimmed)) {
-      thanksLine = "Faleminderit!";
+    if (/faleminderit/i.test(trimmed)) {
+      thanksLine = trimmed;
       continue;
     }
     body.push(line);
@@ -303,7 +299,7 @@ function finalizeReceiptText(text, paper = "80mm") {
   out.push(divider(w));
   if (pagesaLine) out.push(pagesaLine);
   out.push(divider(w));
-  out.push(pad(thanksLine || "Faleminderit!", w, "center"));
+  out.push(pad(thanksLine || "Ju faleminderit për vizitën!", w, "center"));
 
   return out.join("\n");
 }
