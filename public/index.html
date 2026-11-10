@@ -1665,22 +1665,35 @@
     th { color: var(--muted); font-weight: 600; }
     #tab-products .mgmt-product-form.form-row {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       gap: 8px;
       align-items: flex-end;
-      overflow-x: auto;
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
       padding-bottom: 6px;
       margin-bottom: 12px;
     }
-    #tab-products .mgmt-product-form.form-row > div {
+    #tab-products .mgmt-product-form.form-row > div:not(#mgmt-prod-more-box):not(.product-add-break):not(.mgmt-form-actions) {
       flex: 1 1 0;
-      min-width: 92px;
+      min-width: 0;
+      max-width: 100%;
     }
-    #tab-products .mgmt-product-form.form-row > div.mgmt-form-barcode { min-width: 120px; flex: 1.2 1 0; }
-    #tab-products .mgmt-product-form.form-row > div.mgmt-form-name { min-width: 140px; flex: 1.4 1 0; }
+    #tab-products .mgmt-product-form.form-row > div.product-add-break {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 0;
+      min-width: 100%;
+      overflow: hidden;
+    }
+    #mgmt-prod-more-box[hidden], #edit-prod-more-box[hidden] { display: none !important; }
+    #tab-products .mgmt-product-form.form-row > div.mgmt-form-barcode,
+    #tab-products .mgmt-product-form.form-row > div.mgmt-form-name { min-width: 0; flex: 1 1 0; }
     #tab-products .mgmt-product-form.form-row > div.mgmt-form-actions {
       flex: 0 0 auto;
-      min-width: 0;
+      min-width: max-content;
+      max-width: none;
       display: flex;
       gap: 6px;
       align-items: flex-end;
@@ -1690,11 +1703,13 @@
       color: #94a3b8;
       font-size: 12px;
       margin-bottom: 4px;
-      white-space: nowrap;
+      white-space: normal;
     }
     #tab-products .mgmt-product-form.form-row input,
     #tab-products .mgmt-product-form.form-row select {
       width: 100%;
+      min-width: 0;
+      max-width: 100%;
       box-sizing: border-box;
       margin-bottom: 0;
       padding: 10px 8px;
@@ -1702,6 +1717,7 @@
     }
     #tab-products .mgmt-product-form .mgmt-form-actions .btn { margin-bottom: 0; white-space: nowrap; }
     #tab-products .mgmt-product-form #mgmt-auto-update-all {
+      display: none;
       margin-bottom: 0;
       padding: 10px 12px;
       min-width: 44px;
@@ -2381,6 +2397,10 @@
           <label style="color:#ccc">Emri:</label>
           <input type="text" id="edit-prod-name" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
         </div>
+        <div class="edit-prod-field-hide" style="margin-bottom:10px">
+          <label style="color:#ccc">Kategoria:</label>
+          <select id="edit-prod-pos" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px"></select>
+        </div>
         <div style="margin-bottom:10px">
           <label style="color:#ccc">Çmimi (€):</label>
           <input type="number" id="edit-prod-price" step="0.0001" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
@@ -2394,6 +2414,8 @@
             <option value="A">A — 0% (eksport)</option>
           </select>
         </div>
+        <button type="button" id="edit-prod-more" class="btn btn-ghost edit-prod-field-hide" style="width:100%;margin-bottom:10px">Më shumë ↓</button>
+        <div id="edit-prod-more-box" class="edit-prod-field-hide" hidden>
         <div class="edit-prod-field-hide" style="margin-bottom:10px">
           <label style="color:#ccc">Njësia matëse:</label>
           <select id="edit-prod-unit" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px">
@@ -2452,9 +2474,19 @@
             <option value="SHN">SHN — Shërbime ndërtimore</option>
           </select>
         </div>
+        <div style="margin-bottom:10px">
+          <label style="color:#ccc">Barkodi:</label>
+          <input type="text" id="edit-prod-barcode" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px" />
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="color:#ccc">Përshkrimi:</label>
+          <textarea id="edit-prod-desc" rows="3" maxlength="2000" style="width:100%;padding:8px;font-size:14px;background:#0d1117;color:#fff;border:1px solid #555;border-radius:5px"></textarea>
+        </div>
+        </div>
         <div style="display:flex;gap:10px">
-          <button type="button" id="edit-prod-save" class="btn btn-primary" style="flex:1;padding:10px">Ruaj</button>
+          <button type="button" id="edit-prod-save" class="btn btn-primary" style="flex:1;padding:10px">Ruaje</button>
           <button type="button" id="edit-prod-cancel" class="btn btn-ghost" style="flex:1;padding:10px">Anulo</button>
+          <button type="button" id="edit-prod-print" class="btn btn-ghost" style="flex:1;padding:10px">Printo etiketë</button>
         </div>
       </div>
     </div>
@@ -2481,8 +2513,8 @@
           <div class="vat-row hidden" id="cart-sur-row"><span>Rritje</span><span id="cart-sur-amt">+0.00 €</span></div>
           <div class="vat-row"><span>Totali pa TVSH</span><span id="cart-net">0.00 €</span></div>
           <div class="vat-row vat-row-pos-hidden"><span>TVSH A/C</span><span id="cart-vat-0">0.00 €</span></div>
-          <div class="vat-row vat-row-pos-hidden"><span>TVSH D</span><span id="cart-vat-8">0.00 €</span></div>
-          <div class="vat-row"><span>TVSH</span><span id="cart-vat-18">0.00 €</span></div>
+          <div class="vat-row"><span>TVSH 8%</span><span id="cart-vat-8">0.00 €</span></div>
+          <div class="vat-row"><span>TVSH 18%</span><span id="cart-vat-18">0.00 €</span></div>
           <div class="vat-row"><span>TVSH totale</span><strong id="cart-vat-total">0.00 €</strong></div>
           <div class="cart-total-row">
             <span class="cart-total-label">TOTALI I PAGESËS</span>
@@ -2535,26 +2567,37 @@
       <h2>Menaxhimi i produkteve</h2>
       <form id="mgmt-product-form" class="mgmt-product-form form-row" autocomplete="off">
         <div class="mgmt-form-barcode">
-          <label for="mgmt-prod-barcode">Barcode</label>
+          <label for="mgmt-prod-barcode">Barkod</label>
           <input type="text" id="mgmt-prod-barcode" inputmode="numeric" autocomplete="off" placeholder="Skano ose shkruaj" />
         </div>
         <div class="mgmt-form-name">
-          <label for="mgmt-prod-name">Emri</label>
+          <label for="mgmt-prod-name">Emri i produktit</label>
           <input type="text" id="mgmt-prod-name" placeholder="Emri i artikullit" required />
         </div>
         <div>
           <label for="mgmt-prod-pos-kat">Kategoria</label>
           <select id="mgmt-prod-pos-kat">
-            <option value="Pije të ftohta">Pije të ftohta</option>
-            <option value="Pije të nxehta">Pije të nxehta</option>
-            <option value="Ushqime">Ushqime</option>
-            <option value="Embelsira">Ëmbëlsira</option>
-            <option value="Të tjera">Të tjera</option>
+            <option value="Bukë &amp; Brumëra">Bukë &amp; Brumëra</option>
+            <option value="Bulmet">Bulmet</option>
+            <option value="Vezë">Vezë</option>
+            <option value="Ushqim Bazë">Ushqim Bazë</option>
+            <option value="Pije">Pije</option>
+            <option value="Perime">Perime</option>
+            <option value="Pemë">Pemë</option>
+            <option value="Mish">Mish</option>
+            <option value="Ëmbëlsira">Ëmbëlsira</option>
+            <option value="Rroba Meshkuj">Rroba Meshkuj</option>
+            <option value="Rroba Femra">Rroba Femra</option>
+            <option value="Këpucë">Këpucë</option>
+            <option value="Aksesorë">Aksesorë</option>
+            <option value="Elektronikë">Elektronikë</option>
+            <option value="Higjienë">Higjienë</option>
+            <option value="Kancelari">Kancelari</option>
+            <option value="Lodra Fëmijë">Lodra Fëmijë</option>
+            <option value="Shtëpi">Shtëpi</option>
+            <option value="Barna OTC">Barna OTC</option>
+            <option value="Pajisje të Ndryshme">Pajisje të Ndryshme</option>
           </select>
-        </div>
-        <div>
-          <label for="mgmt-prod-qty">SASIA (copa)</label>
-          <input type="number" id="mgmt-prod-qty" min="1" step="1" value="1" />
         </div>
         <div>
           <label for="mgmt-prod-price">Çmimi (€)</label>
@@ -2569,8 +2612,9 @@
             <option value="A">0% (eksport)</option>
           </select>
         </div>
+        <div class="product-add-break" aria-hidden="true"></div>
         <div>
-          <label for="mgmt-prod-unit">Njësia matëse</label>
+          <label for="mgmt-prod-unit">Njësia ATK</label>
           <select id="mgmt-prod-unit">
             <option value="EA">EA — Njësi</option>
             <option value="CP">CP — Copë</option>
@@ -2590,10 +2634,6 @@
             <option value="PAL">PAL — Palë</option>
           </select>
         </div>
-        <div id="mgmt-prod-base-wrap" style="display:none">
-          <label for="mgmt-prod-base-weight">Pesha / vëllimi bazë</label>
-          <input type="number" id="mgmt-prod-base-weight" min="0.001" step="0.001" value="1.000" />
-        </div>
         <div>
           <label for="mgmt-prod-category">Kategoria ATK</label>
           <select id="mgmt-prod-category">
@@ -2603,18 +2643,18 @@
             <option value="PJA">PJA — Pije joalkoolike</option>
             <option value="PAL">PAL — Pije alkoolike</option>
             <option value="DUH">DUH — Duhan</option>
-            <option value="PP">PP — Pemë dhe perime</option>
-            <option value="MPM">MPM — Mish/produkte</option>
-            <option value="PE">PE — Pajisje elektronike</option>
-            <option value="PS">PS — Pajisje shtëpiake</option>
-            <option value="HT">HT — Hoteleri/turizëm</option>
-            <option value="ST">ST — Shërbime të tjera</option>
-            <option value="SM">SM — Shërbime mjekësore</option>
-            <option value="STI">STI — Shërbime TI</option>
-            <option value="KB">KB — Karburante</option>
             <option value="VM">VM — Veshmbathje</option>
             <option value="KO">KO — Kozmetikë</option>
+            <option value="PP">PP — Pemë dhe perime</option>
+            <option value="PE">PE — Pajisje elektronike</option>
+            <option value="PS">PS — Pajisje shtëpiake</option>
             <option value="BM">BM — Barna mjekësore</option>
+            <option value="SM">SM — Shërbime mjekësore</option>
+            <option value="ST">ST — Shërbime të tjera</option>
+            <option value="HT">HT — Hoteleri/turizëm</option>
+            <option value="STI">STI — Shërbime TI</option>
+            <option value="KB">KB — Karburante</option>
+            <option value="MPM">MPM — Mish/produkte mishi</option>
             <option value="PMI">PMI — Produkte miellit</option>
             <option value="SEA">SEA — Shërbime edukative</option>
             <option value="STR">STR — Shërbime transporti</option>
@@ -2623,6 +2663,26 @@
             <option value="MN">MN — Materiale ndërtimore</option>
             <option value="SHN">SHN — Shërbime ndërtimore</option>
           </select>
+        </div>
+        <div class="mgmt-form-actions">
+          <div>
+            <label>&nbsp;</label>
+            <button type="button" id="mgmt-prod-more" class="btn btn-ghost">Më shumë ↓</button>
+          </div>
+        </div>
+        <div id="mgmt-prod-more-box" hidden style="flex:1 1 100%;min-width:100%;display:flex;flex-wrap:wrap;gap:8px">
+        <div>
+          <label for="mgmt-prod-qty">Sasia</label>
+          <input type="number" id="mgmt-prod-qty" min="0" step="1" value="0" />
+        </div>
+        <div id="mgmt-prod-base-wrap" style="display:none">
+          <label for="mgmt-prod-base-weight">Pesha / vëllimi bazë</label>
+          <input type="number" id="mgmt-prod-base-weight" min="0.001" step="0.001" value="1.000" />
+        </div>
+        <div style="min-width:180px;flex:1 1 180px">
+          <label for="mgmt-prod-desc">Përshkrimi</label>
+          <input type="text" id="mgmt-prod-desc" maxlength="2000" />
+        </div>
         </div>
         <div class="mgmt-form-actions">
           <div>
@@ -2796,12 +2856,14 @@
               <th style="padding:0.35rem 0.5rem">Pagesa</th>
               <th style="padding:0.35rem 0.5rem">Artikujt</th>
               <th style="padding:0.35rem 0.5rem">Pa TVSH</th>
+              <th style="padding:0.35rem 0.5rem">TVSH 8%</th>
+              <th style="padding:0.35rem 0.5rem">TVSH 18%</th>
               <th style="padding:0.35rem 0.5rem">TVSH</th>
               <th style="padding:0.35rem 0.5rem">Totali</th>
             </tr>
           </thead>
           <tbody id="p2-ditari-list">
-            <tr><td colspan="8" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
+            <tr><td colspan="10" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
           </tbody>
         </table>
       </div>
@@ -5331,11 +5393,26 @@
     }
 
     const POS_AR_KATEGORITE = [
-      "Pije të ftohta",
-      "Pije të nxehta",
-      "Ushqime",
-      "Embelsira",
-      "Të tjera",
+      "Bukë & Brumëra",
+      "Bulmet",
+      "Vezë",
+      "Ushqim Bazë",
+      "Pije",
+      "Perime",
+      "Pemë",
+      "Mish",
+      "Ëmbëlsira",
+      "Rroba Meshkuj",
+      "Rroba Femra",
+      "Këpucë",
+      "Aksesorë",
+      "Elektronikë",
+      "Higjienë",
+      "Kancelari",
+      "Lodra Fëmijë",
+      "Shtëpi",
+      "Barna OTC",
+      "Pajisje të Ndryshme",
     ];
 
     function posCategoryLabel(stored) {
@@ -5346,12 +5423,12 @@
 
     function productPosCategory(p) {
       const raw = String(p?.pos_category || "").trim();
-      if (raw) return raw === "Ëmbëlsira" ? "Embelsira" : raw;
-      return "Të tjera";
+      if (raw === "Embelsira") return "Ëmbëlsira";
+      return raw || "Të tjera";
     }
 
     function arkaProductsE() {
-      return state.byLetter.E || [];
+      return [...(state.byLetter.D || []), ...(state.byLetter.E || [])];
     }
 
     function posCategoryCounts() {
@@ -5901,6 +5978,14 @@
         const p = await api(`/api/products/${id}`);
         document.getElementById("edit-prod-id").value = p.id;
         document.getElementById("edit-prod-name").value = p.name || "";
+        const posSel = document.getElementById("edit-prod-pos");
+        const srcKat = document.getElementById("mgmt-prod-pos-kat");
+        if (posSel && srcKat && !posSel.options.length) posSel.innerHTML = srcKat.innerHTML;
+        if (posSel) posSel.value = p.pos_category || (srcKat ? srcKat.value : "");
+        const bcEl = document.getElementById("edit-prod-barcode");
+        if (bcEl) bcEl.value = p.barcode || "";
+        const descEl = document.getElementById("edit-prod-desc");
+        if (descEl) descEl.value = p.description || "";
         document.getElementById("edit-prod-price").value = p.price ?? "";
         document.getElementById("edit-prod-vat").value = p.vat_letter || "E";
         document.getElementById("edit-prod-unit").value = p.unit_code || "EA";
@@ -5922,6 +6007,14 @@
         const p = await api(`/api/products/${id}`);
         document.getElementById("edit-prod-id").value = p.id;
         document.getElementById("edit-prod-name").value = p.name || "";
+        const posSel = document.getElementById("edit-prod-pos");
+        const srcKat = document.getElementById("mgmt-prod-pos-kat");
+        if (posSel && srcKat && !posSel.options.length) posSel.innerHTML = srcKat.innerHTML;
+        if (posSel) posSel.value = p.pos_category || (srcKat ? srcKat.value : "");
+        const bcEl = document.getElementById("edit-prod-barcode");
+        if (bcEl) bcEl.value = p.barcode || "";
+        const descEl = document.getElementById("edit-prod-desc");
+        if (descEl) descEl.value = p.description || "";
         document.getElementById("edit-prod-price").value = p.price ?? "";
         document.getElementById("edit-prod-vat").value = p.vat_letter || "E";
         document.getElementById("edit-prod-unit").value = p.unit_code || "EA";
@@ -5959,6 +6052,9 @@
             unit_code: document.getElementById("edit-prod-unit").value,
             category_code: document.getElementById("edit-prod-category").value,
             base_weight: parseFloat(document.getElementById("edit-prod-base-weight").value) || 1,
+            pos_category: document.getElementById("edit-prod-pos")?.value || "",
+            barcode: document.getElementById("edit-prod-barcode")?.value || "",
+            description: document.getElementById("edit-prod-desc")?.value?.trim() || "",
           }
         : {
             name: document.getElementById("edit-prod-name").value.trim(),
@@ -5967,6 +6063,9 @@
             unit_code: document.getElementById("edit-prod-unit").value,
             category_code: document.getElementById("edit-prod-category").value,
             base_weight: parseFloat(document.getElementById("edit-prod-base-weight").value) || 1,
+            pos_category: document.getElementById("edit-prod-pos")?.value || "",
+            barcode: document.getElementById("edit-prod-barcode")?.value || "",
+            description: document.getElementById("edit-prod-desc")?.value?.trim() || "",
           };
       try {
         await api(`/api/products/${id}`, {
@@ -5981,6 +6080,31 @@
       }
     });
 
+    function bindProdMore(btnId, boxId) {
+      const btn = document.getElementById(btnId);
+      const box = document.getElementById(boxId);
+      if (!btn || !box || btn.dataset.bound === "1") return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => {
+        box.hidden = !box.hidden;
+        btn.textContent = box.hidden ? "Më shumë ↓" : "Më pak ↑";
+      });
+    }
+    bindProdMore("edit-prod-more", "edit-prod-more-box");
+    bindProdMore("mgmt-prod-more", "mgmt-prod-more-box");
+    document.getElementById("edit-prod-print")?.addEventListener("click", () => {
+      const barcode = String(document.getElementById("edit-prod-barcode")?.value || "").trim();
+      const name = String(document.getElementById("edit-prod-name")?.value || "").trim();
+      const price = document.getElementById("edit-prod-price")?.value || "";
+      if (!barcode) {
+        alert("Shtoni barkod fillimisht");
+        return;
+      }
+      const w = window.open("", "etikete", "width=320,height=240");
+      if (!w) return;
+      w.document.write("<title>Etiketë</title><body style=\"font-family:sans-serif;text-align:center\"><h2>" + name.replace(/</g, "") + "</h2><p>" + barcode + "</p><p>" + price + " €</p><script>print()<\\/script></body>");
+      w.document.close();
+    });
     document.getElementById("edit-prod-unit").addEventListener("change", () => {
       syncBaseWeightField("edit-prod-unit", "edit-prod-base-wrap");
     });
@@ -6055,6 +6179,118 @@
       loadMgmtProducts().catch(console.error);
     });
 
+    function productByBarcode(code) {
+      const needle = String(code || "").trim().replace(/\s+/g, "").toLowerCase();
+      if (!needle) return null;
+      const list = state.mgmtProducts || state.allProducts || [];
+      return (
+        list.find(
+          (p) => String(p.barcode || "").trim().replace(/\s+/g, "").toLowerCase() === needle
+        ) || null
+      );
+    }
+
+    function resetMgmtProductEntry() {
+      const nameEl = document.getElementById("mgmt-prod-name");
+      const priceEl = document.getElementById("mgmt-prod-price");
+      const katEl = document.getElementById("mgmt-prod-pos-kat");
+      const vatEl = document.getElementById("mgmt-prod-vat");
+      if (nameEl) nameEl.value = "";
+      if (priceEl) priceEl.value = "0.00";
+      if (katEl && katEl.options.length) katEl.selectedIndex = 0;
+      if (vatEl) vatEl.value = "E";
+      const unitEl = document.getElementById("mgmt-prod-unit");
+      const atkEl = document.getElementById("mgmt-prod-category");
+      if (unitEl) unitEl.value = "EA";
+      if (atkEl) atkEl.value = "TT";
+    }
+
+    function fillMgmtProductFromBarcode(code) {
+      const raw = String(code || "").trim();
+      if (!raw) return null;
+      const hit = productByBarcode(raw);
+      if (!hit) {
+        resetMgmtProductEntry();
+        return null;
+      }
+      const nameEl = document.getElementById("mgmt-prod-name");
+      const priceEl = document.getElementById("mgmt-prod-price");
+      if (nameEl) nameEl.value = hit.name || "";
+      if (priceEl) priceEl.value = Number(hit.price || 0).toFixed(2);
+      setSelectValue(document.getElementById("mgmt-prod-pos-kat"), hit.pos_category || "");
+      setSelectValue(document.getElementById("mgmt-prod-vat"), hit.vat_letter || "E");
+      setSelectValue(document.getElementById("mgmt-prod-unit"), hit.unit_code || "EA");
+      setSelectValue(document.getElementById("mgmt-prod-category"), hit.category_code || "TT");
+      return hit;
+    }
+
+    let mgmtBarcodeApplied = "";
+    async function onMgmtBarcodeReady(code) {
+      const raw = String(code || "").trim();
+      if (!raw || raw === mgmtBarcodeApplied) return;
+      mgmtBarcodeApplied = raw;
+      if (!state.mgmtProducts) {
+        try {
+          await loadMgmtProducts();
+        } catch (_) {}
+      }
+      const hit = fillMgmtProductFromBarcode(raw);
+      const bc = document.getElementById("mgmt-prod-barcode");
+      if (hit) {
+        bc?.focus();
+        bc?.select();
+        return;
+      }
+      document.getElementById("mgmt-prod-name")?.focus();
+    }
+
+    const mgmtBarcodeEl = document.getElementById("mgmt-prod-barcode");
+    if (mgmtBarcodeEl) {
+      mgmtBarcodeEl.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        onMgmtBarcodeReady(mgmtBarcodeEl.value).catch(console.error);
+      });
+      mgmtBarcodeEl.addEventListener(
+        "input",
+        debounceFn(() => {
+          const v = String(mgmtBarcodeEl.value || "").trim();
+          if (v.length >= 6) onMgmtBarcodeReady(v).catch(console.error);
+        }, 180)
+      );
+    }
+
+    const mgmtNameScan = { buf: "", last: 0 };
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        if (activeTabName !== "products") return;
+        const editModal = document.getElementById("edit-product-modal");
+        if (editModal && editModal.style.display !== "none") return;
+        const t = e.target;
+        if (!t || t.id !== "mgmt-prod-name") return;
+        const now = Date.now();
+        if (now - mgmtNameScan.last > 40) mgmtNameScan.buf = "";
+        mgmtNameScan.last = now;
+        if (e.key.length !== 1 || e.key < "0" || e.key > "9") {
+          mgmtNameScan.buf = "";
+          return;
+        }
+        mgmtNameScan.buf += e.key;
+        if (mgmtNameScan.buf.length < 2) return;
+        const bc = document.getElementById("mgmt-prod-barcode");
+        if (!bc) return;
+        e.preventDefault();
+        if (String(t.value || "").endsWith(mgmtNameScan.buf.slice(0, -1))) {
+          t.value = String(t.value || "").slice(0, -(mgmtNameScan.buf.length - 1));
+        }
+        bc.value = mgmtNameScan.buf;
+        bc.focus();
+        mgmtNameScan.buf = "";
+      },
+      true
+    );
+
     document.getElementById("mgmt-product-form")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (state.diskBlocksRecords) {
@@ -6074,11 +6310,21 @@
       const cat = document.getElementById("mgmt-prod-category").value;
       const baseWeight = parseFloat(document.getElementById("mgmt-prod-base-weight").value) || 1;
       const barcodeEl = document.getElementById("mgmt-prod-barcode");
-      const barcode = barcodeEl ? String(barcodeEl.value || "").trim() : "";
+      const barcode = barcodeEl ? String(barcodeEl.value || "").trim().replace(/\s+/g, "") : "";
       const posKatEl = document.getElementById("mgmt-prod-pos-kat");
       const pos_category = posKatEl ? String(posKatEl.value || "").trim() : "Të tjera";
       if (!name) {
         alert("Shkruaj emrin e artikullit");
+        return;
+      }
+      if (!state.mgmtProducts) {
+        try {
+          await loadMgmtProducts();
+        } catch (_) {}
+      }
+      if (barcode && productByBarcode(barcode)) {
+        fillMgmtProductFromBarcode(barcode);
+        alert("Ky barkod ekziston.");
         return;
       }
       try {
@@ -6093,12 +6339,14 @@
             barcode,
             pos_category,
             base_weight: baseWeight,
+            description: document.getElementById("mgmt-prod-desc")?.value?.trim() || "",
           }),
         });
         document.getElementById("mgmt-prod-name").value = "";
         document.getElementById("mgmt-prod-price").value = "0.00";
         const bc = document.getElementById("mgmt-prod-barcode");
         if (bc) bc.value = "";
+        mgmtBarcodeApplied = "";
         if (qtyEl) qtyEl.value = "1";
         await loadMgmtProducts();
         await loadProducts();
@@ -8232,7 +8480,13 @@
       document.getElementById("tab-settings").classList.toggle("hidden", name !== "settings");
       document.getElementById("tab-products").classList.toggle("hidden", name !== "products");
       if (name === "receipts") loadReceipts().catch(console.error);
-      if (name === "products") loadMgmtProducts().catch(console.error);
+      if (name === "products") {
+        loadMgmtProducts()
+          .catch(console.error)
+          .finally(() => {
+            if (activeTabName === "products") document.getElementById("mgmt-prod-barcode")?.focus();
+          });
+      }
       if (name === "printer") loadPrinters().catch(console.error);
       if (name === "atk-test") {
         updateE2eSourceUi();
@@ -8724,9 +8978,6 @@
     }
 
     function ditariVatParts(e) {
-      if (e && e.tvsh != null && e.pa_tvsh != null && Number.isFinite(Number(e.tvsh)) && Number.isFinite(Number(e.pa_tvsh))) {
-        return { pa: roundMoney(e.pa_tvsh), tvsh: roundMoney(e.tvsh) };
-      }
       const items = Array.isArray(e.items) ? e.items : [];
       let base = 0;
       const lines = [];
@@ -8742,11 +8993,33 @@
       }
       const paid = Number(e.total) || 0;
       const scale = base > 0 ? Math.abs(paid) / base : 1;
+      let tax8 = 0;
+      let tax18 = 0;
       let tax = 0;
-      for (const line of lines) tax += taxFromGross(roundMoney(line.gross * scale), line.pct);
+      for (const line of lines) {
+        const part = taxFromGross(roundMoney(line.gross * scale), line.pct);
+        tax += part;
+        if (line.pct === 8) tax8 += part;
+        else if (line.pct === 18) tax18 += part;
+      }
       tax = roundMoney(tax);
-      if (paid < 0) tax = -tax;
-      return { pa: roundMoney(paid - tax), tvsh: tax };
+      tax8 = roundMoney(tax8);
+      tax18 = roundMoney(tax18);
+      const sign = paid < 0 ? -1 : 1;
+      const fromItems = {
+        pa: roundMoney(paid - sign * tax),
+        tvsh: roundMoney(sign * tax),
+        tvsh8: roundMoney(sign * tax8),
+        tvsh18: roundMoney(sign * tax18),
+      };
+      if (e && Number.isFinite(Number(e.tvsh_8)) && Number.isFinite(Number(e.tvsh_18))) {
+        const tvsh8 = roundMoney(e.tvsh_8);
+        const tvsh18 = roundMoney(e.tvsh_18);
+        const tvsh = Number.isFinite(Number(e.tvsh)) ? roundMoney(e.tvsh) : roundMoney(tvsh8 + tvsh18);
+        const pa = Number.isFinite(Number(e.pa_tvsh)) ? roundMoney(e.pa_tvsh) : roundMoney(paid - tvsh);
+        return { pa, tvsh, tvsh8, tvsh18 };
+      }
+      return fromItems;
     }
 
     function renderDitariList() {
@@ -8765,7 +9038,7 @@
       });
       if (!rows.length) {
         tbody.innerHTML =
-          '<tr><td colspan="8" style="padding:0.5rem;color:var(--muted)">Nuk ka shitje për këtë periudhë.</td></tr>';
+          '<tr><td colspan="10" style="padding:0.5rem;color:var(--muted)">Nuk ka shitje për këtë periudhë.</td></tr>';
         return;
       }
       tbody.innerHTML = rows
@@ -8779,6 +9052,8 @@
             `<td style="padding:0.35rem 0.5rem">${esc(e.payment_label || "—")}</td>` +
             `<td style="padding:0.35rem 0.5rem">${esc(e.artikujt || "—")}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.pa)}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh8)}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh18)}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh)}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(e.total)}</td>` +
             `</tr>`
@@ -8790,7 +9065,7 @@
     async function loadDitari(opts = {}) {
       const msg = document.getElementById("ditari-msg");
       const tbody = document.getElementById("p2-ditari-list");
-      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
       const q = new URLSearchParams();
       if (opts.customRange) {
         const from = document.getElementById("p2-ditari-from")?.value || "";
@@ -8849,7 +9124,7 @@
         ditariEntriesCache = [];
         if (tbody) {
           tbody.innerHTML =
-            `<tr><td colspan="8" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
+            `<tr><td colspan="10" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
         }
         if (msg) setMsg(msg, e.message || "Ditari nuk u ngarkua", false);
       }

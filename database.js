@@ -1267,7 +1267,7 @@ function updateProduct(id, fields) {
   }
   const cat = vatCategoryForLetter(L);
   const unitCode = String(fields.unit_code || "EA").trim().toUpperCase() || "EA";
-  const categoryCode = String(fields.category_code || "TT").trim().toUpperCase() || "TT";
+  const categoryCode = normalizeFiskalAtk(fields.category_code);
   const posCategory =
     fields.pos_category != null
       ? normalizePosCategoryLabel(fields.pos_category)
@@ -1280,6 +1280,14 @@ function updateProduct(id, fields) {
       .prepare("SELECT barcode, pos_category FROM products WHERE id = ?")
       .get(pid);
     const bc = barcode !== undefined ? barcode : String(row?.barcode || "");
+    if (bc) {
+      const other = sqlite
+        .prepare("SELECT id FROM products WHERE TRIM(COALESCE(barcode,'')) = ? AND id != ? LIMIT 1")
+        .get(bc, pid);
+      if (other) {
+        throw new Error("Ky kod është në përdorim. Gjenero një tjetër ose shkruaj kod tjetër.");
+      }
+    }
     const pc =
       posCategory !== undefined
         ? posCategory
@@ -1309,6 +1317,13 @@ function updateProduct(id, fields) {
     .get(pid);
 }
 
+const FISKAL_ATK_CATEGORY_CODES = ["TT", "UR", "AU", "PJA", "PAL", "DUH", "VM", "KO", "PP", "PE", "PS", "BM", "SM", "ST", "HT", "STI", "KB", "MPM", "PMI", "SEA", "STR", "AP", "PTI", "MN", "SHN"];
+
+function normalizeFiskalAtk(code) {
+  const c = String(code || "").trim().toUpperCase();
+  return FISKAL_ATK_CATEGORY_CODES.includes(c) ? c : "TT";
+}
+
 function createProduct({
   name,
   price,
@@ -1329,10 +1344,18 @@ function createProduct({
   }
   const cat = vatCategoryForLetter(L);
   const unitCode = String(unit_code || "EA").trim().toUpperCase() || "EA";
-  const categoryCode = String(category_code || "TT").trim().toUpperCase() || "TT";
+  const categoryCode = normalizeFiskalAtk(category_code);
   const maxSort = sqlite.prepare("SELECT COALESCE(MAX(sort_order), 0) AS m FROM products").get();
   const sort = (Number(maxSort?.m) || 0) + 1;
   const bc = String(barcode || "").trim().replace(/\s+/g, "");
+  if (bc) {
+    const dup = sqlite
+      .prepare("SELECT id FROM products WHERE TRIM(COALESCE(barcode,'')) = ? LIMIT 1")
+      .get(bc);
+    if (dup) {
+      throw new Error("Ky kod është në përdorim. Gjenero një tjetër ose shkruaj kod tjetër.");
+    }
+  }
   const posCat = normalizePosCategoryLabel(
     pos_category || inferPosCategoryForProduct({ name: n, category_code: categoryCode })
   );

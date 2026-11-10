@@ -1,5 +1,26 @@
 # PUNA.md
 
+## 2026-11-10 — Produktet: dy rreshta, barkod, kategoritë ATK
+
+Te paneli, skeda Produktet, forma qëndron në dy rreshta pa rrëshqitje anash. Rreshti i parë: Barkod, Emri i produktit, Kategoria, Çmimi, TVSH. Rreshti i dytë: Njësia ATK, Kategoria ATK (25: TT deri SHN, MPM «Mish/produkte mishi»), Më shumë, Shto. Skaneri hyn te Barkod. Nëse barkodi ekziston, shfaqen emri, çmimi, kategoria, TVSH, njësia dhe kategoria ATK, dhe nuk krijohet i dyti. Zgjedhja ATK ruhet. Kodi jashtë listës mbetet TT.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | dy rreshta; emri veç barkodit; njësia dhe 25 kategoritë ATK jashtë «Më shumë» |
+| `database.js` | vetëm 25 kodet ATK ruhen; barkodi i njëjtë refuzohet |
+
+Prova në databazë të re: «Prove Barkod» id 201, 2.50 €, TVSH D, njësi CP, ATK AU, barkod 89044534241091. I njëjti barkod u refuzua. Kodi XX u ruajt TT. Forma në gjerësi 1100: pa rrëshqitje, një fushë njësie, 25 kategori, shifrat 89 nga emri shkuan te Barkod. Nuk u dërgua kupon te ATK. Nuk u bë Setup.
+
+## 2026-11-10 — Barkod te rreshti i produktit
+
+Te Produktet, fusha Barkod është para Emrit. Skaneri shkon te Barkod. Emri mbetet bosh për ta shkruar. Nëse barkodi ekziston, plotësohen emri, kategoria, çmimi dhe TVSH. Nëse nuk ekziston, fushat mbeten bosh dhe «Shto» e ruan me barkod. Kërkimi dhe lista poshtë nuk u prekën.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Fusha Barkod në krye të formës; kërkim barkodi; ruajtja e njëjtë |
+
+Prova në server të përkohshëm, port 3398, databazë e re: barkodi `89044534241091` plotësoi «Prove Barkod», 2.50 €, Bulmet, TVSH 8%. Barkodi i panjohur la emrin bosh, çmimin 0.00, kategorinë e parë dhe TVSH 18%. «Shto» ruajti «Artikull i ri» 1.25 €, Pije, TVSH 8%, barkod `1111111111111` (id 202). I njëjti barkod i vjetër nuk u dyfishua. Kërkimi mbeti «Kërko produkt...». Nuk u dërgua kupon te ATK. Nuk u bë Setup. Databaza e instaluar nuk u prek.
+
 ## 2026-11-10 — Ditari dhe ndërrimi, kutia Kartë
 
 Kutia «Kartë» te Ditari dhe te mbyllja e ndërrimit tani mblidhin debit, kredit, mobile (`sms`), çek, transfer, voucher dhe kartë. Pagesa e përzier mbetet vetëm pjesa jo-cash.
