@@ -1,32 +1,2006 @@
 {
-  "version": 2,
-  "count": 26,
+  "version": 3,
+  "count": 200,
   "products": [
-    { "name": "Coca-Cola 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 1 },
-    { "name": "Fanta 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 2 },
-    { "name": "Sprite 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 3 },
-    { "name": "Pepsi 0.5L", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 4 },
-    { "name": "Red Bull 250ml", "price": 2.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 5 },
-    { "name": "Hell 250ml", "price": 2.5, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 6 },
-    { "name": "Lëng frutash 1L", "price": 1.2, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 7 },
-    { "name": "Nektar 0.5L", "price": 1.2, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 8 },
-    { "name": "Ujë i gazuar 0.5L", "price": 0.8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 9 },
-    { "name": "Ujë i aromatizuar 0.5L", "price": 0.8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PJA", "sort_order": 10 },
-    { "name": "Birra 0.5L", "price": 1.8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 11 },
-    { "name": "Verë 0.75L", "price": 8, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 12 },
-    { "name": "Raki 0.5L", "price": 6, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 13 },
-    { "name": "Vodkë 0.7L", "price": 12, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 14 },
-    { "name": "Uiski 0.7L", "price": 12, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 15 },
-    { "name": "Xhin 0.7L", "price": 12, "vat_letter": "E", "vat_category": "18", "unit_code": "LTR", "category_code": "PAL", "sort_order": 16 },
-    { "name": "Cigare (pako)", "price": 3, "vat_letter": "E", "vat_category": "18", "unit_code": "PK", "category_code": "DUH", "sort_order": 17 },
-    { "name": "Kafe espresso (pako)", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 18 },
-    { "name": "Kafe turke (pako)", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 19 },
-    { "name": "Çaj i paketuar (filter)", "price": 1.2, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 20 },
-    { "name": "Ushqim i gatshëm", "price": 3.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 21 },
-    { "name": "Sandviç", "price": 3.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 22 },
-    { "name": "Picë", "price": 3.5, "vat_letter": "E", "vat_category": "18", "unit_code": "CP", "category_code": "UR", "sort_order": 23 },
-    { "name": "Çips", "price": 1.3, "vat_letter": "E", "vat_category": "18", "unit_code": "EA", "category_code": "AU", "sort_order": 24 },
-    { "name": "Snack", "price": 1.3, "vat_letter": "E", "vat_category": "18", "unit_code": "EA", "category_code": "AU", "sort_order": 25 },
-    { "name": "Akullore", "price": 1.5, "vat_letter": "E", "vat_category": "18", "unit_code": "EA", "category_code": "AU", "sort_order": 26 }
+    {
+      "name": "Bukë e bardhë",
+      "price": 0.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 1
+    },
+    {
+      "name": "Bukë integrale",
+      "price": 0.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 2
+    },
+    {
+      "name": "Baget",
+      "price": 0.9,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 3
+    },
+    {
+      "name": "Byrek djathë",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 4
+    },
+    {
+      "name": "Byrek mish",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 5
+    },
+    {
+      "name": "Pite",
+      "price": 2.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 6
+    },
+    {
+      "name": "Kroasan",
+      "price": 0.7,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 7
+    },
+    {
+      "name": "Simite",
+      "price": 0.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 8
+    },
+    {
+      "name": "Pogaçe",
+      "price": 0.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 9
+    },
+    {
+      "name": "Kifle",
+      "price": 0.4,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bukë & Brumëra",
+      "sort_order": 10
+    },
+    {
+      "name": "Qumësht 1L",
+      "price": 1.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 11
+    },
+    {
+      "name": "Djathë i bardhë 1kg",
+      "price": 6.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 12
+    },
+    {
+      "name": "Kaçkavall 1kg",
+      "price": 8.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 13
+    },
+    {
+      "name": "Gjizë 1kg",
+      "price": 3,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 14
+    },
+    {
+      "name": "Jogurt 1L",
+      "price": 1.4,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 15
+    },
+    {
+      "name": "Ajkë 250g",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 16
+    },
+    {
+      "name": "Gjalpë 250g",
+      "price": 2.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 17
+    },
+    {
+      "name": "Kefir 1L",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 18
+    },
+    {
+      "name": "Kos 500g",
+      "price": 0.9,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 19
+    },
+    {
+      "name": "Mozzarella 200g",
+      "price": 2.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Bulmet",
+      "sort_order": 20
+    },
+    {
+      "name": "Vezë 10 copë",
+      "price": 1.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Vezë",
+      "sort_order": 21
+    },
+    {
+      "name": "Vezë 30 copë",
+      "price": 4.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Vezë",
+      "sort_order": 22
+    },
+    {
+      "name": "Vezë fshati 10 copë",
+      "price": 2.2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Vezë",
+      "sort_order": 23
+    },
+    {
+      "name": "Qumësht TetraPak 1L",
+      "price": 1.15,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Vezë",
+      "sort_order": 24
+    },
+    {
+      "name": "Qumësht pa laktozë 1L",
+      "price": 1.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Vezë",
+      "sort_order": 25
+    },
+    {
+      "name": "Miell 5kg",
+      "price": 3.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 26
+    },
+    {
+      "name": "Oriz 1kg",
+      "price": 1.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 27
+    },
+    {
+      "name": "Makarona 500g",
+      "price": 0.9,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 28
+    },
+    {
+      "name": "Vaj Luledielli 1L",
+      "price": 1.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 29
+    },
+    {
+      "name": "Vaj Ulliri 0.75L",
+      "price": 7.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 30
+    },
+    {
+      "name": "Kripë 1kg",
+      "price": 0.6,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 31
+    },
+    {
+      "name": "Sheqer 1kg",
+      "price": 1.1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 32
+    },
+    {
+      "name": "Fasule 1kg",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 33
+    },
+    {
+      "name": "Salcë Domatesh 500g",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 34
+    },
+    {
+      "name": "Thjerrëza 1kg",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ushqim Bazë",
+      "sort_order": 35
+    },
+    {
+      "name": "Coca-Cola",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 36
+    },
+    {
+      "name": "Fanta",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 37
+    },
+    {
+      "name": "Sprite",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 38
+    },
+    {
+      "name": "Red Bull",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 39
+    },
+    {
+      "name": "Ujë 0.5L",
+      "price": 0.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 40
+    },
+    {
+      "name": "Ujë 1.5L",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 41
+    },
+    {
+      "name": "Lëng Portokalli 1L",
+      "price": 1.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 42
+    },
+    {
+      "name": "Ice Tea",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 43
+    },
+    {
+      "name": "Birrë 0.5L",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 44
+    },
+    {
+      "name": "Espresso",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 45
+    },
+    {
+      "name": "Cappuccino",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 46
+    },
+    {
+      "name": "Çaj",
+      "price": 0.6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 47
+    },
+    {
+      "name": "Limonadë",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 48
+    },
+    {
+      "name": "Energjike",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 49
+    },
+    {
+      "name": "Ujë me gaz",
+      "price": 0.9,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pije",
+      "sort_order": 50
+    },
+    {
+      "name": "Domate 1kg",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 51
+    },
+    {
+      "name": "Patate 1kg",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 52
+    },
+    {
+      "name": "Qepë 1kg",
+      "price": 0.9,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 53
+    },
+    {
+      "name": "Speca 1kg",
+      "price": 2.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 54
+    },
+    {
+      "name": "Karrota 1kg",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 55
+    },
+    {
+      "name": "Tranguj 1kg",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 56
+    },
+    {
+      "name": "Lakër 1kg",
+      "price": 0.7,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 57
+    },
+    {
+      "name": "Hudhër 1kg",
+      "price": 4,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 58
+    },
+    {
+      "name": "Spinaq 1kg",
+      "price": 1.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 59
+    },
+    {
+      "name": "Brokoli 1kg",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Perime",
+      "sort_order": 60
+    },
+    {
+      "name": "Mollë 1kg",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 61
+    },
+    {
+      "name": "Banane 1kg",
+      "price": 1.6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 62
+    },
+    {
+      "name": "Portokall 1kg",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 63
+    },
+    {
+      "name": "Limon 1kg",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 64
+    },
+    {
+      "name": "Rrush 1kg",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 65
+    },
+    {
+      "name": "Dardhë 1kg",
+      "price": 2.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 66
+    },
+    {
+      "name": "Mandarina 1kg",
+      "price": 1.4,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 67
+    },
+    {
+      "name": "Kivi 1kg",
+      "price": 2.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 68
+    },
+    {
+      "name": "Pjeshkë 1kg",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 69
+    },
+    {
+      "name": "Dredhëza 500g",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pemë",
+      "sort_order": 70
+    },
+    {
+      "name": "Mish Viçi 1kg",
+      "price": 9.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 71
+    },
+    {
+      "name": "Fileto Pule 1kg",
+      "price": 6.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 72
+    },
+    {
+      "name": "Brinjë Viçi 1kg",
+      "price": 8.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 73
+    },
+    {
+      "name": "Sallam 400g",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 74
+    },
+    {
+      "name": "Suxhuk 1kg",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 75
+    },
+    {
+      "name": "Proshutë Pule 300g",
+      "price": 3.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 76
+    },
+    {
+      "name": "Proshutë Viçi 200g",
+      "price": 3.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 77
+    },
+    {
+      "name": "Pleskavica 1kg",
+      "price": 7,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 78
+    },
+    {
+      "name": "Mëlçi Pule 1kg",
+      "price": 3.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 79
+    },
+    {
+      "name": "Mish Zgarë 1kg",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Mish",
+      "sort_order": 80
+    },
+    {
+      "name": "Çokollatë 100g",
+      "price": 1.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 81
+    },
+    {
+      "name": "Chips 150g",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 82
+    },
+    {
+      "name": "Smoki 250g",
+      "price": 1.3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 83
+    },
+    {
+      "name": "Napolitanka",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 84
+    },
+    {
+      "name": "Bomboni",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 85
+    },
+    {
+      "name": "Lokum 500g",
+      "price": 2.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 86
+    },
+    {
+      "name": "Puding",
+      "price": 0.6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 87
+    },
+    {
+      "name": "Kakao 200g",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 88
+    },
+    {
+      "name": "Mjaltë 1kg",
+      "price": 9,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 89
+    },
+    {
+      "name": "Çamçakëz",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Ëmbëlsira",
+      "sort_order": 90
+    },
+    {
+      "name": "Bluzë Meshkuj",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 91
+    },
+    {
+      "name": "Pantallona Meshkuj",
+      "price": 25,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 92
+    },
+    {
+      "name": "Xhinse",
+      "price": 30,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 93
+    },
+    {
+      "name": "Këmishë",
+      "price": 20,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 94
+    },
+    {
+      "name": "Xhaketë",
+      "price": 45,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 95
+    },
+    {
+      "name": "Pallto Dimri",
+      "price": 80,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 96
+    },
+    {
+      "name": "Fanellë",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 97
+    },
+    {
+      "name": "Kostum",
+      "price": 120,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 98
+    },
+    {
+      "name": "Çorape (3 palë)",
+      "price": 5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 99
+    },
+    {
+      "name": "Rrip Lëkure",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Meshkuj",
+      "sort_order": 100
+    },
+    {
+      "name": "Bluzë Femra",
+      "price": 18,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 101
+    },
+    {
+      "name": "Fustan",
+      "price": 35,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 102
+    },
+    {
+      "name": "Pantallona Femra",
+      "price": 28,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 103
+    },
+    {
+      "name": "Xhaketë Femra",
+      "price": 50,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 104
+    },
+    {
+      "name": "Pallto Femra",
+      "price": 90,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 105
+    },
+    {
+      "name": "Fund",
+      "price": 22,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 106
+    },
+    {
+      "name": "Triko",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 107
+    },
+    {
+      "name": "Shall",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 108
+    },
+    {
+      "name": "Çantë Dore",
+      "price": 25,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 109
+    },
+    {
+      "name": "Rroba Sportive Set",
+      "price": 40,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Rroba Femra",
+      "sort_order": 110
+    },
+    {
+      "name": "Këpucë Meshkuj Elegante",
+      "price": 45,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 111
+    },
+    {
+      "name": "Atlete Meshkuj",
+      "price": 35,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 112
+    },
+    {
+      "name": "Këpucë Femra Elegante",
+      "price": 40,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 113
+    },
+    {
+      "name": "Atlete Femra",
+      "price": 30,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 114
+    },
+    {
+      "name": "Çizme Dimri Meshkuj",
+      "price": 55,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 115
+    },
+    {
+      "name": "Çizme Dimri Femra",
+      "price": 50,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 116
+    },
+    {
+      "name": "Sandale Meshkuj",
+      "price": 20,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 117
+    },
+    {
+      "name": "Sandale Femra",
+      "price": 22,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 118
+    },
+    {
+      "name": "Pantofla Shtëpie",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 119
+    },
+    {
+      "name": "Këpucë Fëmijë",
+      "price": 18,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Këpucë",
+      "sort_order": 120
+    },
+    {
+      "name": "Orë Dore",
+      "price": 25,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 121
+    },
+    {
+      "name": "Syze Dielli",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 122
+    },
+    {
+      "name": "Portofol Lëkure",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 123
+    },
+    {
+      "name": "Kapelë",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 124
+    },
+    {
+      "name": "Dorashka Dimri",
+      "price": 6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 125
+    },
+    {
+      "name": "Shami Qafe",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 126
+    },
+    {
+      "name": "Çadër",
+      "price": 7,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 127
+    },
+    {
+      "name": "Rrip Tekstil",
+      "price": 5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 128
+    },
+    {
+      "name": "Kravat",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 129
+    },
+    {
+      "name": "Unazë Argjendi",
+      "price": 20,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Aksesorë",
+      "sort_order": 130
+    },
+    {
+      "name": "Kufje me Tel",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 131
+    },
+    {
+      "name": "Kufje Bluetooth",
+      "price": 25,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 132
+    },
+    {
+      "name": "Karikues Telefoni",
+      "price": 5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 133
+    },
+    {
+      "name": "Kabllo USB-C",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 134
+    },
+    {
+      "name": "Mbrojtëse Ekrani",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 135
+    },
+    {
+      "name": "Power Bank 10000mAh",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 136
+    },
+    {
+      "name": "Altoparlant Bluetooth",
+      "price": 20,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 137
+    },
+    {
+      "name": "Mouse Wireless",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 138
+    },
+    {
+      "name": "Tastierë USB",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 139
+    },
+    {
+      "name": "Flash USB 32GB",
+      "price": 6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Elektronikë",
+      "sort_order": 140
+    },
+    {
+      "name": "Detergjent Rroba 3kg",
+      "price": 7.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 141
+    },
+    {
+      "name": "Detergjent Enë 1L",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 142
+    },
+    {
+      "name": "Pastë Dhëmbësh",
+      "price": 2.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 143
+    },
+    {
+      "name": "Shampo",
+      "price": 3.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 144
+    },
+    {
+      "name": "Sapun Lëngshëm",
+      "price": 2.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 145
+    },
+    {
+      "name": "Letër Tualeti 10pk",
+      "price": 4.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 146
+    },
+    {
+      "name": "Letra Kuzhine",
+      "price": 1.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 147
+    },
+    {
+      "name": "Deodorant",
+      "price": 3.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 148
+    },
+    {
+      "name": "Sfungjer Enë",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 149
+    },
+    {
+      "name": "Pastrues Xhamash",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Higjienë",
+      "sort_order": 150
+    },
+    {
+      "name": "Fletore A4",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 151
+    },
+    {
+      "name": "Fletore A5",
+      "price": 1,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 152
+    },
+    {
+      "name": "Stilolaps",
+      "price": 0.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 153
+    },
+    {
+      "name": "Laps",
+      "price": 0.3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 154
+    },
+    {
+      "name": "Gomë",
+      "price": 0.2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 155
+    },
+    {
+      "name": "Vizore 30cm",
+      "price": 0.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 156
+    },
+    {
+      "name": "Ngjitës Stick",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 157
+    },
+    {
+      "name": "Gërshërë",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 158
+    },
+    {
+      "name": "Dosje Plastike",
+      "price": 0.4,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 159
+    },
+    {
+      "name": "Markues Fluoreshent",
+      "price": 0.8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Kancelari",
+      "sort_order": 160
+    },
+    {
+      "name": "Kukull",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 161
+    },
+    {
+      "name": "Makinë Lodër",
+      "price": 5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 162
+    },
+    {
+      "name": "Puzzle 100 copë",
+      "price": 6,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 163
+    },
+    {
+      "name": "Lego Set",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 164
+    },
+    {
+      "name": "Top Futbolli",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 165
+    },
+    {
+      "name": "Libër Ngjyrosje",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 166
+    },
+    {
+      "name": "Plastelin Set",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 167
+    },
+    {
+      "name": "Ujë Sapuni Fluskat",
+      "price": 1.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 168
+    },
+    {
+      "name": "Lodër Plush",
+      "price": 7,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 169
+    },
+    {
+      "name": "Tren Lodër",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Lodra Fëmijë",
+      "sort_order": 170
+    },
+    {
+      "name": "Peshqir Banje",
+      "price": 5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 171
+    },
+    {
+      "name": "Çarçaf Set",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 172
+    },
+    {
+      "name": "Jastëk",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 173
+    },
+    {
+      "name": "Batanije",
+      "price": 12,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 174
+    },
+    {
+      "name": "Filxhan Kafeje",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 175
+    },
+    {
+      "name": "Gotë Uji Set 6",
+      "price": 4,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 176
+    },
+    {
+      "name": "Pjatë Set 6",
+      "price": 8,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 177
+    },
+    {
+      "name": "Tenxhere",
+      "price": 15,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 178
+    },
+    {
+      "name": "Tigan",
+      "price": 10,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 179
+    },
+    {
+      "name": "Lugë Druri Set",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Shtëpi",
+      "sort_order": 180
+    },
+    {
+      "name": "Paracetamol 500mg",
+      "price": 1,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 181
+    },
+    {
+      "name": "Ibuprofen 400mg",
+      "price": 1.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 182
+    },
+    {
+      "name": "Aspirin 100mg",
+      "price": 0.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 183
+    },
+    {
+      "name": "Vitamin C 1000mg",
+      "price": 2.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 184
+    },
+    {
+      "name": "Vitamin D3",
+      "price": 1.8,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 185
+    },
+    {
+      "name": "Strepsils",
+      "price": 2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 186
+    },
+    {
+      "name": "Prospan Shurup",
+      "price": 4.5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 187
+    },
+    {
+      "name": "Linex Forte",
+      "price": 5,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 188
+    },
+    {
+      "name": "Omeprazole 20mg",
+      "price": 2,
+      "vat_letter": "D",
+      "vat_category": "8",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 189
+    },
+    {
+      "name": "Bepanthen Krem",
+      "price": 3.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Barna OTC",
+      "sort_order": 190
+    },
+    {
+      "name": "Bateri AA 4pk",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 191
+    },
+    {
+      "name": "Bateri AAA 4pk",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 192
+    },
+    {
+      "name": "Llambë LED",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 193
+    },
+    {
+      "name": "Prizë Shtrirëse",
+      "price": 5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 194
+    },
+    {
+      "name": "Çakmak",
+      "price": 0.5,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 195
+    },
+    {
+      "name": "Shishe Uji Sport",
+      "price": 4,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 196
+    },
+    {
+      "name": "Kuti Ushqimi",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 197
+    },
+    {
+      "name": "Thes Pambuku",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 198
+    },
+    {
+      "name": "Maskë Fytyre 10pk",
+      "price": 2,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 199
+    },
+    {
+      "name": "Doreza Njëpërdorimshme",
+      "price": 3,
+      "vat_letter": "E",
+      "vat_category": "18",
+      "unit_code": "EA",
+      "category_code": "TT",
+      "pos_category": "Pajisje të Ndryshme",
+      "sort_order": 200
+    }
   ]
 }

@@ -839,7 +839,11 @@ async function boot() {
 
   app.get("/api/operators/status", (_req, res) => {
     try {
-      res.json({ ok: true, active_count: db.countActiveOperators() });
+      res.json({
+        ok: true,
+        active_count: db.countActiveOperators(),
+        owner_count: db.countOwners(),
+      });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
@@ -861,14 +865,20 @@ async function boot() {
   app.post("/api/operators/verify-pin", (req, res) => {
     try {
       const pin = String(req.body?.pin_code || req.body?.pin || "").trim();
-      if (!/^\d{4,6}$/.test(pin)) {
-        return res.status(400).json({ ok: false, error: "Kodi i hyrjes nuk është valid" });
+      if (!pin) {
+        return res.status(400).json({ ok: false, error: "Vendosni fjalëkalimin ose PIN-in." });
       }
       const op = db.getOperatorByPin(pin);
       if (!op) {
         return res.status(401).json({ ok: false, error: "Kodi i hyrjes nuk u gjet" });
       }
-      res.json({ ok: true, id: op.id, name: op.name, pin_code: op.pin_code });
+      res.json({
+        ok: true,
+        id: op.id,
+        name: op.name,
+        pin_code: op.pin_code,
+        is_owner: !!op.is_owner,
+      });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
     }
@@ -876,7 +886,10 @@ async function boot() {
 
   app.post("/api/operators", (req, res) => {
     try {
-      const operator = db.addOperator(req.body?.name, req.body?.pin_code || req.body?.pin);
+      const wantsOwner = req.body?.is_owner === true || req.body?.is_owner === 1;
+      const operator = db.addOperator(req.body?.name, req.body?.pin_code || req.body?.pin, {
+        is_owner: wantsOwner,
+      });
       res.json({ ok: true, operator });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
@@ -969,6 +982,16 @@ async function boot() {
       });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/printers/drawer", async (_req, res) => {
+    try {
+      const printer = require("./printer");
+      const result = await printer.openCashDrawer(db);
+      res.json(result);
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message || "Nuk u gjet printer" });
     }
   });
 
@@ -1112,7 +1135,7 @@ async function boot() {
     try {
       const blocked = recordsGuardResponse(res);
       if (blocked) return blocked;
-      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category, base_weight, description } =
+      const { name, price, vat_letter, unit_code, category_code, barcode, pos_category, base_weight, description, sold_by_weight } =
         req.body || {};
       const product = db.updateProduct(req.params.id, {
         name,
@@ -1124,6 +1147,7 @@ async function boot() {
         pos_category,
         base_weight,
         description,
+        sold_by_weight,
       });
       res.json({ ok: true, success: true, product });
     } catch (e) {

@@ -17,6 +17,7 @@ let sqlite = null;
 let readyPromise = null;
 /** true = biznes.db e enkriptuar nuk lexohet; ruajtja në disk bllokohet (vetëm memorie). */
 let dbDecryptFailed = false;
+let installIsNewFile = false;
 global.DB_DECRYPT_FAILED = false;
 
 function isDecryptLoadError(err) {
@@ -329,17 +330,32 @@ function resyncAllProductsFromBundledCatalog() {
 }
 
 const POS_CATEGORY_VALUES = [
-  "Pije të ftohta",
-  "Pije të nxehta",
-  "Ushqime",
-  "Embelsira",
-  "Të tjera",
+  "Bukë & Brumëra",
+  "Bulmet",
+  "Vezë",
+  "Ushqim Bazë",
+  "Pije",
+  "Perime",
+  "Pemë",
+  "Mish",
+  "Ëmbëlsira",
+  "Rroba Meshkuj",
+  "Rroba Femra",
+  "Këpucë",
+  "Aksesorë",
+  "Elektronikë",
+  "Higjienë",
+  "Kancelari",
+  "Lodra Fëmijë",
+  "Shtëpi",
+  "Barna OTC",
+  "Pajisje të Ndryshme",
 ];
 
 function normalizePosCategoryLabel(raw) {
   const s = String(raw || "").trim();
   if (!s) return "Të tjera";
-  if (s === "Embelsira" || s === "Ëmbëlsira") return "Embelsira";
+  if (s === "Embelsira" || s === "Ëmbëlsira") return "Ëmbëlsira";
   if (POS_CATEGORY_VALUES.includes(s)) return s;
   return "Të tjera";
 }
@@ -362,6 +378,19 @@ function inferPosCategoryForProduct(p) {
     return "Ushqime";
   }
   return "Të tjera";
+}
+
+function migrateFiskalizimCatalog200() {
+  const marker = "fiskalizim_catalog_200_v20261109";
+  if (getSetting(marker) === "1") return null;
+  const r = resyncAllProductsFromBundledCatalog();
+  setSetting("fiskalizim_arka_catalog_v1", "1");
+  setSetting("fiskalizim_pos_category_v2", "1");
+  setSetting(marker, "1");
+  console.log(
+    `[fiskalizim] katalogu: ${r.total} produkte (D=${r.counts.D} E=${r.counts.E})`
+  );
+  return r;
 }
 
 function migrateFiskalizimPosCategory() {
@@ -691,6 +720,26 @@ function initSchema() {
   `);
 
   try {
+    sqlite.prepare(`ALTER TABLE operators ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0`).run();
+  } catch {
+    /* kolona ekziston */
+  }
+  try {
+    const owners = sqlite
+      .prepare(
+        `SELECT COUNT(*) AS c FROM operators WHERE active = 1 AND COALESCE(is_owner, 0) = 1`
+      )
+      .get();
+    if (!Number(owners?.c)) {
+      const first = sqlite
+        .prepare(`SELECT id FROM operators WHERE active = 1 ORDER BY id ASC LIMIT 1`)
+        .get();
+      if (first) sqlite.prepare(`UPDATE operators SET is_owner = 1 WHERE id = ?`).run(first.id);
+    }
+  } catch {
+    /* */
+  }
+  try {
     sqlite.prepare(`ALTER TABLE products ADD COLUMN unit_code TEXT DEFAULT 'EA'`).run();
   } catch {
     /* kolona ekziston */
@@ -702,6 +751,11 @@ function initSchema() {
   }
   try {
     sqlite.prepare(`ALTER TABLE products ADD COLUMN barcode TEXT DEFAULT ''`).run();
+  } catch {
+    /* kolona ekziston */
+  }
+  try {
+    sqlite.prepare(`ALTER TABLE products ADD COLUMN description TEXT NOT NULL DEFAULT ''`).run();
   } catch {
     /* kolona ekziston */
   }
@@ -719,6 +773,33 @@ function initSchema() {
     sqlite.prepare(`UPDATE products SET base_weight = 1 WHERE base_weight IS NULL OR base_weight <= 0`).run();
   } catch {
     /* */
+  }
+  let soldByWeightAdded = false;
+  try {
+    sqlite.prepare(`ALTER TABLE products ADD COLUMN sold_by_weight INTEGER NOT NULL DEFAULT 0`).run();
+    soldByWeightAdded = true;
+  } catch {
+    /* kolona ekziston */
+  }
+  if (soldByWeightAdded) {
+    sqlite
+      .prepare(
+        `UPDATE products SET sold_by_weight = 1
+         WHERE UPPER(COALESCE(unit_code, '')) IN ('KGN', 'KGB', 'GRM')`
+      )
+      .run();
+  }
+  if (getSetting("sold_by_weight_name_v1") !== "1") {
+    const weightName = /(\d+(?:[.,]\d+)?)\s*(kg|gr|gram|g)\b/i;
+    const rows = sqlite.prepare("SELECT id, name, unit_code FROM products").all();
+    const mark = sqlite.prepare("UPDATE products SET sold_by_weight = 1 WHERE id = ?");
+    for (const row of rows) {
+      const unit = String(row.unit_code || "").trim().toUpperCase();
+      if (weightName.test(String(row.name || "")) || unit === "KGN" || unit === "KGB" || unit === "GRM") {
+        mark.run(row.id);
+      }
+    }
+    setSetting("sold_by_weight_name_v1", "1");
   }
   try {
     sqlite.prepare(`ALTER TABLE menu_items ADD COLUMN unit_code TEXT DEFAULT 'EA'`).run();
@@ -750,6 +831,11 @@ function initSchema() {
       migrateFiskalizimPosCategory();
     } catch (e) {
       console.warn("[fiskalizim] migrateFiskalizimPosCategory:", e.message);
+    }
+    try {
+      migrateFiskalizimCatalog200();
+    } catch (e) {
+      console.warn("[fiskalizim] migrateFiskalizimCatalog200:", e.message);
     }
     ensureProductsPerVatLetter();
     try {
@@ -988,6 +1074,71 @@ function initSchema() {
   }
 
   ensureProductVatCategories();
+  clearKnownPaperBlockProbeRows();
+  clearCirculationOnNewInstall();
+}
+
+function clearKnownPaperBlockProbeRows() {
+  const marker = "paper_block_probe_20261025_cleared";
+  if (getSetting(marker) === "1") return;
+  const exists = sqlite
+    .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='paper_block_receipts'`)
+    .get();
+  if (!exists) {
+    setSetting(marker, "1");
+    return;
+  }
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_paper_block_block_delete`);
+  const removed = sqlite
+    .prepare(
+      `DELETE FROM paper_block_receipts
+       WHERE fiscal_date = '25.10.2026'
+         AND serial_no IN (
+           'GAP-1792968225491',
+           'GAP-CHK-1792968226311',
+           'PB1792968292481-OK',
+           'PB1792968292481-CHK1'
+         )`
+    )
+    .run();
+  sqlite.exec(`
+    CREATE TRIGGER trg_paper_block_block_delete
+    BEFORE DELETE ON paper_block_receipts
+    FOR EACH ROW
+    BEGIN
+      SELECT RAISE(ABORT, 'WRITE-ONCE: DELETE i ndaluar në paper_block_receipts');
+    END;
+  `);
+  setSetting(marker, "1");
+  if (removed && removed.changes) {
+    console.log("[biznes] u hoqën kuponët provë të bllokut të letrës 25.10.2026:", removed.changes);
+  }
+}
+
+function clearCirculationOnNewInstall() {
+  if (!installIsNewFile || dbDecryptFailed) return;
+  const names = ["orders", "fiscal_receipts", "paper_block_receipts", "pending_txn", "fiscal_audit_log"];
+  const dirty = [];
+  for (const name of names) {
+    const exists = sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
+      .get(name);
+    if (!exists) continue;
+    const row = sqlite.prepare(`SELECT COUNT(*) AS c FROM ${name}`).get();
+    if (Number(row && row.c) > 0) dirty.push(name);
+  }
+  if (!dirty.length) return;
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_paper_block_block_delete`);
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_receipts_block_delete`);
+  sqlite.exec(`DROP TRIGGER IF EXISTS trg_fiscal_audit_block_delete`);
+  for (const name of dirty) sqlite.exec(`DELETE FROM ${name}`);
+  const { initFiscalDB } = require("./fiscal/fiscal-db");
+  initFiscalDB({
+    exec: (sql) => sqlite.exec(sql),
+    run: (sql) => sqlite.exec(sql),
+    get: (sql, params) => sqlite.prepare(sql).get(...(params || [])),
+  });
+  saveDb();
 }
 
 function syncMenuItemsFromProducts() {
@@ -1098,6 +1249,7 @@ async function initDatabase() {
     }
 
     sqlite = wrapDb(rawDb);
+    installIsNewFile = !dbDecryptFailed && (!loaded.bytes || !loaded.bytes.length);
     try {
       initSchema();
       require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
@@ -1108,6 +1260,7 @@ async function initDatabase() {
         }
         rawDb = new SQL.Database();
         sqlite = wrapDb(rawDb);
+        installIsNewFile = !dbDecryptFailed;
         initSchema();
         require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
         if (!dbDecryptFailed) {
@@ -1227,7 +1380,8 @@ function listProducts() {
       `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
               COALESCE(barcode, '') AS barcode,
               COALESCE(pos_category, 'Të tjera') AS pos_category,
-              COALESCE(base_weight, 1) AS base_weight
+              COALESCE(base_weight, 1) AS base_weight,
+              COALESCE(sold_by_weight, 0) AS sold_by_weight
        FROM products WHERE active = 1
        ORDER BY vat_letter ASC, sort_order ASC, id ASC`
     )
@@ -1306,13 +1460,24 @@ function updateProduct(id, fields) {
       )
       .run(n, p, L, cat, unitCode, categoryCode, baseWeight, pid);
   }
+  if (fields.description !== undefined) {
+    sqlite
+      .prepare("UPDATE products SET description = ? WHERE id = ?")
+      .run(String(fields.description || "").slice(0, 2000), pid);
+  }
+  if (fields.sold_by_weight !== undefined) {
+    const flag = fields.sold_by_weight === true || fields.sold_by_weight === 1 || fields.sold_by_weight === "1" ? 1 : 0;
+    sqlite.prepare("UPDATE products SET sold_by_weight = ? WHERE id = ?").run(flag, pid);
+  }
   syncMenuItemsFromProducts();
   return sqlite
     .prepare(
       `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
               COALESCE(barcode, '') AS barcode,
               COALESCE(pos_category, 'Të tjera') AS pos_category,
-              COALESCE(base_weight, 1) AS base_weight FROM products WHERE id = ?`
+              COALESCE(base_weight, 1) AS base_weight,
+              COALESCE(sold_by_weight, 0) AS sold_by_weight,
+              COALESCE(description, '') AS description FROM products WHERE id = ?`
     )
     .get(pid);
 }
@@ -1333,6 +1498,8 @@ function createProduct({
   barcode,
   pos_category,
   base_weight,
+  description,
+  sold_by_weight,
 }) {
   const n = String(name || "").trim();
   if (!n) throw new Error("Emri i produktit është i detyrueshëm.");
@@ -1360,20 +1527,26 @@ function createProduct({
     pos_category || inferPosCategoryForProduct({ name: n, category_code: categoryCode })
   );
   const baseWeight = resolveBaseWeightFromName(n, base_weight, 1);
+  const weightFlag = sold_by_weight === true || sold_by_weight === 1 || sold_by_weight === "1" ? 1 : 0;
   const result = sqlite
     .prepare(
-      `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, barcode, pos_category, base_weight)
-       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, barcode, pos_category, base_weight, sold_by_weight)
+       VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(n, p, L, cat, sort, unitCode, categoryCode, bc, posCat, baseWeight);
+    .run(n, p, L, cat, sort, unitCode, categoryCode, bc, posCat, baseWeight, weightFlag);
   const id = Number(result.lastInsertRowid);
+  sqlite
+    .prepare("UPDATE products SET description = ? WHERE id = ?")
+    .run(String(description || "").slice(0, 2000), id);
   syncMenuItemsFromProducts();
   return sqlite
     .prepare(
       `SELECT id, name, price, vat_letter, vat_category, sort_order, unit_code, category_code,
               COALESCE(barcode, '') AS barcode,
               COALESCE(pos_category, 'Të tjera') AS pos_category,
-              COALESCE(base_weight, 1) AS base_weight FROM products WHERE id = ?`
+              COALESCE(base_weight, 1) AS base_weight,
+              COALESCE(sold_by_weight, 0) AS sold_by_weight,
+              COALESCE(description, '') AS description FROM products WHERE id = ?`
     )
     .get(id);
 }
@@ -1733,6 +1906,7 @@ function rowToOperator(row) {
     name: row.name,
     pin_code: row.pin_code,
     active: !!row.active,
+    is_owner: !!(row.is_owner != null ? row.is_owner : 0),
   };
 }
 
@@ -1742,26 +1916,46 @@ function validateOperatorName(name) {
   return n;
 }
 
-function validateOperatorPin(pin) {
+function validateOwnerPassword(pin) {
   const p = String(pin || "").trim();
-  if (!/^\d{4,6}$/.test(p)) {
-    throw new Error("Kodi i hyrjes duhet të jetë 4–6 shifra");
-  }
+  if (!p) throw new Error("Fjalëkalimi i hyrjes është i detyrueshëm");
+  if (p.length > 128) throw new Error("Fjalëkalimi është shumë i gjatë (max 128)");
   return p;
 }
 
-function addOperator(name, pin) {
+function validateWorkerPin(pin) {
+  const p = String(pin || "").trim();
+  if (!/^\d{4}$/.test(p)) throw new Error("PIN-i duhet të jetë 4 shifra");
+  return p;
+}
+
+function validateOperatorPin(pin) {
+  return validateWorkerPin(pin);
+}
+
+function countOwners() {
+  const row = sqlite
+    .prepare(`SELECT COUNT(*) AS c FROM operators WHERE active = 1 AND COALESCE(is_owner, 0) = 1`)
+    .get();
+  return Number(row?.c) || 0;
+}
+
+function addOperator(name, pin, opts = {}) {
   const n = validateOperatorName(name);
-  const p = validateOperatorPin(pin);
+  const activeCount = countActiveOperators();
+  let isOwner = !!opts.is_owner && countOwners() === 0;
+  if (activeCount === 0) isOwner = true;
+  const p = isOwner ? validateOwnerPassword(pin) : validateWorkerPin(pin);
   try {
     const r = sqlite
-      .prepare(`INSERT INTO operators (name, pin_code, active) VALUES (?, ?, 1)`)
-      .run(n, p);
+      .prepare(`INSERT INTO operators (name, pin_code, active, is_owner) VALUES (?, ?, 1, ?)`)
+      .run(n, p, isOwner ? 1 : 0);
     return rowToOperator({
       id: Number(r.lastInsertRowid),
       name: n,
       pin_code: p,
       active: 1,
+      is_owner: isOwner ? 1 : 0,
     });
   } catch (e) {
     if (String(e.message || "").includes("UNIQUE")) {
@@ -1774,17 +1968,17 @@ function addOperator(name, pin) {
 function getOperators(opts = {}) {
   const includeInactive = !!opts.includeInactive;
   const sql = includeInactive
-    ? `SELECT id, name, pin_code, active FROM operators ORDER BY name COLLATE NOCASE`
-    : `SELECT id, name, pin_code, active FROM operators WHERE active = 1 ORDER BY name COLLATE NOCASE`;
+    ? `SELECT id, name, pin_code, active, is_owner FROM operators ORDER BY name COLLATE NOCASE`
+    : `SELECT id, name, pin_code, active, is_owner FROM operators WHERE active = 1 ORDER BY name COLLATE NOCASE`;
   return sqlite.prepare(sql).all().map(rowToOperator);
 }
 
 function getOperatorByPin(pin) {
   const p = String(pin || "").trim();
-  if (!/^\d{4,6}$/.test(p)) return null;
+  if (!p) return null;
   const row = sqlite
     .prepare(
-      `SELECT id, name, pin_code, active FROM operators WHERE pin_code = ? AND active = 1`
+      `SELECT id, name, pin_code, active, is_owner FROM operators WHERE pin_code = ? AND active = 1`
     )
     .get(p);
   return rowToOperator(row);
@@ -1793,11 +1987,18 @@ function getOperatorByPin(pin) {
 function updateOperator(id, patch = {}) {
   const oid = Number(id);
   if (!oid) throw new Error("ID punonjësi mungon");
-  const existing = sqlite.prepare(`SELECT id FROM operators WHERE id = ?`).get(oid);
+  const existing = sqlite
+    .prepare(`SELECT id, COALESCE(is_owner, 0) AS is_owner FROM operators WHERE id = ?`)
+    .get(oid);
   if (!existing) throw new Error("Punonjësi nuk u gjet");
 
   const name = patch.name != null ? validateOperatorName(patch.name) : null;
-  const pin = patch.pin_code != null ? validateOperatorPin(patch.pin_code) : null;
+  const pin =
+    patch.pin_code != null
+      ? Number(existing.is_owner) === 1
+        ? validateOwnerPassword(patch.pin_code)
+        : validateWorkerPin(patch.pin_code)
+      : null;
   if (name == null && pin == null) throw new Error("Asgjë për përditësim");
 
   try {
@@ -1815,7 +2016,7 @@ function updateOperator(id, patch = {}) {
     throw e;
   }
   const row = sqlite
-    .prepare(`SELECT id, name, pin_code, active FROM operators WHERE id = ?`)
+    .prepare(`SELECT id, name, pin_code, active, is_owner FROM operators WHERE id = ?`)
     .get(oid);
   return rowToOperator(row);
 }
@@ -1823,10 +2024,15 @@ function updateOperator(id, patch = {}) {
 function deactivateOperator(id) {
   const oid = Number(id);
   if (!oid) throw new Error("ID punonjësi mungon");
+  const ownerRow = sqlite
+    .prepare(`SELECT COALESCE(is_owner, 0) AS o FROM operators WHERE id = ?`)
+    .get(oid);
+  if (!ownerRow) throw new Error("Punonjësi nuk u gjet");
+  if (Number(ownerRow.o) === 1) throw new Error("Pronari nuk çaktivizohet");
   const r = sqlite.prepare(`UPDATE operators SET active = 0 WHERE id = ?`).run(oid);
   if (!r.changes) throw new Error("Punonjësi nuk u gjet");
   const row = sqlite
-    .prepare(`SELECT id, name, pin_code, active FROM operators WHERE id = ?`)
+    .prepare(`SELECT id, name, pin_code, active, is_owner FROM operators WHERE id = ?`)
     .get(oid);
   return rowToOperator(row);
 }
@@ -1834,6 +2040,11 @@ function deactivateOperator(id) {
 function deleteOperator(id) {
   const oid = Number(id);
   if (!oid) throw new Error("ID punonjësi mungon");
+  const ownerRow = sqlite
+    .prepare(`SELECT COALESCE(is_owner, 0) AS o FROM operators WHERE id = ?`)
+    .get(oid);
+  if (!ownerRow) throw new Error("Punonjësi nuk u gjet");
+  if (Number(ownerRow.o) === 1) throw new Error("Pronari nuk fshihet");
   const r = sqlite.prepare(`DELETE FROM operators WHERE id = ?`).run(oid);
   if (!r.changes) throw new Error("Punonjësi nuk u gjet");
   return { id: oid, deleted: true };
@@ -1995,6 +2206,45 @@ function isDitariCorrectionType(receiptType) {
   return ["cancel", "storno", "return"].includes(String(receiptType || "").toLowerCase());
 }
 
+function vatPartsFromItems(items, total) {
+  const list = Array.isArray(items) ? items : [];
+  let base = 0;
+  const lines = [];
+  for (const it of list) {
+    const gross = Math.abs(Number(it.price) || 0) * Math.abs(Number(it.quantity ?? it.qty) || 0);
+    const letter = String(it.vat_letter || it.vat_norm || "E").toUpperCase();
+    let pct = Number(it.vat_rate ?? it.vat_percent);
+    if (!Number.isFinite(pct)) {
+      pct = letter === "D" ? 8 : letter === "A" || letter === "C" || letter === "B" ? 0 : 18;
+    }
+    base += gross;
+    lines.push({ gross, pct });
+  }
+  const paid = Number(total) || 0;
+  const scale = base > 0 ? Math.abs(paid) / base : 1;
+  let tax8 = 0;
+  let tax18 = 0;
+  let tax = 0;
+  for (const line of lines) {
+    const g = round2(line.gross * scale);
+    const r = Number(line.pct) || 0;
+    const part = r > 0 && g > 0 ? round2((g * r) / (100 + r)) : 0;
+    tax += part;
+    if (line.pct === 8) tax8 += part;
+    else if (line.pct === 18) tax18 += part;
+  }
+  tax = round2(tax);
+  tax8 = round2(tax8);
+  tax18 = round2(tax18);
+  const sign = paid < 0 ? -1 : 1;
+  return {
+    pa: round2(paid - sign * tax),
+    tvsh: round2(sign * tax),
+    tvsh8: round2(sign * tax8),
+    tvsh18: round2(sign * tax18),
+  };
+}
+
 function getDitari(opts = {}) {
   const periodRaw = String(opts.period || "").trim().toLowerCase();
   const period =
@@ -2140,7 +2390,24 @@ function getDitari(opts = {}) {
     pick.tvsh = round2(pick.tvsh + tvshDrift);
     pick.pa_tvsh = round2((Number(pick.total) || 0) - pick.tvsh);
   }
-  for (const e of merged) delete e._letters;
+  for (const e of merged) {
+    if (e._letters) {
+      e.tvsh_8 = round2(e._letters.D);
+      e.tvsh_18 = round2(e._letters.E);
+      if (e.tvsh == null || !Number.isFinite(Number(e.tvsh))) {
+        const raw = ["A", "B", "C", "D", "E"].reduce((s, L) => s + e._letters[L], 0);
+        e.tvsh = round2(raw);
+        e.pa_tvsh = round2((Number(e.total) || 0) - e.tvsh);
+      }
+    } else {
+      const parts = vatPartsFromItems(e.items, e.total);
+      e.tvsh_8 = parts.tvsh8;
+      e.tvsh_18 = parts.tvsh18;
+      e.tvsh = parts.tvsh;
+      e.pa_tvsh = parts.pa;
+    }
+    delete e._letters;
+  }
   return {
     periodLabel: range.label,
     dateFrom: range.from,
@@ -2190,6 +2457,7 @@ module.exports = {
   addOperator,
   getOperators,
   getOperatorByPin,
+  countOwners,
   updateOperator,
   deactivateOperator,
   deleteOperator,

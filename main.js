@@ -1,7 +1,7 @@
 /**
  * Electron desktop — Biznes (test ATK/SEF), si KAFENE: dritare + server lokal + printer.
  */
-const { app, BrowserWindow, dialog, ipcMain, screen } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, screen, powerSaveBlocker } = require("electron");
 const {
   runProdLicenseDialogUntilOk,
   loadCloud,
@@ -571,6 +571,7 @@ function stopServer() {
 }
 
 app.whenReady().then(async () => {
+  try { powerSaveBlocker.start("prevent-display-sleep"); } catch (_e) {}
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) {
     app.quit();

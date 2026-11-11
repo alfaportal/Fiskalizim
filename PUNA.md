@@ -1,5 +1,135 @@
 # PUNA.md
 
+## 2026-11-11 — Skanimi nuk e hap vagën
+
+Skanimi dhe klikimi i produktit me peshë e shtojnë si 1 copë. Vaga hapet vetëm me F8 ose me butonin Vagë. Pesha hyn në shportë vetëm nga vaga.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Klikimi dhe skanimi shton 1 copë |
+
+## 2026-11-11 — Shiriti i pagesës blu
+
+Shiriti pas pagesës është blu, me shkronja të bardha. I gjelbri nuk lexohej.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Ngjyra e shiritit |
+
+## 2026-11-11 — Kusuri pas pagesës
+
+Pas pagesës shkruhet si te Market: «U shit 8.20 € · Kusur 1.80 € · U printua fletë». Kusuri del kur kthehen para.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Shiriti i gjelbër pas pagesës |
+
+## 2026-11-11 — Klikimi i produktit me peshë hap vagën
+
+Kur shtypet molla, bananja ose çdo produkt me peshë, del vaga e atij produkti. Aty shkruhet pesha, p.sh. 1.400, dhe produkti hyn në shportë me atë peshë.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Klikimi i produktit me peshë hap vagën |
+
+## 2026-11-11 — Produktet me kg/g te vaga
+
+Vaga ishte bosh sepse kutia «Shitet me peshë» ishte e fikur te të gjitha. Tani produktet me kg ose g (pemë, perime, mish, djathë, miell, etj.) e kanë të ndezur. F8 i tregon.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Një herë: `sold_by_weight = 1` te emrat me kg/g |
+
+## 2026-11-11 — Vaga si te MARKET
+
+F8 hap vagën. Dalin vetëm produktet me «Shitet me peshë». Pesha shkruhet si 1.700, me +/− 0.100. Çmimi është sasia pjesëtuar me peshën bazë, pastaj shumëzuar me çmimin. Produkti hyn në shportë me atë peshë.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Kolona `sold_by_weight` |
+| `server.js` | Ruajtja e «Shitet me peshë» |
+| `public/index.html` | Vaga F8 dhe kutia te Produktet |
+
+## 2026-11-11 — Shkrimi në shportë si te MARKET
+
+Në arkë, sasia shkruhet «1» dhe çmimi «0.90». Nuk shkruhet më «1 X 1.50» as «500g».
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Rreshti i shportës |
+
+## 2026-11-11 — Skanimi pas pagesës
+
+Pas pagesës, fusha e skanimit hapet vetë. Nuk duhet të klikohet me dorë.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Pas pagesës fokusi shkon te skanimi |
+
+## 2026-11-11 — Ekrani nuk fiket
+
+Ekrani i arkës nuk mbyllet më pas një kohe. Koha u hoq.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Ekrani rri ndezur sa është hapur arka |
+| `main.js` | E njëjta gjë te programi i instaluar |
+
+## 2026-11-11 — Arka e bardhë
+
+Krejt skeda Arka (shiriti, shporta, pagesa, kategoritë) është e bardhë. Shkronjat janë të errëta që të lexohen. Skedat e tjera mbeten si më parë.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Ngjyrat e arkës |
+
+## 2026-11-11 — Arka: u hoqën Përzier, Kuponi Fiskal, Kuponi Termik
+
+Nga pagesa u hoqën tre butonat. Mbeten Cash, Kartelë, Paguaj (fiskal), Paguaj pa letër, Paguaj termik, Pastro. F12 mbetet termik.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | U hoqën butonat Përzier, Kuponi Fiskal, Kuponi Termik |
+
+## 2026-11-11 — Arka: u hoq lista e TVSH-së nga shporta
+
+Si te MARKET, te shporta mbetet vetëm «TOTALI I PAGESËS». Nuk shfaqen nën-totali, TVSH A/C, TVSH 8%, TVSH 18%, TVSH totale dhe artikujt. Llogaritja mbetet.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Lista e TVSH-së te shporta është e fshehur |
+
+## 2026-11-11 — Arka si te MARKET
+
+Ekrani i Arkës është shportë majtas dhe pagesa djathtas. Kategoritë dhe produktet hapen me «Kategori» ose ESC. F12 dhe «Paguaj» te shporta shtypin vetëm kupon termik. «Kuponi Fiskal» shtyp kuponin fiskal. Nuk u bë Setup. Nuk u dërgua kupon te ATK.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Pamja e arkës, butonat, pagesa, F12 termik |
+| `printer.js` | Hapja e sirtarit |
+| `server.js` | `POST /api/printers/drawer` |
+
+Prova në databazë të përkohshme, port 3397: 200 produkte. Shitje termike cash 1.00 €, kupon termik, pa fushë fiskale. Shitje e përzier 0.50 € (0.25 cash + 0.25 debit), kupon termik. Sirtari: printeri i Windows nuk e pranoi komandën. Databaza e instaluar nuk u prek.
+
+## 2026-11-11 — PIN i punonjësit vetëm 4 shifra, 1111 lejohet
+
+PIN-i i punonjësit pret saktësisht 4 shifra. Shifra e pestë nuk hyn, as me tastierë as te forma. Kodi `1111` ruhet dhe njihet. `11111` refuzohet.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Kufiri 4 shifra te hyrja dhe te shtimi i punonjësit |
+
+## 2026-11-10 — Hyrja si te DYQANET
+
+Pronari hyn me fjalëkalim dhe sheh të gjitha skedat. Punonjësi hyn me PIN 4-shifror dhe sheh vetëm Arkën. Te Punonjësit pronari shton, ndryshon dhe fshin punonjës me emër dhe PIN. Pronari nuk fshihet. Nuk ka njoftime si te KAFENE. Nuk u bë Setup.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Ekrani i hyrjes, roli, skedat, lista e punonjësve |
+| `public/css/login-modern.css` | Pamja e hyrjes |
+| `database.js` | `is_owner`, fjalëkalimi i pronarit, PIN 4 shifra |
+| `server.js` | Verifikimi i hyrjes kthen rolin |
+
 ## 2026-11-10 — Email-i offline vetëm pas 48 orëve
 
 Serveri i licencës dërgonte email çdo orë. Tani një email pas 48 orëve offline, vetëm për licencën fiskale aktive. Pastaj hesht derisa programi të kthehet online dhe të rrijë prapë 48 orë offline. Tabela `owner_notification_preferences` krijohet në nisje nëse ka `DATABASE_URL` dhe `pg`. Nuk ka raport javor, stok apo raport AI me email. Nuk ka skedë Njoftimet te paneli i pronarit. Nuk u deploy-ua.

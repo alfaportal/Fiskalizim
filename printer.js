@@ -1940,6 +1940,20 @@ async function startupAutoDetect(db) {
   return null;
 }
 
+const CASH_DRAWER_KICK = Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa]);
+
+async function openCashDrawer(db) {
+  const printers = await listPrinters();
+  const saved = stationConfigName(db, "bar", printers);
+  const name = saved ? resolvePrinterName(saved, printers) : "";
+  if (!name) {
+    const err = new Error("Nuk u gjet printer");
+    throw err;
+  }
+  const print = printRawSpooler(CASH_DRAWER_KICK, name);
+  return { ok: true, printer: name, print };
+}
+
 module.exports = {
   WINDOWS_DEFAULT,
   listPrinters,
@@ -1970,6 +1984,7 @@ module.exports = {
   isTyssoReceiptPrinter,
   stationConfigName,
   printRawEscPos,
+  openCashDrawer,
   resolveTyssoDirectComPort,
   printTestPage,
   buildPrintableDocument,
