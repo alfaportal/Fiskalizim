@@ -2332,6 +2332,10 @@
       border-color: #d7e0ea;
       color: #0f172a;
     }
+    body:has(main.pos-layout) .cart-row .cart-name-cell {
+      color: #0891b2;
+      font-weight: 800;
+    }
     body:has(main.pos-layout) .cart-row button {
       background: #e8eef5;
       color: #0f172a;
@@ -9304,8 +9308,11 @@
     }
     function scaleKgNow() {
       const raw = String(document.getElementById("scale-kg")?.value || "").trim().replace(",", ".");
+      if (!/^\d+(\.\d+)?$/.test(raw)) return 0;
       const n = Number(raw);
-      return Number.isFinite(n) ? roundQty3(n) : 0;
+      if (!Number.isFinite(n)) return 0;
+      const kg = raw.includes(".") ? n : n / 1000;
+      return roundQty3(kg);
     }
     function paintScaleTotal() {
       const el = document.getElementById("scale-total-live");

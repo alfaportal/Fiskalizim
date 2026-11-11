@@ -1,5 +1,34 @@
 # PUNA.md
 
+## 2026-11-11 — Vaga: 1700 është gram
+
+Te vaga, numri pa pikë është gram. 1700 del 1.700 kg, jo 1700 kg. Numri me pikë, p.sh. 1.700, mbetet kilogram.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Leximi i peshës te vaga |
+
+Nuk u bë Setup.
+
+## 2026-11-11 — Emri në shportë si çmimi
+
+Emri i produktit te arka është blu, njësoj si çmimi, që të lexohet.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Ngjyra e emrit në shportë `#0891b2` |
+
+Nuk u bë Setup. Programi i instaluar e merr pas Setup-it të ri.
+
+## 2026-11-11 — Setup 1.100.1
+
+U ndërtua instaluesi i ri. I vjetri 1.100.0 mbetet për kthim prapa.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `package.json` | Versioni 1.100.1 |
+| `dist-atk-v2/Revolution-Fiskalizim-Setup-1.100.1-win-x64.exe` | Instaluesi i ri |
+
 ## 2026-11-11 — Skanimi nuk e hap vagën
 
 Skanimi dhe klikimi i produktit me peshë e shtojnë si 1 copë. Vaga hapet vetëm me F8 ose me butonin Vagë. Pesha hyn në shportë vetëm nga vaga.
