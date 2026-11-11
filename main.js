@@ -498,6 +498,13 @@ function attachDevToolsBlock(win) {
   win.webContents.on("before-input-event", (event, input) => {
     if (input.key === "F12") {
       event.preventDefault();
+      if (input.type === "keyDown" && !input.isAutoRepeat) {
+        win.webContents
+          .executeJavaScript(
+            "document.dispatchEvent(new KeyboardEvent('keydown',{key:'F12',code:'F12',bubbles:true,cancelable:true}))"
+          )
+          .catch(() => {});
+      }
       return;
     }
     if (input.control && input.shift && (input.key === "I" || input.key === "i")) {

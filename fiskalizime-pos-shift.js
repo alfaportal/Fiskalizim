@@ -46,30 +46,40 @@ function rowPaymentSplits(row) {
   return Array.isArray(items.payment_splits) ? items.payment_splits : [];
 }
 
-function cashFromOrderRow(row) {
+function splitCashCard(row) {
   const total = round2(row.total);
   const splits = rowPaymentSplits(row);
-  if (splits.length) {
-    return round2(
-      splits
-        .filter((p) => !isCardPayment(p.method))
-        .reduce((s, p) => s + round2(p.amount), 0)
-    );
+  if (!splits.length) {
+    if (isCardPayment(row.payment_method)) return { cash: 0, card: total };
+    return { cash: total, card: 0 };
   }
-  return isCardPayment(row.payment_method) ? 0 : total;
+  let cash = 0;
+  let card = 0;
+  for (const p of splits) {
+    const amt = round2(p.amount);
+    if (isCardPayment(p.method)) card += amt;
+    else cash += amt;
+  }
+  cash = round2(cash);
+  card = round2(card);
+  const sum = round2(cash + card);
+  if (Math.abs(sum - total) > 0.009 && Math.abs(sum) > 0.009) {
+    const scale = total / sum;
+    cash = round2(cash * scale);
+    card = round2(total - cash);
+  } else if (Math.abs(sum - total) > 0.009) {
+    if (isCardPayment(row.payment_method)) return { cash: 0, card: total };
+    return { cash: total, card: 0 };
+  }
+  return { cash, card };
+}
+
+function cashFromOrderRow(row) {
+  return splitCashCard(row).cash;
 }
 
 function cardFromOrderRow(row) {
-  const total = round2(row.total);
-  const splits = rowPaymentSplits(row);
-  if (splits.length) {
-    return round2(
-      splits
-        .filter((p) => isCardPayment(p.method))
-        .reduce((s, p) => s + round2(p.amount), 0)
-    );
-  }
-  return isCardPayment(row.payment_method) ? total : 0;
+  return splitCashCard(row).card;
 }
 
 function initPosShiftSchema(sqlite) {

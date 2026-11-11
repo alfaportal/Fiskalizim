@@ -1164,6 +1164,50 @@ async function boot() {
     }
   });
 
+  app.get("/api/pos-categories", (_req, res) => {
+    try {
+      res.json({ ok: true, categories: db.listPosCategories() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/pos-categories", (req, res) => {
+    try {
+      const categories = db.addPosCategory(req.body?.name);
+      res.status(201).json({ ok: true, categories });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.put("/api/pos-categories/reorder", (req, res) => {
+    try {
+      const categories = db.reorderPosCategories(req.body?.names || []);
+      res.json({ ok: true, categories });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.put("/api/pos-categories/toggle", (req, res) => {
+    try {
+      const categories = db.togglePosCategory(req.body?.name);
+      res.json({ ok: true, categories });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.delete("/api/pos-categories", (req, res) => {
+    try {
+      const categories = db.deletePosCategory(req.body?.name);
+      res.json({ ok: true, categories });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
   app.get("/api/fiscal/business-logo", (_req, res) => {
     try {
       const { hasBusinessLogo } = require("./fiscal/fiscal-logo");

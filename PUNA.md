@@ -1,5 +1,61 @@
 # PUNA.md
 
+## 2026-11-11 — F12 Paguaj
+
+F12 nuk arrinte te Arka. Programi e hante tastin. Tani F12 te Arka bën të njëjtën gjë si butoni Paguaj: kupon termik.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `main.js` | F12 shkon te pagesa, jo te mjetet e brendshme |
+
+Ekrani i instaluar e merr vetëm pas Setup-it të ri. Versioni mbeti 1.100.3.
+
+## 2026-11-11 — Kopjo te Kuponët
+
+«Kopjo» e merrte numrin, por nuk e vendoste në kutinë lart. Kutia mbetej te kuponi i fundit. Te Biznesi, «Kopjo» e vendos kuponin që shtypet.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | «Kopjo» e vendos atë kupon në kutinë lart dhe e fokuson |
+
+Prova me klik: #57, pastaj #53, pastaj #62, pastaj #60. Kutia mori secilin. Programi i hapur ende ka kodin e vjetër. Ekrani ndryshon vetëm pas Setup-it të ri. Versioni mbeti 1.100.3.
+
+## 2026-11-11 — Arka pas kthimit
+
+Kthimi ruante pagesën e kuponit të vjetër. Shitja 11.10 € dhe kthimi 2.00 € bënin cash 22.20 €. Arka 21.10 € ishte 10 € hapje + 11.10 €, pa i hequr 2 €. Totali 9.10 € ishte shitja neto, pa 10 € e hapjes.
+
+Tani cash ndjek shumën e rreshtit. 10 + 11.10 − 2.00 = 19.10 € në arkë. Ditari cash 9.10 €.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Cash/kartë sipas totalit të rreshtit; kthimi ruan shumën e kthyer |
+| `fiskalizime-pos-shift.js` | E njëjta llogari për arkën dhe ndërrimin |
+
+Prova në databazë të përkohshme: hapje 10, shitje 11.10, kthim 2.00 → cash 9.10, arkë 19.10. Kthimi me kartë 5.10 − 1.80 → kartë 3.30, cash mbeti 9.10. Kaloi. Pa print, pa dërgim te ATK. Ekrani i instaluar: vetëm pas Setup-it të ri. Versioni mbeti 1.100.3.
+
+## 2026-11-11 — Kategori te Produktet
+
+Te Produktet, mbi formën e produktit, shtohet kategori e re. Stop e fsheh nga arka. ✕ e heq nga lista, produktet mbeten. Zvarritja ndërron renditjen. Butoni është i gjelbër, si Fiskalizimi.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Lista e kategorive ruhet |
+| `server.js` | Rrugët e kategorive |
+| `public/index.html` | Paneli te Produktet |
+
+Prova: u shtua «Specialitete», u fsheh, u rendit, u hoq. Kaloi. Ekrani: vetëm pas Setup-it të ri. Versioni mbeti 1.100.3.
+
+## 2026-11-11 — Setup 1.100.3
+
+U ndërtua instaluesi i ri. Versioni në `package.json` u rrit nga 1.100.2 në 1.100.3. Instaluesit e vjetër mbetën, përfshirë 1.100.2.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `package.json` | Versioni 1.100.3 |
+| `dist-atk-v2/Revolution-Fiskalizim-Setup-1.100.3-win-x64.exe` | Setup i ri |
+
+Mbyll programin plotësisht, instaloje këtë Setup dhe hape përsëri.
+
 ## 2026-11-11 — Storno, Anulo, Kthim, Ndërrim
 
 Te lista Kuponët, shitja ka katër butona: Storno, Anulo, Kthim malli, Ndërrim. Secili bën rresht të ri. Kuponi i vjetër shënohet Storno, Anuluar, Kthyer 1 artikull ose Ndërruar. Storno dhe Anulo kërkojnë arsye. Kthimi hap tabelën. Ndërrimi hap zgjedhjen e produktit. Rreshti termik mbetet me shkrim të kuq. Numri termik është T-1, T-2. Kuponi fiskal mbetet 0001 / 0000000056.

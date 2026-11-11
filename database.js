@@ -393,6 +393,135 @@ function migrateFiskalizimCatalog200() {
   return r;
 }
 
+const POS_CATEGORY_SEED = [
+  "Bukë & Brumëra",
+  "Bulmet",
+  "Vezë",
+  "Ushqim Bazë",
+  "Pije",
+  "Perime",
+  "Pemë",
+  "Mish",
+  "Ëmbëlsira",
+  "Rroba Meshkuj",
+  "Rroba Femra",
+  "Këpucë",
+  "Aksesorë",
+  "Elektronikë",
+  "Higjienë",
+  "Kancelari",
+  "Lodra Fëmijë",
+  "Shtëpi",
+  "Barna OTC",
+  "Pajisje të Ndryshme",
+];
+
+function ensurePosCategories() {
+  sqlite.exec(
+    `CREATE TABLE IF NOT EXISTS pos_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1
+    )`
+  );
+  const count = Number(sqlite.prepare("SELECT COUNT(*) AS c FROM pos_categories").get()?.c) || 0;
+  const ins = sqlite.prepare(
+    "INSERT INTO pos_categories (name, sort_order, active) VALUES (?, ?, 1)"
+  );
+  const have = new Set(
+    sqlite.prepare("SELECT name FROM pos_categories").all().map((r) => String(r.name || ""))
+  );
+  let next = Number(
+    sqlite.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM pos_categories").get()?.m
+  );
+  if (!count) {
+    for (const name of POS_CATEGORY_SEED) {
+      if (have.has(name)) continue;
+      next += 1;
+      ins.run(name, next);
+      have.add(name);
+    }
+  }
+  const extras = sqlite
+    .prepare(
+      "SELECT DISTINCT TRIM(pos_category) AS name FROM products WHERE TRIM(COALESCE(pos_category, '')) <> ''"
+    )
+    .all();
+  for (const row of extras) {
+    const name = String(row.name || "").trim();
+    if (!name || have.has(name)) continue;
+    next += 1;
+    ins.run(name, next);
+    have.add(name);
+  }
+}
+
+function listPosCategories() {
+  ensurePosCategories();
+  return sqlite
+    .prepare(
+      "SELECT id, name, sort_order, COALESCE(active, 1) AS active FROM pos_categories ORDER BY sort_order, name"
+    )
+    .all()
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      sort_order: Number(c.sort_order) || 0,
+      active: Number(c.active) !== 0 ? 1 : 0,
+    }));
+}
+
+function addPosCategory(name) {
+  ensurePosCategories();
+  const trimmed = String(name || "").trim();
+  if (!trimmed) throw new Error("Shkruani emrin e kategorisë");
+  const existing = sqlite.prepare("SELECT id FROM pos_categories WHERE name = ?").get(trimmed);
+  if (existing) throw new Error("Kjo kategori ekziston tashmë");
+  const maxOrder = Number(
+    sqlite.prepare("SELECT COALESCE(MAX(sort_order), -1) AS m FROM pos_categories").get()?.m
+  );
+  sqlite
+    .prepare("INSERT INTO pos_categories (name, sort_order, active) VALUES (?, ?, 1)")
+    .run(trimmed, maxOrder + 1);
+  return listPosCategories();
+}
+
+function togglePosCategory(name) {
+  ensurePosCategories();
+  const cat = sqlite
+    .prepare("SELECT id, COALESCE(active, 1) AS active FROM pos_categories WHERE name = ?")
+    .get(String(name || "").trim());
+  if (!cat) throw new Error("Kategoria nuk u gjet");
+  const next = Number(cat.active) !== 0 ? 0 : 1;
+  sqlite.prepare("UPDATE pos_categories SET active = ? WHERE id = ?").run(next, cat.id);
+  return listPosCategories();
+}
+
+function deletePosCategory(name) {
+  ensurePosCategories();
+  const trimmed = String(name || "").trim();
+  const cat = sqlite.prepare("SELECT id FROM pos_categories WHERE name = ?").get(trimmed);
+  if (!cat) throw new Error("Kategoria nuk u gjet");
+  sqlite.prepare("DELETE FROM pos_categories WHERE id = ?").run(cat.id);
+  return listPosCategories();
+}
+
+function reorderPosCategories(names) {
+  ensurePosCategories();
+  const list = (Array.isArray(names) ? names : [])
+    .map((n) => String(n || "").trim())
+    .filter(Boolean);
+  if (!list.length) throw new Error("Lista e kategorive është bosh");
+  const existing = new Set(listPosCategories().map((c) => c.name));
+  for (const name of list) {
+    if (!existing.has(name)) throw new Error("Kategoria nuk u gjet");
+  }
+  const upd = sqlite.prepare("UPDATE pos_categories SET sort_order = ? WHERE name = ?");
+  list.forEach((name, i) => upd.run(i, name));
+  return listPosCategories();
+}
+
 function migrateFiskalizimPosCategory() {
   const marker = "fiskalizim_pos_category_v2";
   if (getSetting(marker) === "1") return null;
@@ -831,6 +960,11 @@ function initSchema() {
       migrateFiskalizimPosCategory();
     } catch (e) {
       console.warn("[fiskalizim] migrateFiskalizimPosCategory:", e.message);
+    }
+    try {
+      ensurePosCategories();
+    } catch (e) {
+      console.warn("[fiskalizim] ensurePosCategories:", e.message);
     }
     try {
       migrateFiskalizimCatalog200();
@@ -2232,30 +2366,40 @@ function rowPaymentSplits(row) {
   return parseOrderPayload(row).payment_splits;
 }
 
-function cashFromOrderRow(row) {
+function splitCashCard(row) {
   const total = round2(row.total);
   const splits = rowPaymentSplits(row);
-  if (splits.length) {
-    return round2(
-      splits
-        .filter((p) => !isCardPayment(p.method))
-        .reduce((s, p) => s + round2(p.amount), 0)
-    );
+  if (!splits.length) {
+    if (isCardPayment(row.payment_method)) return { cash: 0, card: total };
+    return { cash: total, card: 0 };
   }
-  return isCardPayment(row.payment_method) ? 0 : total;
+  let cash = 0;
+  let card = 0;
+  for (const p of splits) {
+    const amt = round2(p.amount);
+    if (isCardPayment(p.method)) card += amt;
+    else cash += amt;
+  }
+  cash = round2(cash);
+  card = round2(card);
+  const sum = round2(cash + card);
+  if (Math.abs(sum - total) > 0.009 && Math.abs(sum) > 0.009) {
+    const scale = total / sum;
+    cash = round2(cash * scale);
+    card = round2(total - cash);
+  } else if (Math.abs(sum - total) > 0.009) {
+    if (isCardPayment(row.payment_method)) return { cash: 0, card: total };
+    return { cash: total, card: 0 };
+  }
+  return { cash, card };
+}
+
+function cashFromOrderRow(row) {
+  return splitCashCard(row).cash;
 }
 
 function cardFromOrderRow(row) {
-  const total = round2(row.total);
-  const splits = rowPaymentSplits(row);
-  if (splits.length) {
-    return round2(
-      splits
-        .filter((p) => isCardPayment(p.method))
-        .reduce((s, p) => s + round2(p.amount), 0)
-    );
-  }
-  return isCardPayment(row.payment_method) ? total : 0;
+  return splitCashCard(row).card;
 }
 
 function resolveDitariRange(opts = {}) {
@@ -2513,9 +2657,28 @@ function findRemainingLine(lines, req) {
   });
 }
 
+function correctionPaymentSplits(order, total) {
+  const amount = round2(total);
+  const old = parseOrderPayload(order).payment_splits;
+  if (!old.length) return [{ method: order.payment_method || "cash", amount }];
+  const sum = round2(old.reduce((s, p) => s + round2(p.amount), 0));
+  if (Math.abs(sum) < 0.009 || Math.abs(sum - amount) <= 0.009) {
+    if (Math.abs(sum - amount) <= 0.009) return old;
+    return [{ method: order.payment_method || "cash", amount }];
+  }
+  const scale = amount / sum;
+  const next = old.map((p) => ({
+    method: p.method,
+    amount: round2(round2(p.amount) * scale),
+  }));
+  const drift = round2(amount - next.reduce((s, p) => s + p.amount, 0));
+  if (next.length && drift) next[0].amount = round2(next[0].amount + drift);
+  return next;
+}
+
 function insertThermalCorrection(order, { items, total, correctionType, reason, cashier, operatorId }) {
   const meta = shiftForThermalCorrection(order, operatorId);
-  const payload = { items, payment_splits: parseOrderPayload(order).payment_splits };
+  const payload = { items, payment_splits: correctionPaymentSplits(order, total) };
   const result = sqlite
     .prepare(
       `INSERT INTO orders (
@@ -3093,6 +3256,11 @@ module.exports = {
   getSetting,
   setSetting,
   listProducts,
+  listPosCategories,
+  addPosCategory,
+  togglePosCategory,
+  deletePosCategory,
+  reorderPosCategories,
   getProductById,
   createProduct,
   updateProduct,

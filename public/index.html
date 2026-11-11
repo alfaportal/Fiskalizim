@@ -1896,6 +1896,65 @@
       padding: 10px 12px;
       min-width: 44px;
     }
+    #tab-products .pos-cat-card {
+      background: #111827;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    #tab-products .pos-cat-card h3 {
+      margin: 0 0 6px;
+      font-size: 1rem;
+    }
+    #tab-products .pos-cat-card p {
+      margin: 0 0 10px;
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+    #tab-products .pos-cat-form {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    #tab-products .pos-cat-form > div:first-child { flex: 1 1 220px; }
+    #tab-products .pos-cat-form label {
+      display: block;
+      color: #94a3b8;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+    #tab-products .pos-cat-form input {
+      width: 100%;
+      margin: 0;
+    }
+    #tab-products .pos-cat-form .btn { width: auto; margin: 0; }
+    #tab-products .pos-cat-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    #tab-products .pos-cat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 4px 6px 4px 8px;
+      cursor: grab;
+    }
+    #tab-products .pos-cat-chip.off { opacity: 0.55; }
+    #tab-products .pos-cat-chip .pos-cat-grip { color: #94a3b8; cursor: grab; }
+    #tab-products .pos-cat-chip button {
+      width: auto;
+      margin: 0;
+      padding: 2px 8px;
+      font-size: 12px;
+    }
     input, select, textarea {
       width: 100%;
       background: #111827;
@@ -3024,6 +3083,21 @@
     <!-- Produktet -->
     <section class="panel hidden" id="tab-products" style="grid-column: 1 / -1; padding: 15px">
       <h2>Menaxhimi i produkteve</h2>
+      <div class="pos-cat-card">
+        <h3>Kategoritë</h3>
+        <p><strong>Stop</strong> e fsheh nga arka · <strong>✕</strong> e heq nga lista · <strong>Zvarrit</strong> (⋮⋮) për renditjen.</p>
+        <form id="pos-cat-form" class="pos-cat-form" autocomplete="off">
+          <div>
+            <label for="pos-cat-name">Emri i kategorisë së re</label>
+            <input type="text" id="pos-cat-name" placeholder="p.sh. Specialitete" />
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary">Shto kategori</button>
+          </div>
+        </form>
+        <div id="pos-cat-list" class="pos-cat-list"></div>
+      </div>
       <form id="mgmt-product-form" class="mgmt-product-form form-row" autocomplete="off">
         <div class="mgmt-form-barcode">
           <label for="mgmt-prod-barcode">Barkod</label>
@@ -5878,7 +5952,7 @@
       }
     }
 
-    const POS_AR_KATEGORITE = [
+    let POS_AR_KATEGORITE = [
       "Bukë & Brumëra",
       "Bulmet",
       "Vezë",
@@ -5900,6 +5974,140 @@
       "Barna OTC",
       "Pajisje të Ndryshme",
     ];
+    let POS_CATEGORY_ROWS = [];
+
+    function fillPosCategorySelects() {
+      const names = POS_CATEGORY_ROWS.length
+        ? POS_CATEGORY_ROWS.map((c) => c.name)
+        : POS_AR_KATEGORITE.slice();
+      const html = names.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+      const sel = document.getElementById("mgmt-prod-pos-kat");
+      const prev = sel ? sel.value : "";
+      if (sel) {
+        sel.innerHTML = html;
+        if (prev && names.includes(prev)) sel.value = prev;
+      }
+      const edit = document.getElementById("edit-prod-pos");
+      if (edit) {
+        const ev = edit.value;
+        edit.innerHTML = html;
+        if (ev && [...edit.options].some((o) => o.value === ev)) edit.value = ev;
+      }
+    }
+
+    function applyPosCategoryRows(rows) {
+      POS_CATEGORY_ROWS = Array.isArray(rows) ? rows : [];
+      const active = POS_CATEGORY_ROWS.filter((c) => Number(c.active) !== 0).map((c) => c.name);
+      if (active.length) POS_AR_KATEGORITE = active;
+      fillPosCategorySelects();
+      renderPosCategoryAdmin();
+      if (typeof renderPosCategoryList === "function") renderPosCategoryList();
+    }
+
+    function renderPosCategoryAdmin() {
+      const lista = document.getElementById("pos-cat-list");
+      if (!lista) return;
+      lista.innerHTML = POS_CATEGORY_ROWS.map((c) => {
+        const active = Number(c.active) !== 0;
+        const enc = encodeURIComponent(c.name);
+        return `<span class="pos-cat-chip${active ? "" : " off"}" draggable="true" data-kat-name="${enc}">
+          <span class="pos-cat-grip">⋮⋮</span>
+          <span>${esc(c.name)}</span>
+          <button type="button" class="btn btn-ghost" data-kat-stop="${enc}">${active ? "Stop" : "Shfaq"}</button>
+          <button type="button" class="btn btn-ghost" data-kat-del="${enc}">✕</button>
+        </span>`;
+      }).join("");
+      lista.querySelectorAll("[data-kat-stop]").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const data = await api("/api/pos-categories/toggle", {
+              method: "PUT",
+              body: JSON.stringify({ name: decodeURIComponent(btn.dataset.katStop) }),
+            });
+            applyPosCategoryRows(data.categories);
+          } catch (err) {
+            alert(err.message || "Kategoria nuk u ndryshua");
+          }
+        });
+      });
+      lista.querySelectorAll("[data-kat-del]").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const emri = decodeURIComponent(btn.dataset.katDel);
+          if (!confirm(`Hiq kategorinë "${emri}" nga lista? Produktet mbeten.`)) return;
+          try {
+            const data = await api("/api/pos-categories", {
+              method: "DELETE",
+              body: JSON.stringify({ name: emri }),
+            });
+            applyPosCategoryRows(data.categories);
+          } catch (err) {
+            alert(err.message || "Kategoria nuk u hoq");
+          }
+        });
+      });
+      bindPosCategoryDrag(lista);
+    }
+
+    let posCatDrag = null;
+    let posCatSaving = false;
+
+    function bindPosCategoryDrag(lista) {
+      if (!lista) return;
+      lista.querySelectorAll(".pos-cat-chip[draggable]").forEach((chip) => {
+        chip.addEventListener("dragstart", (e) => {
+          if (e.target.closest("button")) {
+            e.preventDefault();
+            return;
+          }
+          posCatDrag = chip;
+          try {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", chip.dataset.katName || "");
+          } catch { /* ignore */ }
+        });
+        chip.addEventListener("dragend", () => {
+          posCatDrag = null;
+          savePosCategoryOrder(lista);
+        });
+        chip.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          if (!posCatDrag || posCatDrag === chip) return;
+          const rect = chip.getBoundingClientRect();
+          const before = e.clientX < rect.left + rect.width / 2;
+          if (before) lista.insertBefore(posCatDrag, chip);
+          else lista.insertBefore(posCatDrag, chip.nextSibling);
+        });
+      });
+    }
+
+    async function savePosCategoryOrder(lista) {
+      if (posCatSaving || !lista) return;
+      const names = [...lista.querySelectorAll(".pos-cat-chip[data-kat-name]")]
+        .map((el) => decodeURIComponent(el.dataset.katName || ""))
+        .filter(Boolean);
+      if (!names.length) return;
+      posCatSaving = true;
+      try {
+        const data = await api("/api/pos-categories/reorder", {
+          method: "PUT",
+          body: JSON.stringify({ names }),
+        });
+        applyPosCategoryRows(data.categories);
+      } catch (err) {
+        alert(err.message || "Renditja nuk u ruajt");
+      } finally {
+        posCatSaving = false;
+      }
+    }
+
+    async function loadPosCategories() {
+      const data = await api("/api/pos-categories");
+      applyPosCategoryRows(data.categories || []);
+    }
 
     function posCategoryLabel(stored) {
       const s = String(stored || "").trim();
@@ -6793,6 +7001,25 @@
       true
     );
 
+    document.getElementById("pos-cat-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("pos-cat-name");
+      const emri = String(input?.value || "").trim();
+      if (!emri) return;
+      try {
+        const data = await api("/api/pos-categories", {
+          method: "POST",
+          body: JSON.stringify({ name: emri }),
+        });
+        if (input) input.value = "";
+        applyPosCategoryRows(data.categories);
+        const sel = document.getElementById("mgmt-prod-pos-kat");
+        if (sel) sel.value = emri;
+      } catch (err) {
+        alert(err.message || "Kategoria nuk u shtua");
+      }
+    });
+
     document.getElementById("mgmt-product-form")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       if (state.diskBlocksRecords) {
@@ -7196,6 +7423,7 @@
       state.allProducts = data.products || [];
       rebuildCatalogLookup(state.allProducts);
       renderProducts();
+      loadPosCategories().catch(() => {});
     }
 
     function formatExchangeResultMessage(data) {
@@ -7859,7 +8087,14 @@
       body.querySelectorAll(".btn-copy-nuikf").forEach((b) => {
         b.addEventListener("click", (e) => {
           e.stopPropagation();
-          copyNuikf(b.dataset.nuikf, document.getElementById("receipts-msg"));
+          const nuikf = b.getAttribute("data-nuikf") || "";
+          fillStornoNuikf(nuikf);
+          const inp = document.getElementById("storno-nuikf");
+          if (inp) {
+            inp.focus();
+            inp.scrollIntoView({ block: "nearest" });
+          }
+          copyNuikf(nuikf, document.getElementById("receipts-msg"));
         });
       });
       body.querySelectorAll(".nuikf-code").forEach((code) => {
@@ -9028,6 +9263,7 @@
       document.getElementById("tab-products").classList.toggle("hidden", name !== "products");
       if (name === "receipts") loadReceipts().catch(console.error);
       if (name === "products") {
+        loadPosCategories().catch(() => {});
         loadMgmtProducts()
           .catch(console.error)
           .finally(() => {
