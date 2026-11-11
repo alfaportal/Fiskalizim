@@ -19,6 +19,9 @@ const electronApi = {
   licenseHardwareId: () => ipcRenderer.invoke("license:hardware-id"),
   licenseDeviceId: () => ipcRenderer.invoke("license:device-id"),
   openLicenseDialog: () => ipcRenderer.invoke("license:open-dialog"),
+  quitApp: () => ipcRenderer.invoke("app:quit"),
+  windowMinimize: () => ipcRenderer.invoke("app:minimize"),
+  windowMaximize: () => ipcRenderer.invoke("app:maximize-toggle"),
   onLicensePackageUpdated: (callback) => subscribeIpc("license:package-updated", callback),
   onLicenseKeyUpdated: (callback) => subscribeIpc("license:key-updated", callback),
 };

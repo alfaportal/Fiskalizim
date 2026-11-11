@@ -1253,6 +1253,7 @@ async function initDatabase() {
     try {
       initSchema();
       require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
+      ensureOrderCouponColumns();
     } catch (e) {
       if (/not a database|malformed|corrupt/i.test(String(e.message || e))) {
         if (!dbDecryptFailed) {
@@ -1263,6 +1264,7 @@ async function initDatabase() {
         installIsNewFile = !dbDecryptFailed;
         initSchema();
         require("./fiskalizime-pos-shift").initPosShiftSchema(sqlite);
+        ensureOrderCouponColumns();
         if (!dbDecryptFailed) {
           saveDb();
           console.warn("[biznes] u krijua biznes.db e re (skema e pastër)");
@@ -2055,6 +2057,100 @@ function countActiveOperators() {
   return Number(row?.c) || 0;
 }
 
+function ensureOrderCouponColumns() {
+  const cols = [
+    ["coupon_type", "TEXT NOT NULL DEFAULT ''"],
+    ["ref_order_id", "INTEGER"],
+    ["correction_type", "TEXT NOT NULL DEFAULT ''"],
+    ["void_reason", "TEXT NOT NULL DEFAULT ''"],
+    ["thermal_daily_no", "INTEGER"],
+  ];
+  for (const [name, def] of cols) {
+    try {
+      sqlite.prepare(`ALTER TABLE orders ADD COLUMN ${name} ${def}`).run();
+    } catch {
+      /* kolona ekziston */
+    }
+  }
+  backfillThermalDailyNumbers();
+}
+
+function isThermalNumberRow(row) {
+  if (!row) return false;
+  if (Number(row.is_fiscalized) === 1) return false;
+  if (Number(row.fiscal_receipt_id)) return false;
+  if (String(row.coupon_type || "") === "thermal") return true;
+  return ["return", "cancel", "storno", "exchange"].includes(String(row.correction_type || ""));
+}
+
+function backfillThermalDailyNumbers() {
+  const rows = sqlite
+    .prepare(
+      `SELECT id, date(created_at) AS d
+       FROM orders
+       WHERE COALESCE(is_fiscalized, 0) = 0
+         AND (fiscal_receipt_id IS NULL OR fiscal_receipt_id = 0)
+         AND (thermal_daily_no IS NULL OR thermal_daily_no = 0)
+         AND (
+           coupon_type = 'thermal'
+           OR correction_type IN ('return','cancel','storno','exchange')
+         )
+       ORDER BY date(created_at), id`
+    )
+    .all();
+  const upd = sqlite.prepare(
+    `UPDATE orders SET thermal_daily_no = ? WHERE id = ? AND (thermal_daily_no IS NULL OR thermal_daily_no = 0)`
+  );
+  const maxForDay = sqlite.prepare(
+    `SELECT COALESCE(MAX(thermal_daily_no), 0) AS n
+     FROM orders
+     WHERE date(created_at) = date(?)
+       AND thermal_daily_no IS NOT NULL
+       AND thermal_daily_no > 0`
+  );
+  let day = "";
+  let n = 0;
+  for (const row of rows) {
+    const d = String(row.d || "");
+    if (d !== day) {
+      day = d;
+      n = Number(maxForDay.get(d)?.n) || 0;
+    }
+    n += 1;
+    upd.run(n, row.id);
+  }
+}
+
+function assignThermalDailyNo(orderId) {
+  const id = Number(orderId);
+  const row = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(id);
+  if (!isThermalNumberRow(row)) return null;
+  if (Number(row.thermal_daily_no) > 0) return Number(row.thermal_daily_no);
+  const day = String(row.created_at || "").slice(0, 10);
+  const maxRow = sqlite
+    .prepare(
+      `SELECT COALESCE(MAX(thermal_daily_no), 0) AS n
+       FROM orders
+       WHERE date(created_at) = date(?)
+         AND id != ?
+         AND thermal_daily_no IS NOT NULL
+         AND thermal_daily_no > 0
+         AND COALESCE(is_fiscalized, 0) = 0
+         AND (fiscal_receipt_id IS NULL OR fiscal_receipt_id = 0)`
+    )
+    .get(day, id);
+  const next = (Number(maxRow?.n) || 0) + 1;
+  sqlite.prepare("UPDATE orders SET thermal_daily_no = ? WHERE id = ?").run(next, id);
+  return next;
+}
+
+function markOrderCouponType(orderId, couponType) {
+  const type = String(couponType || "");
+  sqlite.prepare(`UPDATE orders SET coupon_type = ? WHERE id = ?`).run(type, Number(orderId));
+  if (type === "thermal") return assignThermalDailyNo(orderId);
+  return null;
+}
+
 function todayIsoLocal() {
   const d = new Date();
   const y = d.getFullYear();
@@ -2243,6 +2339,565 @@ function vatPartsFromItems(items, total) {
     tvsh8: round2(sign * tax8),
     tvsh18: round2(sign * tax18),
   };
+}
+
+function parseThermalOrderRef(value) {
+  const s = String(value || "")
+    .trim()
+    .replace(/^#/, "");
+  const pos = s.match(/^POS-0*(\d+)$/i);
+  const digits = pos ? pos[1] : s;
+  if (!/^\d+$/.test(digits)) return null;
+  const id = Number(digits);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function isThermalSaleOrder(order) {
+  if (!order) return false;
+  if (Number(order.ref_order_id) > 0) return false;
+  if (String(order.correction_type || "")) return false;
+  if (Number(order.is_fiscalized) === 1) return false;
+  if (Number(order.fiscal_receipt_id) > 0) return false;
+  return true;
+}
+
+function isThermalCouponRef(value) {
+  const id = parseThermalOrderRef(value);
+  if (!id) return false;
+  const order = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(id);
+  return isThermalSaleOrder(order);
+}
+
+function orderItemKey(it) {
+  const id = Number(it.product_id || it.menu_item_id) || 0;
+  const name = String(it.name || "").trim();
+  const price = Math.round((Number(it.price ?? it.unit_price) || 0) * 10000) / 10000;
+  return id ? `id:${id}:${price}` : `n:${name}:${price}`;
+}
+
+function correctionOrdersFor(orderId) {
+  return sqlite
+    .prepare(
+      `SELECT id, items_json, total, correction_type, status, void_reason, payment_method, waiter_name, created_at
+       FROM orders
+       WHERE ref_order_id = ?
+         AND correction_type IN ('return','cancel','storno','exchange')
+       ORDER BY id ASC`
+    )
+    .all(Number(orderId));
+}
+
+function remainingLinesForOrder(order) {
+  const base = parseOrderPayload(order).items.map((it) => ({
+    ...it,
+    quantity: Math.abs(Number(it.quantity ?? it.qty) || 0),
+  }));
+  const lines = base.map((it) => ({
+    ...it,
+    original_quantity: Math.abs(Number(it.quantity) || 0),
+    already_returned: 0,
+    remaining_quantity: Math.abs(Number(it.quantity) || 0),
+  }));
+  const extra = [];
+  for (const log of correctionOrdersFor(order.id)) {
+    const kind = String(log.correction_type || "");
+    const items = parseOrderPayload(log).items;
+    if (kind === "exchange") {
+      for (const it of items) {
+        const qty = Number(it.quantity) || 0;
+        if (qty < 0) {
+          const key = orderItemKey(it);
+          const line =
+            lines.find((l) => orderItemKey(l) === key) || extra.find((l) => orderItemKey(l) === key);
+          if (line) line.remaining_quantity = Math.max(0, line.remaining_quantity - Math.abs(qty));
+        } else if (qty > 0) {
+          extra.push({
+            ...it,
+            quantity: qty,
+            original_quantity: 0,
+            already_returned: 0,
+            remaining_quantity: qty,
+          });
+        }
+      }
+    } else {
+      for (const it of items) {
+        const qty = Math.abs(Number(it.quantity) || 0);
+        const key = orderItemKey(it);
+        const line =
+          lines.find((l) => orderItemKey(l) === key) || extra.find((l) => orderItemKey(l) === key);
+        if (!line) continue;
+        line.already_returned = round2((Number(line.already_returned) || 0) + qty);
+        line.remaining_quantity = Math.max(0, round2((Number(line.remaining_quantity) || 0) - qty));
+      }
+    }
+  }
+  return lines.concat(extra);
+}
+
+function returnedCountLabel(touched, fully, correctionType) {
+  if (fully) {
+    if (correctionType === "storno") return "Storno";
+    if (correctionType === "cancel") return "Anuluar";
+    return "Kthyer krejt";
+  }
+  if (touched === 1) return "Kthyer 1 artikull";
+  if (touched > 1) return `Kthyer ${touched} artikuj`;
+  return "";
+}
+
+function correctionTypeLabel(kind) {
+  const k = String(kind || "");
+  if (k === "cancel") return "anulim";
+  if (k === "storno") return "storno";
+  if (k === "return") return "kthim malli";
+  if (k === "exchange") return "ndërrim";
+  return "";
+}
+
+function saleReturnStatus(order) {
+  const logs = correctionOrdersFor(order.id);
+  const moneyLogs = logs.filter((l) => String(l.correction_type) !== "exchange");
+  const lastType = moneyLogs.length ? String(moneyLogs[moneyLogs.length - 1].correction_type || "") : "";
+  const lines = remainingLinesForOrder(order);
+  let touched = 0;
+  let fully = lines.length > 0;
+  for (const it of lines) {
+    if ((Number(it.already_returned) || 0) > 0) touched += 1;
+    if ((Number(it.remaining_quantity) || 0) > 1e-9) fully = false;
+  }
+  const label = returnedCountLabel(touched, fully && moneyLogs.length > 0, lastType);
+  if (label) return label;
+  if (logs.some((l) => String(l.correction_type) === "exchange")) return "Ndërruar";
+  return "completed";
+}
+
+function shiftForThermalCorrection(order, operatorId) {
+  const oid = Number(operatorId) || Number(order.operator_id) || 0;
+  try {
+    const shiftMod = require("./fiskalizime-pos-shift");
+    shiftMod.rollOpenPosShiftsToLocalDay();
+    const open = shiftMod.getOpenPosShift(oid);
+    if (open?.id) return { shift_id: open.id, operator_id: oid };
+  } catch {
+    /* */
+  }
+  return { shift_id: order.shift_id || null, operator_id: order.operator_id || null };
+}
+
+function loadThermalSale(orderId) {
+  const order = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(Number(orderId));
+  if (!order) throw new Error("Shitja nuk u gjet.");
+  if (!isThermalSaleOrder(order)) throw new Error("Vetëm kuponi termik kthehet këtu.");
+  return order;
+}
+
+function remainingMoney(lines) {
+  return round2(
+    lines.reduce((s, l) => s + (Number(l.price ?? l.unit_price) || 0) * (Number(l.remaining_quantity) || 0), 0)
+  );
+}
+
+function findRemainingLine(lines, req) {
+  const pid = Number(req.product_id || req.menu_item_id || req.id) || 0;
+  const name = String(req.name || "").trim();
+  const price = Number(req.price ?? req.unit_price);
+  return lines.find((l) => {
+    if ((Number(l.remaining_quantity) || 0) <= 1e-9) return false;
+    if (pid && Number(l.product_id || l.menu_item_id) === pid) return true;
+    if (name && String(l.name || "").trim() === name) {
+      if (!Number.isFinite(price)) return true;
+      return Math.abs((Number(l.price ?? l.unit_price) || 0) - price) < 0.0001;
+    }
+    return false;
+  });
+}
+
+function insertThermalCorrection(order, { items, total, correctionType, reason, cashier, operatorId }) {
+  const meta = shiftForThermalCorrection(order, operatorId);
+  const payload = { items, payment_splits: parseOrderPayload(order).payment_splits };
+  const result = sqlite
+    .prepare(
+      `INSERT INTO orders (
+         items_json, total, subtotal, discount_total, payment_method, waiter_name, status,
+         shift_id, operator_id, coupon_type, ref_order_id, correction_type, void_reason
+       ) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, 'thermal', ?, ?, ?)`
+    )
+    .run(
+      JSON.stringify(payload),
+      round2(total),
+      round2(total),
+      order.payment_method || "cash",
+      cashier,
+      correctionType,
+      meta.shift_id,
+      meta.operator_id,
+      order.id,
+      correctionType,
+      String(reason || "").trim()
+    );
+  const id = Number(result.lastInsertRowid);
+  assignThermalDailyNo(id);
+  return id;
+}
+
+function thermalDailyNoOf(orderId) {
+  const row = sqlite.prepare("SELECT thermal_daily_no FROM orders WHERE id = ?").get(Number(orderId));
+  return Number(row?.thermal_daily_no) || 0;
+}
+
+function correctionSlip(order, lines, refundTotal, remainingTotal, correctionType, reason, cashier) {
+  return {
+    order_id: order.id,
+    original_ref: `#${order.id}`,
+    correction_type: correctionType,
+    correction_label: correctionTypeLabel(correctionType),
+    items: lines.map((it) => ({
+      product_id: it.product_id || it.menu_item_id || null,
+      name: it.name,
+      quantity: Number(it.quantity) || 0,
+      price: Number(it.price ?? it.unit_price) || 0,
+      side: it.side || "",
+    })),
+    refund_total: round2(Math.abs(refundTotal)),
+    remaining_total: round2(Math.max(0, remainingTotal)),
+    payment_method: order.payment_method,
+    reason: String(reason || "").trim(),
+    cashier,
+  };
+}
+
+function partialRefundThermalSale(orderId, refundItems, reason, cashierName, operatorId) {
+  const order = loadThermalSale(orderId);
+  const reqLines = Array.isArray(refundItems) ? refundItems : [];
+  if (!reqLines.length) throw new Error("Zgjidhni të paktën një artikull për kthim.");
+  const leftLines = remainingLinesForOrder(order);
+  let refundTotal = 0;
+  const logItems = [];
+  for (const req of reqLines) {
+    const rqty = Number(req.quantity ?? req.qty) || 0;
+    if (rqty <= 0) continue;
+    const line = findRemainingLine(leftLines, req);
+    if (!line) throw new Error("Artikulli nuk është në këtë shitje.");
+    if (rqty > (Number(line.remaining_quantity) || 0) + 1e-9) {
+      throw new Error(`Sasia e kthimit te «${line.name}» tejkalon të mbeturën.`);
+    }
+    const unit = Number(line.price ?? line.unit_price) || 0;
+    refundTotal += unit * rqty;
+    line.remaining_quantity = round2((Number(line.remaining_quantity) || 0) - rqty);
+    logItems.push({
+      product_id: line.product_id || line.menu_item_id || null,
+      menu_item_id: line.product_id || line.menu_item_id || null,
+      name: line.name,
+      quantity: rqty,
+      price: unit,
+      unit_price: unit,
+      vat_letter: line.vat_letter || line.vat_norm || "E",
+      vat_norm: line.vat_norm || line.vat_letter || "E",
+    });
+  }
+  if (!logItems.length) throw new Error("Zgjidhni të paktën një artikull për kthim.");
+  refundTotal = round2(refundTotal);
+  const remainingTotal = remainingMoney(leftLines);
+  const cashier = String(cashierName || order.waiter_name || "Operator").trim();
+  const reasonStr = String(reason || "").trim();
+  const id = insertThermalCorrection(order, {
+    items: logItems,
+    total: -Math.abs(refundTotal),
+    correctionType: "return",
+    reason: reasonStr,
+    cashier,
+    operatorId,
+  });
+  return {
+    ok: true,
+    mode: "thermal",
+    order_id: order.id,
+    correction_id: id,
+    refund_total: refundTotal,
+    thermal_daily_no: thermalDailyNoOf(id),
+    ...correctionSlip(order, logItems, refundTotal, remainingTotal, "return", reasonStr, cashier),
+  };
+}
+
+function refundThermalSale(orderId, cashierName, operatorId, reason, correctionType) {
+  const order = loadThermalSale(orderId);
+  const kind = correctionType === "storno" ? "storno" : "cancel";
+  const left = remainingLinesForOrder(order).filter((it) => (Number(it.remaining_quantity) || 0) > 1e-9);
+  if (!left.length) throw new Error("Kjo shitje është kthyer tashmë.");
+  const logItems = left.map((it) => ({
+    product_id: it.product_id || it.menu_item_id || null,
+    menu_item_id: it.product_id || it.menu_item_id || null,
+    name: it.name,
+    quantity: it.remaining_quantity,
+    price: Number(it.price ?? it.unit_price) || 0,
+    unit_price: Number(it.price ?? it.unit_price) || 0,
+    vat_letter: it.vat_letter || it.vat_norm || "E",
+    vat_norm: it.vat_norm || it.vat_letter || "E",
+  }));
+  const refundTotal = round2(logItems.reduce((s, it) => s + it.price * it.quantity, 0));
+  const cashier = String(cashierName || order.waiter_name || "Operator").trim();
+  const reasonStr = String(reason || "").trim();
+  const id = insertThermalCorrection(order, {
+    items: logItems,
+    total: -Math.abs(refundTotal),
+    correctionType: kind,
+    reason: reasonStr,
+    cashier,
+    operatorId,
+  });
+  return {
+    ok: true,
+    mode: "thermal",
+    order_id: order.id,
+    correction_id: id,
+    refund_total: refundTotal,
+    thermal_daily_no: thermalDailyNoOf(id),
+    ...correctionSlip(order, logItems, refundTotal, 0, kind, reasonStr, cashier),
+  };
+}
+
+function exchangeThermalSale(orderId, exchangeLines, reason, cashierName, operatorId) {
+  const order = loadThermalSale(orderId);
+  const reqLines = Array.isArray(exchangeLines) ? exchangeLines : [];
+  if (!reqLines.length) throw new Error("Zgjidhni të paktën një artikull për ndërrim.");
+  const leftLines = remainingLinesForOrder(order);
+  let delta = 0;
+  const logItems = [];
+  for (const raw of reqLines) {
+    const qty = Number(raw.quantity ?? raw.qty) || 0;
+    const newId = Number(raw.new_product_id) || 0;
+    if (qty <= 0 || !newId) continue;
+    const line = findRemainingLine(leftLines, raw);
+    if (!line) throw new Error(`Artikulli nuk është në këtë shitje: ${raw.name || ""}`.trim());
+    if (qty > (Number(line.remaining_quantity) || 0) + 1e-9) {
+      throw new Error(`Sasia tejkalon të mbeturën për: ${line.name}`);
+    }
+    const neu = sqlite.prepare("SELECT * FROM products WHERE id = ? AND active = 1").get(newId);
+    if (!neu) throw new Error("Produkti i ri nuk ekziston.");
+    const oldVat = String(line.vat_norm || line.vat_letter || "E").toUpperCase();
+    const newVat = String(neu.vat_letter || "E").toUpperCase();
+    if (oldVat !== newVat) throw new Error(`Norma TVSH duhet e njëjtë (${oldVat} ≠ ${newVat})`);
+    const oldUnit = Number(line.price ?? line.unit_price) || 0;
+    const newUnit = Number(neu.price) || 0;
+    delta += (newUnit - oldUnit) * qty;
+    line.remaining_quantity = round2((Number(line.remaining_quantity) || 0) - qty);
+    logItems.push({
+      product_id: line.product_id || line.menu_item_id || null,
+      name: line.name,
+      quantity: -qty,
+      price: oldUnit,
+      side: "out",
+      vat_letter: oldVat,
+      vat_norm: oldVat,
+    });
+    logItems.push({
+      product_id: neu.id,
+      name: neu.name,
+      quantity: qty,
+      price: newUnit,
+      side: "in",
+      vat_letter: newVat,
+      vat_norm: newVat,
+    });
+  }
+  if (!logItems.length) throw new Error("Zgjidhni të paktën një artikull për ndërrim.");
+  delta = round2(delta);
+  const cashier = String(cashierName || order.waiter_name || "Operator").trim();
+  const reasonStr = String(reason || "").trim();
+  const id = insertThermalCorrection(order, {
+    items: logItems,
+    total: delta,
+    correctionType: "exchange",
+    reason: reasonStr,
+    cashier,
+    operatorId,
+  });
+  const remainingTotal = remainingMoney(remainingLinesForOrder(sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(order.id)));
+  return {
+    ok: true,
+    mode: "thermal",
+    order_id: order.id,
+    correction_id: id,
+    delta_total: delta,
+    thermal_daily_no: thermalDailyNoOf(id),
+    refund_total: delta < 0 ? Math.abs(delta) : 0,
+    remaining_total: remainingTotal,
+    original_ref: `#${order.id}`,
+    correction_type: "exchange",
+    correction_label: "ndërrim",
+    items: logItems,
+    payment_method: order.payment_method,
+    reason: reasonStr,
+    cashier,
+  };
+}
+
+function listThermalCoupons(limit = 100) {
+  const lim = Math.min(2000, Math.max(1, Number(limit) || 100));
+  const sales = sqlite
+    .prepare(
+      `SELECT * FROM orders
+       WHERE (ref_order_id IS NULL OR ref_order_id = 0)
+         AND COALESCE(is_fiscalized, 0) = 0
+         AND (fiscal_receipt_id IS NULL OR fiscal_receipt_id = 0)
+         AND COALESCE(correction_type, '') = ''
+       ORDER BY id DESC
+       LIMIT ?`
+    )
+    .all(lim);
+  const logs = sqlite
+    .prepare(
+      `SELECT * FROM orders
+       WHERE ref_order_id IS NOT NULL
+         AND correction_type IN ('return','cancel','storno','exchange')
+       ORDER BY id DESC
+       LIMIT ?`
+    )
+    .all(lim);
+  const saleRows = sales.filter(isThermalSaleOrder).map((row) => {
+    const created = String(row.created_at || "");
+    const fiscal_date = created.slice(0, 10);
+    const fiscal_time = created.length >= 19 ? created.slice(11, 19) : "";
+    const returnStatus = saleReturnStatus(row);
+    return {
+      id: `t-${row.id}`,
+      order_id: row.id,
+      nuikf: `#${row.id}`,
+      receipt_type: "shitje",
+      receipt_type_label: "shitje",
+      daily_number: Number(row.thermal_daily_no) || 0,
+      total_number: "",
+      fiscal_date,
+      fiscal_time,
+      total_amount: Number(row.total) || 0,
+      payment_method: row.payment_method,
+      payment_label: paymentLabel(row.payment_method),
+      operator_name: row.waiter_name,
+      atk_label: returnStatus === "completed" ? "Termik" : returnStatus,
+      atk_ok: false,
+      status: returnStatus,
+      return_status: returnStatus === "completed" ? "" : returnStatus,
+      mode: "thermal",
+    };
+  });
+  const correctionRows = logs.map((row) => {
+    const created = String(row.created_at || "");
+    const label = correctionTypeLabel(row.correction_type) || "kthim malli";
+    return {
+      id: `c-${row.id}`,
+      order_id: row.ref_order_id,
+      log_id: row.id,
+      nuikf: `#${row.ref_order_id}`,
+      receipt_type: label,
+      receipt_type_label: label,
+      daily_number: Number(row.thermal_daily_no) || 0,
+      total_number: "",
+      fiscal_date: created.slice(0, 10),
+      fiscal_time: created.length >= 19 ? created.slice(11, 19) : "",
+      total_amount: Number(row.total) || 0,
+      payment_method: row.payment_method,
+      payment_label: paymentLabel(row.payment_method),
+      operator_name: row.waiter_name,
+      atk_label: label,
+      atk_ok: false,
+      status: label,
+      return_status: label,
+      mode: "thermal",
+    };
+  });
+  return saleRows.concat(correctionRows);
+}
+
+function thermalOrderDetails(orderId) {
+  const order = loadThermalSale(orderId);
+  const created = String(order.created_at || "");
+  const items = remainingLinesForOrder(order).map((it) => ({
+    name: it.name,
+    product_id: it.product_id || it.menu_item_id || null,
+    quantity: it.remaining_quantity,
+    original_quantity: it.original_quantity,
+    already_returned: it.already_returned,
+    remaining_quantity: it.remaining_quantity,
+    price: Number(it.price ?? it.unit_price) || 0,
+    unit_price: Number(it.price ?? it.unit_price) || 0,
+    vat_norm: it.vat_norm || it.vat_letter || "E",
+    vat_letter: it.vat_letter || it.vat_norm || "E",
+  }));
+  return {
+    id: order.id,
+    nuikf: `#${order.id}`,
+    receipt_type: "thermal",
+    total_amount: Number(order.total) || 0,
+    fiscal_date: created.slice(0, 10),
+    fiscal_time: created.length >= 19 ? created.slice(11, 19) : "",
+    items,
+    mode: "thermal",
+  };
+}
+
+function thermalCouponPreview(ref) {
+  const raw = String(ref || "");
+  const settings = getFiscalSettingsRow() || {};
+  const restaurantName = settings.taxpayer_legal_name || "Revolution Fiskalizim";
+  const { buildReceiptText, buildCorrectionReceiptText } = require("./receipt-text");
+  if (raw.startsWith("c-")) {
+    const lid = Number(raw.slice(2));
+    const log = sqlite
+      .prepare(
+        `SELECT * FROM orders WHERE id = ? AND ref_order_id IS NOT NULL AND correction_type IN ('return','cancel','storno','exchange')`
+      )
+      .get(lid);
+    if (!log) throw new Error("Kuponi nuk u gjet.");
+    const kind = String(log.correction_type || "");
+    const titles = {
+      return: "KTHIM MALLI",
+      cancel: "ANULIM",
+      storno: "STORNO",
+      exchange: "NDERIM ARTIKULLI",
+    };
+    const items = parseOrderPayload(log).items.map((it) => {
+      const qty = Number(it.quantity ?? it.qty) || 0;
+      return {
+        name: String(it.name || "").trim(),
+        quantity: qty,
+        price: Number(it.price ?? it.unit_price) || 0,
+        side: it.side || (qty < 0 ? "out" : kind === "exchange" ? "in" : ""),
+      };
+    }).filter((it) => it.name && it.quantity !== 0);
+    const order = sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(log.ref_order_id);
+    const text = buildCorrectionReceiptText({
+      restaurantName,
+      title: titles[kind] || "KTHIM MALLI",
+      originalRef: `#${log.ref_order_id}`,
+      receiptNumber: Number(log.thermal_daily_no) > 0 ? `T-${Number(log.thermal_daily_no)}` : "",
+      items,
+      refundTotal: Number(log.total) < 0 ? Math.abs(Number(log.total)) : 0,
+      remainingTotal: order ? remainingMoney(remainingLinesForOrder(order)) : 0,
+      delta: kind === "exchange" ? Number(log.total) || 0 : null,
+      reason: log.void_reason,
+      paymentMethod: log.payment_method,
+      cashierName: log.waiter_name,
+      closedAt: String(log.created_at || "").replace(" ", "T"),
+    });
+    return { text, nuikf: `#${log.ref_order_id}`, label: correctionTypeLabel(kind) || "kthim malli", mode: "thermal" };
+  }
+  const id = raw.startsWith("t-") ? Number(raw.slice(2)) : parseThermalOrderRef(raw);
+  const order = id ? sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(id) : null;
+  if (!order || !isThermalSaleOrder(order)) throw new Error("Kuponi nuk u gjet.");
+  const items = parseOrderPayload(order).items;
+  const text = buildReceiptText({
+    restaurantName,
+    items,
+    total: Number(order.total) || 0,
+    receiptNumber: String(Number(order.thermal_daily_no) || ""),
+    cashierName: order.waiter_name,
+    closedAt: String(order.created_at || "").replace(" ", "T"),
+    paymentMethod: order.payment_method,
+    slipKind: "final",
+    markedTotal: false,
+  });
+  return { text, nuikf: `#${order.id}`, label: "shitje", mode: "thermal" };
 }
 
 function getDitari(opts = {}) {
@@ -2447,6 +3102,15 @@ module.exports = {
   replaceGroupFromCatalog,
   createSale,
   previewSaleTotals,
+  markOrderCouponType,
+  parseThermalOrderRef,
+  isThermalCouponRef,
+  listThermalCoupons,
+  thermalOrderDetails,
+  thermalCouponPreview,
+  partialRefundThermalSale,
+  refundThermalSale,
+  exchangeThermalSale,
   getOrder,
   listRecentOrders,
   getFiscalSettingsRow,
@@ -2465,6 +3129,7 @@ module.exports = {
   getDitari,
   resolveShiftOperatorId,
   getPosShiftSummary: (...a) => require("./fiskalizime-pos-shift").getPosShiftSummary(...a),
+  rollOpenPosShiftsToLocalDay: (...a) => require("./fiskalizime-pos-shift").rollOpenPosShiftsToLocalDay(...a),
   openPosShift: (...a) => require("./fiskalizime-pos-shift").openPosShift(...a),
   closePosShift: (...a) => require("./fiskalizime-pos-shift").closePosShift(...a),
   listPosShiftsInRange: (...a) => require("./fiskalizime-pos-shift").listPosShiftsInRange(...a),

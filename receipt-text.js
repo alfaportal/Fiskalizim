@@ -266,6 +266,60 @@ function buildReceiptText(opts) {
   return buildReceiptLineItems(opts).join("\n");
 }
 
+function buildCorrectionReceiptText({
+  restaurantName = "",
+  paper = "80mm",
+  title = "KTHIM MALLI",
+  originalRef = "",
+  receiptNumber = "",
+  items = [],
+  refundTotal = 0,
+  remainingTotal = 0,
+  delta = null,
+  reason = "",
+  paymentMethod = "",
+  cashierName = "",
+  closedAt = "",
+}) {
+  const w = paperChars(paper);
+  const { date, time } = formatReceiptDateTime(closedAt);
+  const lines = [];
+  lines.push(pad(String(restaurantName || "FISKALIZIM").trim(), w, "center"));
+  lines.push(divider(w));
+  lines.push(pad(String(title || "KTHIM MALLI"), w, "center"));
+  if (receiptNumber) lines.push(`Nr: ${receiptNumber}`);
+  if (originalRef) lines.push(`Kuponi origjinal: ${originalRef}`);
+  lines.push(`Data: ${date}  Ora: ${time}`);
+  if (cashierName) lines.push(`Operatori: ${cashierName}`);
+  lines.push(divider(w));
+  lines.push(pad("ARTIKUJ TE KTHYER", w, "center"));
+  for (const it of items || []) {
+    const qty = Math.abs(Number(it.quantity) || 0);
+    const price = Number(it.price) || 0;
+    const lineTotal = Math.round(qty * price * 100) / 100;
+    const sign = it.side === "in" ? "" : "-";
+    const name = it.side === "in" ? `+ ${it.name || ""}` : String(it.name || "");
+    lines.push(name);
+    lines.push(labelValueLine(`${qty} x ${formatMoney(price)}`, `${sign}${formatMoney(lineTotal)} EUR`, w));
+  }
+  lines.push(divider(w));
+  if (title === "NDERIM ARTIKULLI" && delta != null) {
+    const d = Number(delta) || 0;
+    const label = d > 0.004 ? "PAGESE DIFERENCE:" : d < -0.004 ? "KTHIM KLIENTIT:" : "BILANCI:";
+    lines.push(labelValueLine(label, `${formatMoney(Math.abs(d))} EUR`, w));
+    lines.push(labelValueLine("TOTALI I MBETUR:", `${formatMoney(Math.max(0, Number(remainingTotal) || 0))} EUR`, w));
+  } else {
+    lines.push(labelValueLine("TOTALI I KTHIMIT:", `-${formatMoney(Math.abs(refundTotal))} EUR`, w));
+    lines.push(labelValueLine("TOTALI I MBETUR:", `${formatMoney(Math.max(0, Number(remainingTotal) || 0))} EUR`, w));
+  }
+  if (reason) lines.push(`Arsyeja: ${reason}`);
+  const pay = thermalPaymentDisplay(paymentMethod);
+  if (pay) lines.push(`Pagesa: ${pay}`);
+  lines.push(divider(w));
+  lines.push(pad("Ju faleminderit!", w, "center"));
+  return lines.join("\n");
+}
+
 /** Heq Pagesa/Faleminderit nga mesi dhe i vendos në fund (normalizim). */
 function finalizeReceiptText(text, paper = "80mm") {
   const w = paperChars(paper);
@@ -664,6 +718,7 @@ module.exports = {
   labelValueLine,
   truncatedLabelValueLine,
   buildReceiptText,
+  buildCorrectionReceiptText,
   buildReceiptLineItems,
   plainTextFromServerBundle,
   ensureReceiptFooter,

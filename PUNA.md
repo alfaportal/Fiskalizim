@@ -1,5 +1,124 @@
 # PUNA.md
 
+## 2026-11-11 — Storno, Anulo, Kthim, Ndërrim
+
+Te lista Kuponët, shitja ka katër butona: Storno, Anulo, Kthim malli, Ndërrim. Secili bën rresht të ri. Kuponi i vjetër shënohet Storno, Anuluar, Kthyer 1 artikull ose Ndërruar. Storno dhe Anulo kërkojnë arsye. Kthimi hap tabelën. Ndërrimi hap zgjedhjen e produktit. Rreshti termik mbetet me shkrim të kuq. Numri termik është T-1, T-2. Kuponi fiskal mbetet 0001 / 0000000056.
+
+Prova në databazë të përkohshme, pa print, pa dërgim te ATK:
+- shitje 8.75 €, 14.20 €, 2.60 €
+- storno −8.75 €, kthim 1 artikull −7.10 €, anulim −2.60 €
+- Ditari, Arka dhe totali i ndërrimit: 7.10 €
+- numrat T-1 deri T-6
+- ndërrim 4.90 € me 11.35 €: të treja 11.35 €, shenja Ndërruar, numri T-2
+
+Ky program nuk ka stok. Sasia e artikullit nuk zbritet dhe nuk kthehet.
+
+Skedarë: `public/index.html`, `database.js`, `receipt-text.js`, `server.js`.
+Ekrani i programit të instaluar ndryshon vetëm pas Setup-it të ri. Nuk u bë build. Kuponi fiskal me NUIKF nuk u provua (fiskalizimi ishte i fikur).
+
+## 2026-11-11 — Dita ndërrohet vetëm te shitja
+
+Nuk ka më kontroll çdo 20 sekonda. Nëse programi qëndron hapur pas mesnatës dhe nuk ka shitje, arka nuk ndërrohet. Shitja e parë e ditës së re e mbyll dje dhe e hap sot nga 0 €. Kthimi bën të njëjtën. Shitja e djeshme mbetet te dje.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server.js` | U hoq kontrolli çdo 20 sekonda |
+| `fiskalizime-pos-shift.js` | Kontrolli vetëm kur bëhet shitje |
+| `database.js` | Kontrolli edhe te kthimi termik |
+
+Prova: shikimi i arkës e la ndërrimin e djeshëm hapur (15 €). Shitja e sotme e mbylli dje në 23:59:59 dhe hapi sot me 0 €. Kthimi shkoi te dita e sotme. Kaloi. Ekrani: NOT VERIFIED, vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Numrat fiskalë me zero, si BIZNES
+
+BIZNES: numri i ditës 4 shifra (`0001`), numri i përgjithshëm 10 shifra (`0000000056`). Kuponi i printuar te Fiskalizimi e kishte tashmë këtë. Lista Kuponët tregonte `1 / 56`.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Kolona Ditor për kuponin fiskal: `0001 / 0000000056`. Termiku mbetet `T-1` |
+
+Ekrani: NOT VERIFIED, vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Kuponi termik me shkrim të kuq
+
+Te lista Kuponët, numri dhe shkronjat e kuponit termik janë të kuqe. Fiskali mbetet siç ishte. Numri termik shkruhet T-1, T-2.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Rreshti termik: numri dhe shkronjat me të kuqe, T-1 |
+
+Prova: fiskali 35, pastaj termik T-1, pastaj fiskali 36. X dhe Raporti periodik mbetën 0 sepse termiku nuk hyn aty. Ditari e mori termikun. Kuponi fiskal nuk u krijua në provë sepse mungon lidhja me ATK — nuk u dërgua asgjë. Ekrani: NOT VERIFIED, vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Kuponi termik niset nga 1 çdo ditë
+
+Kuponi fiskal mbetet me numrin e vet. Kuponi termik niset nga 1 çdo ditë. Të djeshmit mbeten në listë me numrin e asaj dite.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Numri ditor i termikut, i ndarë nga fiskali |
+| `server.js` | Printi i termikut merr numrin e ditës |
+
+Prova: dje kuponët 1 dhe 2, sot përsëri 1 dhe 2, kthimi i sotëm 3. Numri fiskal nuk ndryshoi. Kaloi. Ekrani i programit të instaluar: NOT VERIFIED, vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Arka mbyllet vetë në mesnatë
+
+Kur ora kalon 00:00, ndërrimi i djeshëm mbyllet dhe arka e re niset nga 0 €. Më vonë u hoq kontrolli çdo 20 sekonda: ndërrimi bëhet vetëm kur ka shitje ose kthim.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiskalizime-pos-shift.js` | Mbyllja automatike e ditës; kthimet fiskale sipas datës |
+| `database.js` | Eksport i funksionit të mbylljes |
+| `server.js` | Kontrolli çdo 20 sekonda u shtua këtu, pastaj u hoq |
+
+Prova në databazë të përkohshme: dje 4 € (shitje 8, kthim 3, kthim fiskal 1), sot arka 0 € dhe 2 € (shitje 5, kthim 2, kthim fiskal 1). Kaloi. Ekrani i programit të instaluar: NOT VERIFIED, vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Ndërrimi: sasia e blerë
+
+Te ndërrimi, sasia e artikullit të blerë mbushet vetë. Nuk niset më me 0.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Sasia e ndërrimit = sasia e mbetur e blerë |
+
+Programi i instaluar e merr pas Setup-it të ri. Ekrani: NOT VERIFIED.
+
+## 2026-11-11 — Kuponi termik si te Market
+
+Kuponi termik del te lista. Storno, Anulo, Kthim dhe Ndërrim shënojnë origjinalin, shtojnë rreshtin e ri, zbresin Ditarin dhe ndërrimin, dhe Shiko e hap fletën pa QR. Kuponi fiskal mbeti si ishte.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Regjistrimi i kuponit termik dhe i korrigjimit |
+| `server.js` | Lista, shikimi, storno, kthimi, ndërrimi për termikun |
+| `receipt-text.js` | Fleta e kthimit, anulimit, stornos dhe ndërrimit |
+| `fiskalizime-pos-shift.js` | Ndërrimi e merr edhe korrigjimin termik |
+| `public/index.html` | Butoni Shiko, pa QR te termiku |
+
+Prova me databazë të re: shitje 4 €, kthim 2 €, kartë 5 € storno, cash 2 € anulim, ndërrim +3 €. Ditari dhe ndërrimi: 7 € cash, 0 € kartë. Shiko pa QR. Nuk u dërgua shitje te ATK. Nuk ka stok në këtë projekt. Programi i instaluar e merr vetëm pas Setup-it të ri. Ekrani: NOT VERIFIED.
+
+## 2026-11-11 — Butonat e dritares te hyrja
+
+Te ekrani i hyrjes, lart djathtas, janë tre butonat: minimizo, zmadho, mbyll. Mbyll e mbyll programin.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Tre butonat te hyrja. |
+| `public/css/login-modern.css` | Pamja e butonave. |
+| `preload.js` | Thirrjet e dritares. |
+| `main.js` | Minimizo, zmadho, mbyll. |
+
+Programi i instaluar e merr vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Setup 1.100.2
+
+U ndërtua instaluesi i ri. Versioni në `package.json` u rrit nga 1.100.1 në 1.100.2. Instaluesit e vjetër mbetën.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `package.json` | Versioni 1.100.2. |
+| `dist-atk-v2/Revolution-Fiskalizim-Setup-1.100.2-win-x64.exe` | Setup i ri. |
+
+Prova: build-i përfundoi dhe skedari ekziston.
+
 ## 2026-11-11 — F11 paguan cash, pa kupon
 
 F4 «Ndërro Çmimin» u hoq nga rreshti i arkës. Në vend të tij është F11 «Paguaj»: para në dorë për krejt shumën, shitja ruhet, shporta pastrohet, nuk del kupon. F12 mbetet si ishte. Shporta bosh nuk paguan.

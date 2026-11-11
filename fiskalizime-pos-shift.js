@@ -117,6 +117,35 @@ function getOpenPosShift(operatorId) {
     .get(oid);
 }
 
+function thermalCorrectionRows(shiftId, from, to) {
+  if (!sqliteRef) return [];
+  try {
+    if (from && to) {
+      return sqliteRef
+        .prepare(
+          `SELECT total, payment_method, items_json
+           FROM orders
+           WHERE shift_id = ?
+             AND ref_order_id IS NOT NULL
+             AND correction_type IN ('return','cancel','storno','exchange')
+             AND date(created_at) >= date(?) AND date(created_at) <= date(?)`
+        )
+        .all(shiftId, from, to);
+    }
+    return sqliteRef
+      .prepare(
+        `SELECT total, payment_method, items_json
+         FROM orders
+         WHERE shift_id = ?
+           AND ref_order_id IS NOT NULL
+           AND correction_type IN ('return','cancel','storno','exchange')`
+      )
+      .all(shiftId);
+  } catch {
+    return [];
+  }
+}
+
 function correctionRowsForShift(shiftId, from, to) {
   if (!sqliteRef) return [];
   try {
@@ -178,6 +207,20 @@ function computePosShiftTotals(shiftId) {
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }
+  for (const row of thermalCorrectionRows(sid)) {
+    sales += round2(row.total);
+    cash += cashFromOrderRow(row);
+    card += cardFromOrderRow(row);
+  }
+  const shiftRow = sqliteRef.prepare("SELECT operator_id, opened_at FROM pos_shifts WHERE id = ?").get(sid);
+  const day = localDateKey(shiftRow && shiftRow.opened_at);
+  if (day && shiftRow && shiftRow.operator_id != null) {
+    for (const row of fiscalCorrectionsOnDayOutsideShift(sid, shiftRow.operator_id, day)) {
+      sales += round2(row.total);
+      cash += cashFromOrderRow(row);
+      card += cardFromOrderRow(row);
+    }
+  }
   return {
     order_count: rows.length,
     total_sales: round2(sales),
@@ -222,6 +265,11 @@ function computePosShiftTotalsInRange(shiftId, from, to) {
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }
+  for (const row of thermalCorrectionRows(sid, f, t)) {
+    sales += round2(row.total);
+    cash += cashFromOrderRow(row);
+    card += cardFromOrderRow(row);
+  }
   return {
     order_count: rows.length,
     total_sales: round2(sales),
@@ -258,6 +306,170 @@ function buildPosShiftSummary(shift, operatorId, operatorName) {
     drawer_cash: drawerCash,
     expected_closing_cash: drawerCash,
   };
+}
+
+function localDateKey(value) {
+  const raw = String(value || "").trim();
+  const head = raw.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(head) && raw.indexOf("Z") < 0 && raw.indexOf("+") < 0) return head;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function localTodayKey() {
+  const row = sqliteRef.prepare("SELECT date('now','localtime') AS d").get();
+  return String((row && row.d) || localDateKey(new Date()));
+}
+
+function fiscalCorrectionsOnDayOutsideShift(shiftId, operatorId, day) {
+  try {
+    return sqliteRef
+      .prepare(
+        `SELECT fr.total_amount AS total, fr.payment_method, fr.items_json, fr.payment_splits_json
+         FROM fiscal_receipts fr
+         INNER JOIN orders o ON o.id = fr.sale_id
+         WHERE lower(COALESCE(fr.receipt_type, '')) IN ('cancel', 'storno', 'return')
+           AND date(fr.created_at) = date(?)
+           AND (o.shift_id IS NULL OR o.shift_id != ?)
+           AND o.operator_id = ?`
+      )
+      .all(day, shiftId, operatorId);
+  } catch {
+    return [];
+  }
+}
+
+function attachDayOrders(shiftId, operatorId, day, onlyOpen) {
+  if (onlyOpen) {
+    sqliteRef
+      .prepare(
+        `UPDATE orders SET shift_id = ?
+         WHERE shift_id IS NULL AND date(created_at) = date(?)`
+      )
+      .run(shiftId, day);
+    return;
+  }
+  sqliteRef
+    .prepare(
+      `UPDATE orders SET shift_id = ?
+       WHERE shift_id IS NULL AND date(created_at) = date(?) AND operator_id = ?`
+    )
+    .run(shiftId, day, operatorId);
+}
+
+function sealPosShiftForDay(shiftId, closedAt) {
+  const shift = sqliteRef.prepare("SELECT * FROM pos_shifts WHERE id = ?").get(shiftId);
+  if (!shift || (shift.closed_at && String(shift.closed_at).trim())) return;
+  const openedDay = localDateKey(shift.opened_at);
+  const totals = openedDay
+    ? computePosShiftTotalsInRange(shiftId, openedDay, openedDay)
+    : computePosShiftTotals(shiftId);
+  const opening = shift.opening_cash != null ? round2(shift.opening_cash) : 0;
+  const cash = round2(totals.cash_total);
+  const expected = round2(opening + cash);
+  sqliteRef
+    .prepare(
+      `UPDATE pos_shifts SET
+        closed_at = ?,
+        opening_cash = ?,
+        closing_cash_actual = ?,
+        expected_closing_cash = ?,
+        cash_difference = 0,
+        cash_sales_total = ?,
+        card_sales_total = ?,
+        order_count_total = ?,
+        total_sales = ?,
+        discount_total = ?
+      WHERE id = ?`
+    )
+    .run(
+      closedAt,
+      opening,
+      expected,
+      expected,
+      cash,
+      round2(totals.card_total),
+      Number(totals.order_count) || 0,
+      round2(totals.total_sales),
+      round2(totals.discount_total),
+      shiftId,
+    );
+}
+
+function openFreshPosShift(shift, day) {
+  const r = sqliteRef
+    .prepare(
+      `INSERT INTO pos_shifts (operator_id, operator_name, opened_at, opening_cash)
+       VALUES (?, ?, ?, 0)`
+    )
+    .run(shift.operator_id, shift.operator_name, `${day}T00:00:01`);
+  return Number(r.lastInsertRowid);
+}
+
+let shiftDayRollBusy = false;
+
+function rollOpenPosShiftsToLocalDay() {
+  if (!sqliteRef || shiftDayRollBusy) return;
+  shiftDayRollBusy = true;
+  try {
+    const today = localTodayKey();
+    const openShifts = sqliteRef
+      .prepare(
+        `SELECT * FROM pos_shifts
+         WHERE closed_at IS NULL OR TRIM(COALESCE(closed_at, '')) = ''`
+      )
+      .all();
+    const onlyOpen = openShifts.length === 1;
+    for (const shift of openShifts) {
+      const openedDay = localDateKey(shift.opened_at);
+      if (!openedDay) continue;
+      if (openedDay >= today) {
+        if (openedDay === today) attachDayOrders(shift.id, shift.operator_id, today, onlyOpen);
+        continue;
+      }
+      sqliteRef.transaction(() => {
+        const fresh = sqliteRef.prepare("SELECT * FROM pos_shifts WHERE id = ?").get(shift.id);
+        if (!fresh || (fresh.closed_at && String(fresh.closed_at).trim())) return;
+        const opened = localDateKey(fresh.opened_at);
+        if (!opened || opened >= today) return;
+        const dayRows = sqliteRef
+          .prepare(
+            `SELECT DISTINCT date(created_at) AS d FROM orders
+             WHERE shift_id = ? AND created_at IS NOT NULL AND TRIM(created_at) != ''`
+          )
+          .all(fresh.id);
+        const pastDays = dayRows
+          .map((row) => String(row.d || ""))
+          .filter((d) => d && d < today && d !== opened);
+        const todayId = openFreshPosShift(fresh, today);
+        sqliteRef
+          .prepare(
+            `UPDATE orders SET shift_id = ?
+             WHERE shift_id = ? AND date(created_at) = date(?)`
+          )
+          .run(todayId, fresh.id, today);
+        attachDayOrders(todayId, fresh.operator_id, today, onlyOpen);
+        for (const day of pastDays) {
+          const midId = openFreshPosShift(fresh, day);
+          sqliteRef
+            .prepare(
+              `UPDATE orders SET shift_id = ?
+               WHERE shift_id = ? AND date(created_at) = date(?)`
+            )
+            .run(midId, fresh.id, day);
+          sealPosShiftForDay(midId, `${day}T23:59:59`);
+        }
+        attachDayOrders(fresh.id, fresh.operator_id, opened, onlyOpen);
+        sealPosShiftForDay(fresh.id, `${opened}T23:59:59`);
+      })();
+    }
+  } finally {
+    shiftDayRollBusy = false;
+  }
 }
 
 function getPosShiftSummary(operatorId, operatorName) {
@@ -309,6 +521,7 @@ function ensurePosShiftRow(operatorId, operatorName) {
 }
 
 function assertShiftReadyForSale(operatorId, operatorName) {
+  rollOpenPosShiftsToLocalDay();
   const shift = ensurePosShiftRow(operatorId, operatorName);
   if (shift.opening_cash == null) {
     const err = new Error("Hap nderrimin — vendos paratë në arkë para shitjes.");
@@ -561,6 +774,7 @@ module.exports = {
   initPosShiftSchema,
   getOpenPosShift,
   getPosShiftSummary,
+  rollOpenPosShiftsToLocalDay,
   openPosShift,
   closePosShift,
   buildPosShiftZReportData,

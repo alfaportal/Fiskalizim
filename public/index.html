@@ -2416,6 +2416,11 @@
 </head>
 <body class="fisk-await-login">
   <div id="login-overlay" class="login-overlay">
+    <div class="win-controls">
+      <button type="button" id="btn-win-min" aria-label="Minimizo">—</button>
+      <button type="button" id="btn-win-max" aria-label="Zmadho">□</button>
+      <button type="button" id="btn-win-close" aria-label="Mbyll">×</button>
+    </div>
     <div class="staff-login-shell">
       <aside class="staff-brand">
         <img src="/img/revolution-logo.png" alt="Revolution" class="staff-brand-logo-img" width="100" height="100" />
@@ -4911,7 +4916,7 @@
               <td>${esc(vat)}</td>
               <td>${returnedQ}</td>
               <td>${maxQ}</td>
-              <td><input type="number" class="exchange-qty" data-idx="${idx}" min="0.001" max="${maxQ}" step="0.001" value="0"${disabled ? " disabled" : " disabled"} /></td>
+              <td><input type="number" class="exchange-qty" data-idx="${idx}" min="0.001" max="${maxQ}" step="0.001" value="${maxQ}"${disabled ? " disabled" : " disabled"} /></td>
               <td><select class="exchange-new-product" data-idx="${idx}" data-vat="${esc(vat)}" disabled>${buildExchangeProductOptions(vat, 0)}</select></td>
             </tr>`;
           })
@@ -7779,35 +7784,64 @@
         .map((r) => {
           const sentDisplay = formatSentAtLocal(r.sent_at, r.fiscal_date, r.fiscal_time);
           const atkOk = !!r.atk_ok || Number(r.sent_to_atk) === 1;
-          const atkLbl = esc(
-            String(r.atk_label || (atkOk ? "OK" : "Në pritje")).replace(/^ATK\s*:?\s*/i, "")
-          );
+          const atkPlain = String(r.atk_label || (atkOk ? "OK" : "Në pritje")).replace(/^ATK\s*:?\s*/i, "");
           const atkColor = atkOk ? "#3dd68c" : "#f0b429";
+          const statusRaw = r.return_status || atkPlain;
+          const thermal = r.mode === "thermal";
+          const ink = thermal ? "color:#ff3b30" : "";
+          const padFiscal = (n, width) => {
+            if (n === "" || n == null) return "";
+            const num = Number(n);
+            if (!Number.isFinite(num) || num < 0) return esc(n);
+            return String(Math.floor(num)).padStart(width, "0");
+          };
+          const numCell = thermal
+            ? `T-${Number(r.daily_number) || 0}`
+            : `${padFiscal(r.daily_number, 4)} / ${padFiscal(r.total_number, 10)}`;
+          const copyBtn =
+            thermal
+              ? ""
+              : `<button type="button" class="btn btn-primary" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-copy-id="${r.id}">Printo Kopje</button>`;
+          const typeName = String(r.receipt_type || "").toLowerCase();
+          const originalSale = thermal
+            ? typeName === "shitje"
+            : typeName === "regular" || typeName === "paper_block";
+          const corrBtns = originalSale
+            ? `<button type="button" class="btn btn-danger" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-storno-nuikf="${esc(r.nuikf)}">Storno</button>
+              <button type="button" class="btn btn-warn" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-cancel-nuikf="${esc(r.nuikf)}">Anulo</button>
+              <button type="button" class="btn btn-primary" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-return-nuikf="${esc(r.nuikf)}">Kthim malli</button>
+              <button type="button" class="btn btn-warn" style="width:auto;padding:4px 8px;margin:0" data-exchange-nuikf="${esc(r.nuikf)}">Ndërrim</button>`
+            : "";
           return `<tr>
-            <td>${r.id}</td>
+            <td style="${ink}">${esc(r.id)}</td>
             <td class="nuikf-cell">
-              <code class="nuikf-code" title="Selektim me maus">${esc(r.nuikf)}</code>
+              <code class="nuikf-code" style="${ink}" title="Selektim me maus">${esc(r.nuikf)}</code>
               <button type="button" class="btn-copy-nuikf" data-nuikf="${esc(r.nuikf)}" title="Kopjo NUIKF">Kopjo</button>
             </td>
-            <td>${esc(r.receipt_type)}</td>
-            <td>${r.daily_number} / ${r.total_number}</td>
+            <td style="${ink}">${esc(r.receipt_type)}</td>
+            <td style="${ink}">${numCell}</td>
             <td>${euro(r.total_amount)}</td>
             <td>${esc(r.fiscal_date)} ${esc(r.fiscal_time)}</td>
             <td>${esc(ownerPaymentLabel(r.payment_label, r.payment_method))}</td>
-            <td><strong style="color:${atkColor}">${atkLbl}</strong>${sentDisplay ? `<br><small style="color:var(--muted)">${esc(sentDisplay)}</small>` : ""}</td>
+            <td><strong style="color:${thermal ? "#ff3b30" : atkColor}">${esc(statusRaw)}</strong>${sentDisplay ? `<br><small style="color:var(--muted)">${esc(sentDisplay)}</small>` : ""}</td>
             <td style="white-space:nowrap">
-              <button type="button" class="btn btn-ghost" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-preview-id="${r.id}">Preview</button>
-              <button type="button" class="btn btn-primary" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-copy-id="${r.id}">Printo Kopje</button>
-              <button type="button" class="btn btn-warn" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-nuikf="${esc(r.nuikf)}">Anulo</button>
-              <button type="button" class="btn btn-warn" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-exchange-nuikf="${esc(r.nuikf)}">Ndërrim</button>
-              <button type="button" class="btn btn-primary" style="width:auto;padding:4px 8px;margin:0" data-return-nuikf="${esc(r.nuikf)}">Kthim</button>
+              <button type="button" class="btn btn-ghost" style="width:auto;padding:4px 8px;margin:0 4px 0 0" data-preview-id="${esc(r.id)}">Shiko</button>
+              ${copyBtn}
+              ${corrBtns}
             </td>
           </tr>`;
         })
         .join("") || '<tr><td colspan="9">Nuk ka kuponë</td></tr>';
-      body.querySelectorAll("button[data-nuikf]").forEach((b) => {
+      body.querySelectorAll("button[data-storno-nuikf]").forEach((b) => {
         b.addEventListener("click", () => {
-          fillStornoNuikf(b.dataset.nuikf);
+          fillStornoNuikf(b.dataset.stornoNuikf);
+          doCorrection("storno");
+        });
+      });
+      body.querySelectorAll("button[data-cancel-nuikf]").forEach((b) => {
+        b.addEventListener("click", () => {
+          fillStornoNuikf(b.dataset.cancelNuikf);
+          doCorrection("cancel");
         });
       });
       body.querySelectorAll("button[data-return-nuikf]").forEach((b) => {
@@ -7841,7 +7875,7 @@
         b.addEventListener("click", () => printReceiptCopy(Number(b.dataset.copyId)));
       });
       body.querySelectorAll("button[data-preview-id]").forEach((b) => {
-        b.addEventListener("click", () => openReceiptPreview(Number(b.dataset.previewId)));
+        b.addEventListener("click", () => openReceiptPreview(b.dataset.previewId));
       });
         if (showFeedback && msg) {
           setMsg(msg, `U rifreskua · ${rows.length} kuponë`, true);
@@ -7860,7 +7894,13 @@
     async function openReceiptPreview(id) {
       const msg = document.getElementById("receipts-msg");
       try {
-        const data = await api("/api/fiscal/receipts/" + id + "/preview");
+        const data = await api("/api/fiscal/receipts/" + encodeURIComponent(id) + "/preview");
+        if (data.mode === "thermal") {
+          openPrintPreview(data.text, null);
+          resetPreviewQr();
+          setMsg(msg, `Shiko · ${data.nuikf}`, true);
+          return;
+        }
         openPrintPreview(data.text, data.receipt_id);
         setMsg(msg, `Preview · NUIKF ${data.nuikf}`, true);
       } catch (e) {
@@ -11742,6 +11782,22 @@
     }
 
     bindWorkerLoginNumpad();
+    document.getElementById("btn-win-min")?.addEventListener("click", () => {
+      const api = window.fiskalizimElectron || window.biznesElectron;
+      if (api && typeof api.windowMinimize === "function") api.windowMinimize();
+    });
+    document.getElementById("btn-win-max")?.addEventListener("click", () => {
+      const api = window.fiskalizimElectron || window.biznesElectron;
+      if (api && typeof api.windowMaximize === "function") api.windowMaximize();
+    });
+    document.getElementById("btn-win-close")?.addEventListener("click", () => {
+      const api = window.fiskalizimElectron || window.biznesElectron;
+      if (api && typeof api.quitApp === "function") {
+        api.quitApp();
+        return;
+      }
+      window.close();
+    });
     document.getElementById("btn-login-owner")?.addEventListener("click", () => {
       doOwnerLogin();
     });

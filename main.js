@@ -39,6 +39,23 @@ let _licenseReopenInProgress = false;
 let _licenseUiSnap = "";
 
 /** Vetëm gabime jo-licencë (p.sh. startup server). Licenca → dialog i errët. */
+ipcMain.handle("app:quit", () => {
+  app.quit();
+  return true;
+});
+
+ipcMain.handle("app:minimize", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+  return true;
+});
+
+ipcMain.handle("app:maximize-toggle", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+  return true;
+});
+
 function forceCloseApp(title, message) {
   try {
     dialog.showErrorBox(title, message);

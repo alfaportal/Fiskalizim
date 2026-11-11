@@ -1851,7 +1851,7 @@ async function boot() {
     const printer = require("./printer");
     const paper = "80mm";
     const w = paperChars(paper);
-    const receiptNumber = `POS-${String(sale.id).padStart(6, "0")}`;
+    const receiptNumber = String(Number(sale.thermal_daily_no) || sale.id);
     const nfHeader = pad(t("receipt_non_fiscal"), w, "center");
     const body = buildReceiptText({
       restaurantName: settings.taxpayer_legal_name || "Revolution Fiskalizim",
@@ -1939,6 +1939,11 @@ async function boot() {
       });
 
       if (isThermal) {
+        try {
+          sale.thermal_daily_no = db.markOrderCouponType(sale.id, "thermal");
+        } catch (markErr) {
+          console.warn("[checkout] coupon_type", markErr.message);
+        }
         const thermal =
           req.body?.skip_print === true
             ? { printed: false, skipped: true, printMessage: "skip_print" }
@@ -1954,7 +1959,7 @@ async function boot() {
           payment_splits: sale.payment_splits,
           coupon_type: "thermal",
           thermal,
-          receipt_number: thermal.receipt_number || `POS-${String(sale.id).padStart(6, "0")}`,
+          receipt_number: thermal.receipt_number || String(Number(sale.thermal_daily_no) || sale.id),
         });
       }
 
@@ -2017,11 +2022,86 @@ async function boot() {
     }
   });
 
+  async function printThermalCorrectionSlip(result) {
+    const kind = String(result?.correction_type || "");
+    if (!kind) return { printed: false, printMessage: "" };
+    const titles = {
+      return: "KTHIM MALLI",
+      cancel: "ANULIM",
+      storno: "STORNO",
+      exchange: "NDERIM ARTIKULLI",
+    };
+    const settings = db.getFiscalSettingsRow() || {};
+    const { buildCorrectionReceiptText } = require("./receipt-text");
+    const printer = require("./printer");
+    const text = buildCorrectionReceiptText({
+      restaurantName: settings.taxpayer_legal_name || "Revolution Fiskalizim",
+      title: titles[kind] || "KTHIM MALLI",
+      originalRef: result.original_ref || (result.order_id ? `#${result.order_id}` : ""),
+      receiptNumber: Number(result.thermal_daily_no) > 0 ? `T-${Number(result.thermal_daily_no)}` : "",
+      items: result.items || [],
+      refundTotal: result.refund_total,
+      remainingTotal: result.remaining_total,
+      delta: kind === "exchange" ? result.delta_total : null,
+      reason: result.reason,
+      paymentMethod: result.payment_method,
+      cashierName: result.cashier,
+      closedAt: new Date().toISOString(),
+    });
+    try {
+      await printer.printPlainTextAt(text, db, "bar");
+      return { printed: true, printMessage: "" };
+    } catch (e) {
+      return { printed: false, printMessage: e.message || "Printimi dështoi" };
+    }
+  }
+
+  async function processThermalCorrection(req, res) {
+    const nuikf = String(req.body?.nuikf || "").trim();
+    const orderId = db.parseThermalOrderRef(nuikf);
+    const typeRaw = String(req.body?.type || "cancel").toLowerCase();
+    const reason = String(req.body?.reason || "").trim();
+    const cashier = String(req.body?.operator_name || "Operator").trim();
+    const operatorId = resolveBodyOperatorId(req);
+    let result;
+    if (typeRaw === "exchange") {
+      result = db.exchangeThermalSale(orderId, req.body?.exchange_lines, reason, cashier, operatorId);
+    } else if (typeRaw === "return") {
+      result = db.partialRefundThermalSale(orderId, req.body?.items, reason, cashier, operatorId);
+    } else {
+      const kind = typeRaw === "storno" ? "storno" : "cancel";
+      result = db.refundThermalSale(orderId, cashier, operatorId, reason, kind);
+    }
+    const slip =
+      req.body?.skip_print === true
+        ? { printed: false, printMessage: "skip_print" }
+        : await printThermalCorrectionSlip(result);
+    return res.json({
+      ok: true,
+      mode: "thermal",
+      ...result,
+      printed: slip.printed,
+      printMessage: slip.printMessage,
+      correction: {
+        id: result.correction_id,
+        nuikf: result.original_ref,
+        original_nuikf: result.original_ref,
+        receipt_type: result.correction_type,
+        total_amount: result.correction_type === "exchange" ? result.delta_total : -Math.abs(result.refund_total || 0),
+      },
+      atk_sent: false,
+      atk_message: "Termik — pa dërgim te ATK",
+    });
+  }
+
   /** Anulim / storno kuponi fiskal */
   app.post("/api/fiscal/storno", async (req, res) => {
     try {
       const nuikf = String(req.body?.nuikf || "").trim().toUpperCase();
       if (!nuikf) throw new Error("NUIKF mungon");
+      if (db.isThermalCouponRef(req.body?.nuikf)) {
+        return await processThermalCorrection(req, res);
+      }
       const type = String(req.body?.type || "storno").toLowerCase();
       const correctionType =
         type === "cancel" ? "cancel" : type === "return" ? "return" : "storno";
@@ -2124,7 +2204,19 @@ async function boot() {
               : "Në pritje",
         atk_ok: Number(r.sent_to_atk) === 1,
       }));
-      res.json({ ok: true, receipts: rows });
+      let thermal = [];
+      try {
+        thermal = db.listThermalCoupons(100);
+      } catch (te) {
+        console.warn("[receipts] termik", te.message);
+      }
+      const receipts = rows.concat(thermal).sort((a, b) => {
+        const da = `${a.fiscal_date || ""} ${a.fiscal_time || ""}`;
+        const dbk = `${b.fiscal_date || ""} ${b.fiscal_time || ""}`;
+        if (da !== dbk) return dbk.localeCompare(da);
+        return String(b.id).localeCompare(String(a.id));
+      });
+      res.json({ ok: true, receipts });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
@@ -2137,6 +2229,10 @@ async function boot() {
         .trim()
         .toUpperCase();
       if (!nuikf) throw new Error("NUIKF mungon");
+      if (db.isThermalCouponRef(req.query.nuikf)) {
+        const receipt = db.thermalOrderDetails(db.parseThermalOrderRef(req.query.nuikf));
+        return res.json({ ok: true, receipt });
+      }
       const { getOriginalReceipt, getReturnableItemsForReceipt } = require("./fiscal/fiscal-correction");
       const items = getReturnableItemsForReceipt(nuikf);
       if (!items) {
@@ -2176,6 +2272,18 @@ async function boot() {
   /** Print Preview — tekst i kuponit + QR PNG (base64), pa printim letre. */
   app.get("/api/fiscal/receipts/:id/preview", async (req, res) => {
     try {
+      const rawId = String(req.params.id || "");
+      if (rawId.startsWith("t-") || rawId.startsWith("c-")) {
+        const preview = db.thermalCouponPreview(rawId);
+        return res.json({
+          ok: true,
+          mode: "thermal",
+          receipt_id: null,
+          nuikf: preview.nuikf,
+          text: preview.text,
+          qr_png_base64: "",
+        });
+      }
       const { getFiscalReceiptPreviewWithQr } = require("./fiscal/fiscal-receipts-list");
       const preview = await getFiscalReceiptPreviewWithQr(req.params.id);
       if (!preview) throw new Error("Fiskalizimi nuk është aktiv");
@@ -2682,6 +2790,10 @@ async function boot() {
     try {
       const blocked = recordsGuardResponse(res);
       if (blocked) return blocked;
+      if (db.isThermalCouponRef(req.body?.nuikf)) {
+        req.body.type = "exchange";
+        return await processThermalCorrection(req, res);
+      }
 
       const nuikf = String(req.body?.nuikf || "").trim().toUpperCase();
       if (!nuikf) throw new Error("NUIKF origjinal mungon");
