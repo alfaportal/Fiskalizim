@@ -1,5 +1,25 @@
 # PUNA.md
 
+## 2026-11-11 — F11 paguan cash, pa kupon
+
+F4 «Ndërro Çmimin» u hoq nga rreshti i arkës. Në vend të tij është F11 «Paguaj»: para në dorë për krejt shumën, shitja ruhet, shporta pastrohet, nuk del kupon. F12 mbetet si ishte. Shporta bosh nuk paguan.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Butoni F4 u zëvendësua me F11. F11 paguan cash pa printim. |
+
+Prova e shitjes reale: NOT VERIFIED. Programi i instaluar e merr vetëm pas Setup-it të ri.
+
+## 2026-11-11 — Instalim i ri: një backup
+
+Instalimi i ri i Fiskalizimit mban vetëm `Revolution Backup FISKALIZIMI`. Nuk krijon `Revolution-POS-Backup`. Nëse ai folder i vjetër është tashmë me të dhëna, vazhdon si më parë. Marketi kishte tashmë një vend.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `biznes-backup.js` | Instalimi i ri nuk hap folderin e vjetër |
+
+Nuk u bë Setup. Nuk u fshi asnjë backup.
+
 ## 2026-11-11 — Vaga: 1700 është gram
 
 Te vaga, numri pa pikë është gram. 1700 del 1.700 kg, jo 1700 kg. Numri me pikë, p.sh. 1.700, mbetet kilogram.

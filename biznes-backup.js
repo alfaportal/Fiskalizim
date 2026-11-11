@@ -58,6 +58,35 @@ function getDocumentsPath() {
   }
 }
 
+function legacyBackupInUse() {
+  for (const home of [getDesktopPath(), getDocumentsPath()]) {
+    const root = path.join(home, BACKUP_FOLDER_NAME);
+    if (!fs.existsSync(root)) continue;
+    for (const sub of ["daily", "monthly"]) {
+      try {
+        const p = path.join(root, sub);
+        if (fs.existsSync(p) && fs.statSync(p).isDirectory() && fs.readdirSync(p).length > 0) return true;
+      } catch {
+        /* */
+      }
+    }
+    try {
+      if (fs.readdirSync(root).some((n) => String(n).toLowerCase().endsWith(".db"))) return true;
+    } catch {
+      /* */
+    }
+  }
+  return false;
+}
+
+function singleBackupRoot() {
+  try {
+    return require("./auto-backup-location.cjs").defaultBackupDirectory("FISKALIZIMI");
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Desktop\Revolution-POS-Backup — fallback Documents\Revolution-POS-Backup
  */
@@ -219,6 +248,17 @@ function pruneBackups(root, opts = {}) {
  * Thirret nga startup — gabimet nuk duhet të ndalojnë aplikacionin.
  */
 function runAutoBackupOnStartup() {
+  if (!legacyBackupInUse()) {
+    return {
+      ok: true,
+      root: singleBackupRoot(),
+      daily: null,
+      monthly: null,
+      skipped_daily: true,
+      skipped_monthly: true,
+      pruned: { daily: [], monthly: [] },
+    };
+  }
   const root = ensureBackupRoot(getDefaultBackupRoot());
   const result = {
     ok: true,
@@ -260,6 +300,24 @@ function runAutoBackupOnStartup() {
 }
 
 function getAutoBackupStatus() {
+  if (!legacyBackupInUse()) {
+    const root = singleBackupRoot();
+    const today = todayYmd();
+    const month = todayYm();
+    return {
+      ok: true,
+      auto_enabled: true,
+      root,
+      daily_dir: root ? path.join(root, "daily") : "",
+      monthly_dir: root ? path.join(root, "monthly") : "",
+      has_daily_today: !!(root && fs.existsSync(path.join(root, "daily", today))),
+      has_monthly_this_month: !!(root && fs.existsSync(path.join(root, "monthly", month))),
+      today,
+      month,
+      last_startup: lastStartupBackup,
+      db_decrypt_failed: !!global.DB_DECRYPT_FAILED,
+    };
+  }
   const root = ensureBackupRoot(getDefaultBackupRoot());
   return {
     ok: true,
@@ -277,7 +335,13 @@ function getAutoBackupStatus() {
 }
 
 function openBackupFolder() {
-  const root = ensureBackupRoot(getDefaultBackupRoot());
+  let root;
+  if (!legacyBackupInUse()) {
+    root = singleBackupRoot();
+    if (root) fs.mkdirSync(root, { recursive: true });
+  } else {
+    root = ensureBackupRoot(getDefaultBackupRoot());
+  }
   const { exec } = require("child_process");
   exec(`explorer "${root}"`);
   return { ok: true, root };

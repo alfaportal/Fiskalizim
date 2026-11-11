@@ -2777,7 +2777,7 @@
           <button type="button" class="cart-action-btn" id="btn-kasa-cat"><span class="cart-action-key">ESC</span>Kategori</button>
           <button type="button" class="cart-action-btn" id="btn-kasa-drawer"><span class="cart-action-key">F1</span>Hap Sirtarin</button>
           <button type="button" class="cart-action-btn" id="btn-kasa-line-disc"><span class="cart-action-key">F3</span>Zbritje në rresht</button>
-          <button type="button" class="cart-action-btn" id="btn-kasa-price"><span class="cart-action-key">F4</span>Ndërro Çmimin</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-f11"><span class="cart-action-key">F11</span>Paguaj</button>
           <button type="button" class="cart-action-btn" id="btn-kasa-bill-disc"><span class="cart-action-key">F5</span>Zbritje në Faturë</button>
           <button type="button" class="cart-action-btn" id="btn-kasa-pay"><span class="cart-action-key">F12</span>Paguaj</button>
         </div>
@@ -7702,8 +7702,9 @@
         }
         if (thermal) {
           const th = data.thermal || {};
-          const printed = !!th.printed;
-          setMsg(msg, checkoutSaleLine(data.total, printed, printed ? "" : th.printMessage), printed || (!th.printMessage && th.printed !== false));
+          const printed = !!th.printed && !noPaper;
+          const note = noPaper || th.skipped ? "" : (printed ? "" : th.printMessage);
+          setMsg(msg, checkoutSaleLine(data.total, printed, note), printed || noPaper || !!th.skipped);
           finalizePosPostPaySuccess();
           return;
         }
@@ -9446,15 +9447,24 @@
     document.getElementById("pos-catalog-close")?.addEventListener("click", () => togglePosCatalog(false));
     document.getElementById("btn-kasa-line-disc")?.addEventListener("click", openLineDiscount);
     document.getElementById("btn-kasa-bill-disc")?.addEventListener("click", openBillDiscount);
-    document.getElementById("btn-kasa-price")?.addEventListener("click", () => {
-      const idx = cartLineIndexForAction();
-      if (idx < 0) {
-        posMsg("Zgjidhni artikullin në shportë.", false);
-        return;
-      }
-      state.selectedCartIndex = idx;
-      renderCartRows();
-      startCartPriceEdit(idx);
+    document.getElementById("btn-kasa-f11")?.addEventListener("click", () => {
+      if (!state.cart.length || anyPosOverlayOpen()) return;
+      syncAllLineAdjustmentsFromDom();
+      syncCartAdjustmentInputs();
+      const total = cartPreview().total;
+      if (!(total > 0)) return;
+      state.payment = {
+        active: ["cash"],
+        amounts: { cash: roundMoney(total) },
+        confirmed: true,
+        lastEdited: null,
+        autoFillMethod: "cash",
+      };
+      const recv = document.getElementById("pay-received");
+      if (recv) recv.value = "0";
+      renderPaymentUi();
+      paintPaymentStatusBar();
+      checkout({ thermal: true, skipPrint: true });
     });
     document.getElementById("btn-kasa-gift")?.addEventListener("click", openGift);
     document.getElementById("btn-scale-wizard")?.addEventListener("click", openScale);
@@ -9533,7 +9543,7 @@
       if (login && !login.classList.contains("hidden")) return;
       if (typeof activeTabName !== "undefined" && activeTabName !== "pos") return;
       const key = e.key;
-      if (key !== "Escape" && key !== "F12" && key !== "F10" && key !== "F8" && key !== "F5" && key !== "F4" && key !== "F3" && key !== "F1") return;
+      if (key !== "Escape" && key !== "F12" && key !== "F11" && key !== "F10" && key !== "F8" && key !== "F5" && key !== "F3" && key !== "F1") return;
       if (key === "Escape") {
         if (anyPosOverlayOpen()) {
           closePosOverlays();
@@ -9551,7 +9561,7 @@
       if (key === "F10") openGift();
       if (key === "F8") openScale();
       if (key === "F5") openBillDiscount();
-      if (key === "F4") document.getElementById("btn-kasa-price")?.click();
+      if (key === "F11") document.getElementById("btn-kasa-f11")?.click();
       if (key === "F3") openLineDiscount();
       if (key === "F1") openDrawer();
     }, true);
