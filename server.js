@@ -1902,9 +1902,16 @@ async function boot() {
       paymentMethod: sale.payment_method,
       slipKind: "final",
       paper,
-      discountTotal: sale.discount_total || 0,
-      subtotalBeforeDiscount:
-        sale.subtotal != null ? Number(sale.subtotal) + Number(sale.discount_total || 0) : sale.total,
+      discountTotal: (() => {
+        let line = 0;
+        for (const it of sale.items || []) line += Number(it.line_discount_amount) || 0;
+        return Math.round((line + (Number(sale.discount_total) || 0)) * 100) / 100;
+      })(),
+      subtotalBeforeDiscount: (() => {
+        let line = 0;
+        for (const it of sale.items || []) line += Number(it.line_discount_amount) || 0;
+        return Math.round(((Number(sale.total) || 0) + line + (Number(sale.discount_total) || 0)) * 100) / 100;
+      })(),
       markedTotal: false,
     });
     const text = finalizeReceiptText(`${nfHeader}\n${body}`, paper);

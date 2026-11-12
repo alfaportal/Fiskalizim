@@ -2357,6 +2357,12 @@ function isCardPayment(method) {
   );
 }
 
+function orderShownDiscount(row, items) {
+  let line = 0;
+  for (const it of items || []) line += Number(it.line_discount_amount) || 0;
+  return round2(line + (Number(row && row.discount_total) || 0));
+}
+
 function parseOrderPayload(row) {
   try {
     const raw = JSON.parse(row?.items_json || "{}");
@@ -3100,7 +3106,7 @@ function getDitari(opts = {}) {
   });
   const rows = sqlite
     .prepare(
-      `SELECT id, total, payment_method, waiter_name, status, created_at, items_json
+      `SELECT id, total, subtotal, discount_total, payment_method, waiter_name, status, created_at, items_json
        FROM orders
        WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)
        ORDER BY datetime(created_at) DESC, id DESC`
@@ -3132,6 +3138,7 @@ function getDitari(opts = {}) {
     const payload = parseOrderPayload(e);
     const items = payload.items;
     const receipt = regularBySale.get(Number(e.id));
+    const zbritje = orderShownDiscount(e, items);
     return {
       id: e.id,
       date,
@@ -3142,6 +3149,8 @@ function getDitari(opts = {}) {
       artikujt: items.map((i) => `${ditariQtyLabel(i)}× ${i.name}`).join(", "),
       items,
       total: Number(e.total) || 0,
+      zbritje,
+      bruto: round2((Number(e.total) || 0) + zbritje),
       status: e.status || "completed",
       cash_amount: cashFromOrderRow(e),
       card_amount: cardFromOrderRow(e),
@@ -3196,6 +3205,7 @@ function getDitari(opts = {}) {
   });
   const completed = merged.filter((e) => String(e.status || "") !== "cancelled");
   const totalSales = completed.reduce((sum, e) => sum + e.total, 0);
+  const totalDiscount = completed.reduce((sum, e) => sum + (Number(e.zbritje) || 0), 0);
   let totalCash = 0;
   let totalKarte = 0;
   for (const e of completed) {
@@ -3259,6 +3269,8 @@ function getDitari(opts = {}) {
     dateFrom: range.from,
     dateTo: range.to,
     totalSales: round2(totalSales),
+    totalDiscount: round2(totalDiscount),
+    totalGross: round2(totalSales + totalDiscount),
     totalTvsh,
     totalCash: round2(totalCash),
     totalKarte: round2(totalKarte),

@@ -116,11 +116,17 @@
     }
     .pos-dock-shift-cash {
       display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.1;
+      margin-right: 0.35rem;
+    }
+    #pos-shift-pazar-box:not([hidden]) {
+      display: flex;
       flex-direction: column;
       align-items: flex-end;
       gap: 0.05rem;
-      line-height: 1.1;
-      margin-right: 0.35rem;
     }
     .retail-pos-band-lbl {
       font-size: 0.58rem;
@@ -140,6 +146,14 @@
       min-width: 0;
       padding: 0.4rem 0.7rem;
       font-size: 0.78rem;
+    }
+    .pos-pazar-eye {
+      border: 0;
+      background: transparent;
+      color: #e2e8f0;
+      padding: 4px;
+      line-height: 0;
+      cursor: pointer;
     }
     .shift-overlay {
       position: fixed;
@@ -2698,6 +2712,8 @@
       <p class="shift-start-q">Numëroni paratë në arkë dhe barazoni me raportin.</p>
       <dl class="shift-close-summary">
         <div><dt>Paratë e nisjes</dt><dd id="pos-shift-close-opening">0.00 €</dd></div>
+        <div><dt>Shitja</dt><dd id="pos-shift-close-gross">0.00 €</dd></div>
+        <div><dt>Zbritje</dt><dd id="pos-shift-close-discount">0.00 €</dd></div>
         <div><dt>Shitje cash</dt><dd id="pos-shift-close-cash-sales">0.00 €</dd></div>
         <div><dt>Shitje kartë</dt><dd id="pos-shift-close-card-sales">0.00 €</dd></div>
         <div class="shift-close-expected"><dt>Paratë e pritshme në arkë</dt><dd id="pos-shift-close-expected">0.00 €</dd></div>
@@ -2752,8 +2768,14 @@
     <span class="sr-only" id="operator-badge">Operator: —</span>
     <div class="dock-session-actions">
       <div class="pos-dock-shift-cash" id="pos-dock-shift-cash">
-        <span class="retail-pos-band-lbl">MONEDHA NË ARKË</span>
-        <strong class="retail-pos-band-val pos-shift-drawer-cash-val" id="pos-shift-drawer-cash">0.00 €</strong>
+        <button type="button" class="pos-pazar-eye" id="pos-shift-pazar-eye" aria-label="Shfaq pazarin">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <div id="pos-shift-pazar-box" hidden>
+          <span class="retail-pos-band-lbl">MONEDHA NË ARKË</span>
+          <strong class="retail-pos-band-val pos-shift-drawer-cash-val" id="pos-shift-drawer-cash">0.00 €</strong>
+          <span id="pos-shift-sale-bits" style="display:block;font-size:0.72rem;opacity:0.9"></span>
+        </div>
       </div>
       <button type="button" class="btn btn-warn btn-sm js-pos-shift-close pos-dock-shift-close" id="btn-pos-mbyll-nderrimin-dock">
         Mbyll nderrimin
@@ -2818,7 +2840,7 @@
             <strong class="cart-total-amt" id="cart-total">0.00 €</strong>
           </div>
           <div class="checkout-vat-compact">
-            <div class="vat-row"><span>Nën-total</span><span id="cart-sub">0.00 €</span></div>
+            <div class="vat-row"><span>Shitja</span><span id="cart-sub">0.00 €</span></div>
             <div class="vat-row hidden" id="cart-disc-row"><span>Zbritje</span><strong id="cart-disc-amt">−0.00 €</strong></div>
             <div class="vat-row hidden" id="cart-sur-row"><span>Rritje</span><span id="cart-sur-amt">+0.00 €</span></div>
             <div class="vat-row"><span>Totali pa TVSH</span><span id="cart-net">0.00 €</span></div>
@@ -3358,7 +3380,9 @@
         <button type="button" class="btn btn-primary" id="p2-ditari-kerko" style="width:auto">Kërko</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(8rem,1fr));gap:8px;margin-bottom:12px">
-        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">TOTALI</div><div id="p2-ditari-total" style="font-weight:800">0.00 €</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">SHITJA</div><div id="p2-ditari-gross" style="font-weight:800">0.00 €</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">ZBRITJE</div><div id="p2-ditari-discount" style="font-weight:800">0.00 €</div></div>
+        <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">NETO</div><div id="p2-ditari-total" style="font-weight:800">0.00 €</div></div>
         <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">POROSI</div><div id="p2-ditari-count" style="font-weight:800">0</div></div>
         <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">CASH</div><div id="p2-ditari-cash" style="font-weight:800">0.00 €</div></div>
         <div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="color:var(--muted);font-size:0.75rem">KARTË</div><div id="p2-ditari-card" style="font-weight:800">0.00 €</div></div>
@@ -3373,13 +3397,15 @@
               <th style="padding:0.35rem 0.5rem">Hapur</th>
               <th style="padding:0.35rem 0.5rem">Mbyllur</th>
               <th style="padding:0.35rem 0.5rem">Operatori</th>
+              <th style="padding:0.35rem 0.5rem">Shitja</th>
+              <th style="padding:0.35rem 0.5rem">Zbritje</th>
               <th style="padding:0.35rem 0.5rem">Cash</th>
               <th style="padding:0.35rem 0.5rem">Kartë</th>
-              <th style="padding:0.35rem 0.5rem">Totali</th>
+              <th style="padding:0.35rem 0.5rem">Neto</th>
             </tr>
           </thead>
           <tbody id="p2-ditari-shifts">
-            <tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka nderrime.</td></tr>
+            <tr><td colspan="8" style="padding:0.5rem;color:var(--muted)">Nuk ka nderrime.</td></tr>
           </tbody>
         </table>
       </div>
@@ -3396,11 +3422,13 @@
               <th style="padding:0.35rem 0.5rem">TVSH 8%</th>
               <th style="padding:0.35rem 0.5rem">TVSH 18%</th>
               <th style="padding:0.35rem 0.5rem">TVSH</th>
-              <th style="padding:0.35rem 0.5rem">Totali</th>
+              <th style="padding:0.35rem 0.5rem">Shitja</th>
+              <th style="padding:0.35rem 0.5rem">Zbritje</th>
+              <th style="padding:0.35rem 0.5rem">Neto</th>
             </tr>
           </thead>
           <tbody id="p2-ditari-list">
-            <tr><td colspan="10" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
+            <tr><td colspan="12" style="padding:0.5rem;color:var(--muted)">Hapni Ditari për të ngarkuar…</td></tr>
           </tbody>
         </table>
       </div>
@@ -5554,7 +5582,7 @@
       if (!item) return false;
       const typed = parseCartQty(raw);
       if (typed == null) return false;
-      item.quantity = typed;
+      item.quantity = isWeightLine(item) ? roundQty3(typed / 1000) : typed;
       return true;
     }
 
@@ -5793,8 +5821,21 @@
         surAmt = cs.type === "percent" ? (sub * cs.value) / 100 : cs.value;
         total += surAmt;
       }
+      const gross = state.cart.reduce((s, c) => s + lineGross(c), 0);
+      let lineDisc = 0;
+      for (const c of state.cart) {
+        const g = lineGross(c);
+        const net = lineNet(c);
+        const sur = normalizeAdj(c.line_surcharge);
+        let surAmtLine = 0;
+        if (sur?.type === "percent") surAmtLine = (g * sur.value) / 100;
+        else if (sur?.type === "value") surAmtLine = sur.value;
+        lineDisc += Math.max(0, g + surAmtLine - net);
+      }
       return {
         sub: Math.round(sub * 100) / 100,
+        gross: Math.round(gross * 100) / 100,
+        lineDisc: Math.round(lineDisc * 100) / 100,
         total: Math.round(Math.max(0, total) * 100) / 100,
         discAmt: Math.round(discAmt * 100) / 100,
         surAmt: Math.round(surAmt * 100) / 100,
@@ -7215,12 +7256,13 @@
         else if (pct === 18) tax18 += tax;
         else tax0 += tax;
       }
-      document.getElementById("cart-sub").textContent = euro(prev.sub);
+      document.getElementById("cart-sub").textContent = euro(prev.gross);
       const discRow = document.getElementById("cart-disc-row");
       const surRow = document.getElementById("cart-sur-row");
+      const shownDisc = Math.round(((Number(prev.lineDisc) || 0) + (Number(prev.discAmt) || 0)) * 100) / 100;
       if (discRow) {
-        discRow.classList.toggle("hidden", !(prev.discAmt > 0));
-        document.getElementById("cart-disc-amt").textContent = "−" + euro(prev.discAmt);
+        discRow.classList.toggle("hidden", !(shownDisc > 0));
+        document.getElementById("cart-disc-amt").textContent = "−" + euro(shownDisc);
       }
       if (surRow) {
         surRow.classList.toggle("hidden", !(prev.surAmt > 0));
@@ -10378,6 +10420,8 @@
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh8)}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh18)}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(vat.tvsh)}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(e.bruto != null ? e.bruto : (Number(e.total) || 0) + (Number(e.zbritje) || 0))}</td>` +
+            `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(e.zbritje || 0)}</td>` +
             `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(e.total)}</td>` +
             `</tr>`
           );
@@ -10388,7 +10432,7 @@
     async function loadDitari(opts = {}) {
       const msg = document.getElementById("ditari-msg");
       const tbody = document.getElementById("p2-ditari-list");
-      if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="12" style="padding:0.5rem">Duke ngarkuar…</td></tr>';
       const q = new URLSearchParams();
       if (opts.customRange) {
         const from = document.getElementById("p2-ditari-from")?.value || "";
@@ -10406,9 +10450,13 @@
         const data = await api(`/api/ditari?${q.toString()}`);
         ditariEntriesCache = Array.isArray(data.entries) ? data.entries : [];
         const tot = document.getElementById("p2-ditari-total");
+        const gross = document.getElementById("p2-ditari-gross");
+        const disc = document.getElementById("p2-ditari-discount");
         const cnt = document.getElementById("p2-ditari-count");
         const cash = document.getElementById("p2-ditari-cash");
         const card = document.getElementById("p2-ditari-card");
+        if (gross) gross.textContent = euro(data.totalGross != null ? data.totalGross : (Number(data.totalSales) || 0) + (Number(data.totalDiscount) || 0));
+        if (disc) disc.textContent = euro(data.totalDiscount || 0);
         if (tot) tot.textContent = euro(data.totalSales);
         if (cnt) cnt.textContent = String(data.orderCount || 0);
         if (cash) cash.textContent = euro(data.totalCash);
@@ -10425,7 +10473,7 @@
         if (stCount) stCount.textContent = `${shifts.length} nderrime`;
         if (stBody) {
           if (!shifts.length) {
-            stBody.innerHTML = '<tr><td colspan="6" style="padding:0.5rem;color:var(--muted)">Nuk ka nderrime për këtë periudhë.</td></tr>';
+            stBody.innerHTML = '<tr><td colspan="8" style="padding:0.5rem;color:var(--muted)">Nuk ka nderrime për këtë periudhë.</td></tr>';
           } else {
             stBody.innerHTML = shifts
               .map(
@@ -10434,6 +10482,8 @@
                   `<td style="padding:0.35rem 0.5rem">${esc(s.open_label || "—")}</td>` +
                   `<td style="padding:0.35rem 0.5rem">${esc(s.is_open ? "Hapur" : s.close_label || "—")}</td>` +
                   `<td style="padding:0.35rem 0.5rem">${esc(s.operator_name || "—")}</td>` +
+                  `<td style="padding:0.35rem 0.5rem">${euro(s.gross_sales != null ? s.gross_sales : (Number(s.total_sales) || 0) + (Number(s.discount_total) || 0))}</td>` +
+                  `<td style="padding:0.35rem 0.5rem">${euro(s.discount_total || 0)}</td>` +
                   `<td style="padding:0.35rem 0.5rem">${euro(s.cash_total)}</td>` +
                   `<td style="padding:0.35rem 0.5rem">${euro(s.card_total)}</td>` +
                   `<td style="padding:0.35rem 0.5rem;text-align:right">${euro(s.total_sales)}</td>` +
@@ -10447,7 +10497,7 @@
         ditariEntriesCache = [];
         if (tbody) {
           tbody.innerHTML =
-            `<tr><td colspan="10" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
+            `<tr><td colspan="12" style="padding:0.5rem;color:#f87171">${esc(e.message || "Ditari nuk u ngarkua")}</td></tr>`;
         }
         if (msg) setMsg(msg, e.message || "Ditari nuk u ngarkua", false);
       }
@@ -12182,7 +12232,23 @@
         document.querySelectorAll(".pos-shift-drawer-cash-val").forEach((el) => {
           el.textContent = cashText;
         });
+        const bits = document.getElementById("pos-shift-sale-bits");
+        if (bits && !s.needs_opening_cash) {
+          const shitja = s.gross_sales != null ? s.gross_sales : (Number(s.total_sales) || 0) + (Number(s.discount_total) || 0);
+          bits.textContent = `Shitja ${euroShift(shitja)} · Zbritje ${euroShift(s.discount_total)} · Cash ${euroShift(s.cash_total)}`;
+        } else if (bits) {
+          bits.textContent = "";
+        }
         syncMbyllButton(s);
+      }
+      const pazarEye = document.getElementById("pos-shift-pazar-eye");
+      const pazarBox = document.getElementById("pos-shift-pazar-box");
+      if (pazarEye && pazarBox) {
+        pazarEye.addEventListener("click", () => {
+          const show = pazarBox.hidden;
+          pazarBox.hidden = !show;
+          pazarEye.setAttribute("aria-label", show ? "Fshih pazarin" : "Shfaq pazarin");
+        });
       }
       function createCashKeypad(cfg) {
         let raw = String(cfg.initial ?? "0");
@@ -12266,6 +12332,9 @@
           if (el) el.textContent = euroShift(val);
         };
         set("pos-shift-close-opening", Number(summary?.opening_cash) || 0);
+        const closeGross = summary?.gross_sales != null ? summary.gross_sales : (Number(summary?.total_sales) || 0) + (Number(summary?.discount_total) || 0);
+        set("pos-shift-close-gross", closeGross);
+        set("pos-shift-close-discount", Number(summary?.discount_total) || 0);
         set("pos-shift-close-cash-sales", Number(summary?.cash_total) || 0);
         set("pos-shift-close-card-sales", Number(summary?.card_total) || 0);
         set("pos-shift-close-expected", Number(summary?.expected_closing_cash) || 0);

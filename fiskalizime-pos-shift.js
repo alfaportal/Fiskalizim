@@ -185,6 +185,19 @@ function correctionRowsForShift(shiftId, from, to) {
   }
 }
 
+function orderShownDiscount(row) {
+  let items = [];
+  try {
+    const raw = JSON.parse(row && row.items_json ? row.items_json : "{}");
+    items = Array.isArray(raw) ? raw : Array.isArray(raw.items) ? raw.items : [];
+  } catch {
+    items = [];
+  }
+  let line = 0;
+  for (const it of items) line += Number(it.line_discount_amount) || 0;
+  return round2(line + (Number(row && row.discount_total) || 0));
+}
+
 function computePosShiftTotals(shiftId) {
   const sid = Number(shiftId);
   if (!sid) {
@@ -194,6 +207,7 @@ function computePosShiftTotals(shiftId) {
       cash_total: 0,
       card_total: 0,
       discount_total: 0,
+      gross_sales: 0,
     };
   }
   const rows = sqliteRef
@@ -208,7 +222,7 @@ function computePosShiftTotals(shiftId) {
   let sales = 0;
   for (const row of rows) {
     sales += round2(row.total);
-    discount += round2(row.discount_total);
+    discount += orderShownDiscount(row);
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }
@@ -231,12 +245,15 @@ function computePosShiftTotals(shiftId) {
       card += cardFromOrderRow(row);
     }
   }
+  const net = round2(sales);
+  const disc = round2(discount);
   return {
     order_count: rows.length,
-    total_sales: round2(sales),
+    total_sales: net,
     cash_total: round2(cash),
     card_total: round2(card),
-    discount_total: round2(discount),
+    discount_total: disc,
+    gross_sales: round2(net + disc),
   };
 }
 
@@ -251,6 +268,7 @@ function computePosShiftTotalsInRange(shiftId, from, to) {
       cash_total: 0,
       card_total: 0,
       discount_total: 0,
+      gross_sales: 0,
     };
   }
   const rows = sqliteRef
@@ -266,7 +284,7 @@ function computePosShiftTotalsInRange(shiftId, from, to) {
   let sales = 0;
   for (const row of rows) {
     sales += round2(row.total);
-    discount += round2(row.discount_total);
+    discount += orderShownDiscount(row);
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }
@@ -280,12 +298,15 @@ function computePosShiftTotalsInRange(shiftId, from, to) {
     cash += cashFromOrderRow(row);
     card += cardFromOrderRow(row);
   }
+  const net = round2(sales);
+  const disc = round2(discount);
   return {
     order_count: rows.length,
-    total_sales: round2(sales),
+    total_sales: net,
     cash_total: round2(cash),
     card_total: round2(card),
-    discount_total: round2(discount),
+    discount_total: disc,
+    gross_sales: round2(net + disc),
   };
 }
 
@@ -298,6 +319,7 @@ function buildPosShiftSummary(shift, operatorId, operatorName) {
         cash_total: 0,
         card_total: 0,
         discount_total: 0,
+        gross_sales: 0,
       };
   const opening = shift && shift.opening_cash != null ? round2(shift.opening_cash) : null;
   const drawerCash = opening != null ? round2(opening + totals.cash_total) : null;
@@ -313,6 +335,7 @@ function buildPosShiftSummary(shift, operatorId, operatorName) {
     total_sales: totals.total_sales,
     order_count: totals.order_count,
     discount_total: totals.discount_total,
+    gross_sales: totals.gross_sales,
     drawer_cash: drawerCash,
     expected_closing_cash: drawerCash,
   };
@@ -550,12 +573,16 @@ function defaultHandoverRecipientName() {
 
 function shiftTotalsForListRow(row, from, to) {
   if (row.closed_at != null && row.cash_sales_total != null && row.total_sales != null) {
+    const live = computePosShiftTotals(row.id);
+    const net = round2(row.total_sales);
+    const disc = live.discount_total;
     return {
       order_count: Number(row.order_count_total) || 0,
-      total_sales: round2(row.total_sales),
+      total_sales: net,
       cash_total: round2(row.cash_sales_total),
       card_total: round2(row.card_sales_total),
-      discount_total: round2(row.discount_total),
+      discount_total: disc,
+      gross_sales: round2(net + disc),
     };
   }
   if (row.closed_at == null) {

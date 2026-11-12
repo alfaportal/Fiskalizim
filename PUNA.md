@@ -1,5 +1,71 @@
 # PUNA.md
 
+## 2026-11-12 — Syri te arka fsheh pazarin
+
+Krejt kutia «Monedha në arkë» (shuma, shitja, zbritja, cash) është e fshehur. Klienti nuk e sheh. Punonjësi shtyp syrin dhe e sheh. Shtypja e dytë e mbyll përsëri. Faqja e arkës mbetet hapur. Nuk u bë Setup. Në programin e instaluar ende nuk duket.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Syri pranë pazarit te arka |
+
+## 2026-11-12 — Ditari dhe kuponat u pastruan, Setup 1.007
+
+U fshinë 5 shitje dhe 5 ndërrime nga Ditari. Kuponat ishin tashmë 0. Produktet mbetën 201. Operatorët mbetën 2. Numri i kuponit mbeti 4. Çelësat nuk u prekën.
+
+Instaluesi i ri:
+
+`C:\Users\1\Desktop\firmat\FISKALIZIME\dist-atk-v2\Revolution-Fiskalizim-Setup-1.007-win-x64.exe`
+
+Përfshin shitjen, zbritjen dhe pagesën veç e veç. Instaluesit e vjetër mbetën, përfshirë 1.006. Mbyll programin plotësisht, instaloje këtë, pastaj hape përsëri. Nuk u dërgua asgjë te ATK.
+
+## 2026-11-12 — Shitja, zbritja dhe pagesa veç e veç
+
+Prova në databazë të re, jo te programi i hapur. Produkti A 10 € me zbritje 1 €, B 5 € me zbritje 2 €, C 8 € pa zbritje. Cash 20 €.
+
+| Vendi | Shitja | Zbritja | Pagesa |
+|--------|--------|---------|--------|
+| Shporta | 23.00 | 3.00 | 20.00 |
+| Kuponi | 23.00 | −3.00 | 20.00 |
+| Ditari, rreshti | 23.00 | 3.00 | 20.00 |
+| Ditari, dita | 23.00 | 3.00 | 20.00 cash |
+| Arka | 23.00 | 3.00 | 20.00 cash |
+| Ndërrimi | 23.00 | 3.00 | 20.00 |
+
+TVSH e rreshtit 3.05 € (18% mbi 20 €, jo mbi 23 €). Pa TVSH 16.95 €. FISKALIZIM nuk ka sasi në stok, prandaj nuk u zbrit asnjë copë. Nuk u dërgua kupon te ATK. Programi i instaluar e tregon këtë vetëm pas Setup-it të ri.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Ditari: shitja, zbritja, neto |
+| `fiskalizime-pos-shift.js` | Ndërrimi: shitja dhe zbritja, cash mbetet pagesa |
+| `public/index.html` | Shporta, Ditari, Arka, mbyllja e ndërrimit |
+| `server.js` | Kuponi: nëntotali 23, zbritja 3, totali 20 |
+
+## 2026-11-12 — Setup 1.006
+
+Versioni u rrit nga 1.005 në 1.006. Instaluesi i ri:
+
+`C:\Users\1\Desktop\firmat\FISKALIZIME\dist-atk-v2\Revolution-Fiskalizim-Setup-1.006-win-x64.exe`
+
+Gramët në shportë nuk shumëzohen më. 1000 g mbetet 1000 g. Instaluesit e vjetër mbetën, përfshirë 1.005. Mbyll programin plotësisht, instaloje këtë, pastaj hape përsëri. Fshi rreshtat e prishur nga shporta nëse janë ende aty. Nuk u dërgua asgjë te ATK.
+
+## 2026-11-12 — Gramët në shportë nuk rriten më
+
+Shporta shkruan «1000 g», pastaj e lexonte atë numër si kilogramë. Çdo produkt i ri e shumëzonte me 1000. Domate 1 kg doli 1000000000000 g. Tani «1000 g» mbetet 1 kg. 1200 g mbetet 1.200 kg.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Sasia e peshuar lexohet si gram, ruhet si kilogram |
+
+Prova: pa ndreqje, 1 kg bëhet 1000000000000 g pas 4 herësh. Me ndreqje, 1200 g qëndron 1200 g. Marketi dhe Dyqanet nuk e kanë këtë, sepse nuk e lexojnë numrin e gramëve prapa. Programi i hapur është Setup 1.005. Ky ndreqje duket vetëm pas Setup-it të ri. Nuk u bë Setup.
+
+## 2026-11-12 — Setup 1.005
+
+Versioni u rrit nga 1.004 në 1.005. Instaluesi i ri:
+
+`C:\Users\1\Desktop\firmat\FISKALIZIME\dist-atk-v2\Revolution-Fiskalizim-Setup-1.005-win-x64.exe`
+
+Përfshin vagën në mililitra dhe gram, kuponin me g/ml, Ditarin dhe ndërrimin e personit që hyri. Instaluesit e vjetër mbetën, përfshirë 1.004. Mbyll programin plotësisht, instaloje këtë, pastaj hape përsëri. Nuk u dërgua asgjë te ATK.
+
 ## 2026-11-12 — Vaga në mililitra
 
 Lëngjet (litër / mililitër) maten në mililitra të plota. 1200 ml te 2.50 € për 500 ml = 6.00 €. − dhe + lëvizin 1 ml. Produktet në gram mbeten në gram: 1200 g te 3.00 € për 500 g = 7.20 €. Skanimi dhe klikimi shtojnë 1 copë, pa e hapur vagën. Kuponi termik dhe Ditari shkruajnë «1200 g» ose «1200 ml» pranë sasisë. Shuma e kuponit nuk ndryshon.
