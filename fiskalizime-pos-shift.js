@@ -754,6 +754,8 @@ function buildPosShiftZReportData(shiftId) {
   return {
     shift_id: row.id,
     waiter_name: row.operator_name || "",
+    opened_by: row.operator_name || "",
+    closed_by: row.operator_name || "",
     opened_at: row.opened_at,
     closed_at: row.closed_at,
     opening_cash: Number(row.opening_cash) || 0,

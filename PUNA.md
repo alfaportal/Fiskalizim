@@ -1,5 +1,87 @@
 # PUNA.md
 
+## 2026-11-12 — Vaga në mililitra
+
+Lëngjet (litër / mililitër) maten në mililitra të plota. 1200 ml te 2.50 € për 500 ml = 6.00 €. − dhe + lëvizin 1 ml. Produktet në gram mbeten në gram: 1200 g te 3.00 € për 500 g = 7.20 €. Skanimi dhe klikimi shtojnë 1 copë, pa e hapur vagën. Kuponi termik dhe Ditari shkruajnë «1200 g» ose «1200 ml» pranë sasisë. Shuma e kuponit nuk ndryshon.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Vaga ml/g, shporta, 1 copë te klikim/skanim |
+| `receipt-text.js` | Sasia në kupon: g ose ml |
+| `database.js` | Ditari e ruan njësinë dhe e shkruan pranë sasisë |
+
+Prova me skript: 7.20, 6.00, kuponi «1200 g» / «1200 ml», copa pa njësi. Nuk u pa në ekran. Programi i hapur është Setup-i i vjetër. Nuk u bë Setup.
+
+## 2026-11-12 — Vaga në gram
+
+Pesha shkruhet në gram të plota: 1200, jo 1.200. Shuma është (gramët e peshuar / gramët e copës) × çmimi. Shembull: 1200 gram te 3.00 € për 500 gram = 7.20 €. − dhe + lëvizin 1 gram. Në ekran shkruan g.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Vaga dhe sasia në shportë në gram |
+
+Programi i hapur është Setup-i i vjetër. Kjo duket vetëm pas Setup-it të ri. Nuk u bë Setup. Nuk u pa në ekran.
+
+## 2026-11-12 — Pesha te produktet me gram
+
+Çmimi te «Dredhëza 500g» është për 500 gram, jo për 1 kg. 1.200 kg me 3.00 € për 500 gram del 7.20 €, jo 3.60 €.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Pesha merr gramët nga emri kur copa nuk është 1 kg |
+| `database.js` | Produktet që kanë gram në emër marrin atë peshë |
+
+Te programi i hapur, Dredhëza dhe të njëjtat produkte u ruajtën me peshën e emrit. Duhet mbyllur programi dhe hapur përsëri. Setup i ri nuk u bë.
+
+## 2026-11-12 — Kuponi kur mbyllet ndërrimi
+
+Kur mbyllet ndërrimi, kuponi që shtypet tregon kush ka hyrë dhe kush e ka mbyllur, plus paratë si te Marketi. Nuk ka më listën e artikujve, as «Barazohet me pronarin».
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiskalizime-shift-report.js` | Teksti i kuponit të mbylljes |
+| `fiskalizime-pos-shift.js` | Emri i hyrjes dhe i mbylljes shkojnë te kuponi |
+
+Prova: teksti i kuponit u nxor pa printer. Programi i hapur është Setup-i i vjetër. Kuponi i ri: vetëm pas Setup-it të ri.
+
+## 2026-11-12 — Ndërrimi i punonjësit dhe kuponi
+
+Secili hyn me kodin e vet. Paratë dhe kuponi shkojnë te ai që ka hyrë. Nuk merret më personi i mëparshëm, as i pari në listë.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Kodi i panjohur nuk i jepet një personi tjetër |
+| `server.js` | Ndërrimi njihet vetëm nga kodi i hyrjes |
+| `public/index.html` | Fillo / mbyll dërgojnë vetëm kodin e atij që ka hyrë |
+
+Prova në databazë të përkohshme: kodi i të dytit mbetet te i dyti, edhe kur emri është i të parit. Programi i hapur është Setup-i i vjetër. Ekrani i ri: vetëm pas Setup-it të ri.
+
+## 2026-11-12 — Zbritja vetëm te një faturë
+
+Zbritja 10% në faturë qëndronte te shporta e re. Tani fatura tjetër niset pa zbritje. Hiqen artikujt, ose shkruhet 0, dhe zbritja ikën.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | Zbritja e faturës pastrohet kur shporta mbetet bosh |
+
+Faturat e ruajtura sot s’e kanë 10%. Shporta e hapur (Kos + Jogurt) e ka ende, sepse programi i hapur është Setup-i i vjetër. Ekrani i ri: vetëm pas Setup-it të ri.
+
+## 2026-11-12 — Kuponët dhe Ditari u pastruan
+
+U hoqën kuponët dhe ditari nga të dhënat e programit. Produktet, punëtorët dhe numri fiskal mbetën.
+
+Para: 59 kuponë, 7 ndërrime, 0 kuponë fiskalë. Pas: 0 kuponë, 0 ndërrime, 0 fiskalë. Produkte 201. Punëtorë 2. Numri fiskal mbeti 4.
+
+Programi ishte i mbyllur. Nuk u dërgua asgjë te ATK. Nuk u printua.
+
+## 2026-11-12 — Setup 1.004
+
+Versioni në `package.json` u vu 1.004. Instaluesi i ri:
+
+`dist-atk-v2\Revolution-Fiskalizim-Setup-1.004-win-x64.exe`
+
+Instaluesit e vjetër mbetën. Mbyll programin, instaloje këtë, pastaj hape përsëri. Kuponët dhe Ditari janë bosh. Produktet mbeten.
+
 ## 2026-11-11 — F12 Paguaj
 
 F12 nuk arrinte te Arka. Programi e hante tastin. Tani F12 te Arka bën të njëjtën gjë si butoni Paguaj: kupon termik.

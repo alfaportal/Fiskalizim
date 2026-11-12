@@ -3067,11 +3067,11 @@
         <div class="scale-step" id="scale-step-measure" hidden>
           <button type="button" class="btn btn-ghost" id="scale-back-prods" style="width:auto;margin-bottom:8px">← Mbrapa</button>
           <h2 id="scale-product">—</h2>
-          <div class="scale-disp" id="scale-disp">0.000 kg</div>
+          <div class="scale-disp" id="scale-disp">0 g</div>
           <div class="scale-kg-row">
-            <button type="button" class="btn btn-ghost" id="scale-minus">−0.100</button>
-            <input id="scale-kg" type="text" inputmode="decimal" autocomplete="off" placeholder="1.400" aria-label="Pesha në kg" />
-            <button type="button" class="btn btn-ghost" id="scale-plus">+0.100</button>
+            <button type="button" class="btn btn-ghost" id="scale-minus">−1</button>
+            <input id="scale-kg" type="text" inputmode="numeric" autocomplete="off" placeholder="1200" aria-label="Pesha në gram" />
+            <button type="button" class="btn btn-ghost" id="scale-plus">+1</button>
           </div>
           <p id="scale-total-live"></p>
           <p class="err" id="scale-err"></p>
@@ -5669,17 +5669,44 @@
     }
     function formatCartQty(c) {
       const q = Number(c && c.quantity) || 0;
-      if (isWeightLine(c)) return q.toFixed(3);
+      if (isWeightLine(c)) return `${Math.round(q * 1000)} ${scaleMeasureWord(c)}`;
       return String(q);
+    }
+    function kgFromPackName(name) {
+      const p = packPartsFromName(name);
+      if (!p || !(p.amount > 0)) return null;
+      if (p.unit === "kg") return p.amount;
+      if (p.unit === "g") return p.amount / 1000;
+      return null;
+    }
+    function volumeLitersFromName(name) {
+      const p = packPartsFromName(name);
+      if (!p || !(p.amount > 0)) return null;
+      if (p.unit === "ml") return p.amount / 1000;
+      if (p.unit === "L") return p.amount;
+      return null;
+    }
+    function isLiquidUnit(p) {
+      const u = String(p && p.unit_code || "").trim().toUpperCase();
+      return u === "LTR" || u === "MLT";
+    }
+    function scaleMeasureWord(p) {
+      return isLiquidUnit(p) ? "ml" : "g";
     }
     function productBaseWeight(c) {
       const b = Number(c && c.base_weight);
-      return b > 0 ? b : 1;
+      const stored = b > 0 ? b : 1;
+      if (Math.abs(stored - 1) > 0.0005) return stored;
+      const fromName = kgFromPackName(c && c.name) || volumeLitersFromName(c && c.name);
+      if (fromName && fromName > 0) return fromName;
+      return stored;
+    }
+    function productBaseGrams(c) {
+      const g = Math.round(productBaseWeight(c) * 1000);
+      return g > 0 ? g : 1000;
     }
     function isWeightLine(c) {
-      if (!c) return false;
-      if (Number(c.sold_by_weight) === 1) return true;
-      return isWeightedUnit(c.unit_code) && !isPackagedByName(c.name);
+      return !!(c && Number(c.sold_by_weight) === 1);
     }
     function syncBaseWeightField(unitId, wrapId) {
       const wrap = document.getElementById(wrapId);
@@ -5714,14 +5741,20 @@
       return c;
     }
 
-    function resetCartAdjustments() {
+    function clearBillDiscount() {
       state.cartAdj.discount = null;
+      const typeEl = document.getElementById("cart-disc-type");
+      const valEl = document.getElementById("cart-disc-val");
+      if (typeEl) typeEl.value = "none";
+      if (valEl) valEl.value = "0";
+    }
+
+    function resetCartAdjustments() {
+      clearBillDiscount();
       state.cartAdj.surcharge = null;
       state.giftCode = "";
       state.posCoupon = "thermal";
       paintCouponMode();
-      document.getElementById("cart-disc-type").value = "none";
-      document.getElementById("cart-disc-val").value = "0";
       document.getElementById("cart-sur-type").value = "none";
       document.getElementById("cart-sur-val").value = "0";
     }
@@ -7124,6 +7157,7 @@
 
     function addProduct(id) {
       commitOpenCartPriceEdits();
+      if (!state.cart.length) clearBillDiscount();
       if (state.dbDecryptFailed) {
         const msg = document.getElementById("pos-msg");
         setMsg(msg, "Databaza nuk lexohet — duhet rikthyer nga backup-i", false);
@@ -7132,14 +7166,8 @@
       const p = findProduct(id);
       if (!p) return;
       const existing = state.cart.find((c) => c.product_id === p.id && Number(c.sold_by_weight) !== 1);
-      let addQty = 1;
-      if (isWeightedUnit(p.unit_code) && !isPackagedByName(p.name)) {
-        addQty = Number(p.base_weight) > 0 ? roundQty3(p.base_weight) : 1;
-      }
       if (existing) {
-        existing.quantity = isWeightedUnit(p.unit_code) && !isPackagedByName(p.name)
-          ? roundQty3(existing.quantity + addQty)
-          : existing.quantity + 1;
+        existing.quantity += 1;
         ensureCartItemShape(existing);
         const i = state.cart.indexOf(existing);
         updateCartLinePrice(i);
@@ -7154,7 +7182,7 @@
         name: p.name,
         price: Number(p.price),
         base_price: Number(p.price),
-        quantity: addQty,
+        quantity: 1,
         vat_norm: L,
         vat_letter: L,
         vat_category: String(pct),
@@ -7244,16 +7272,17 @@
         syncAllLineAdjustmentsFromDom();
         if (act === "plus") {
           state.cart[i].quantity = isWeightLine(state.cart[i])
-            ? roundQty3(state.cart[i].quantity + 0.1)
+            ? roundQty3(state.cart[i].quantity + 0.001)
             : state.cart[i].quantity + 1;
         }
         if (act === "minus") {
           state.cart[i].quantity = isWeightLine(state.cart[i])
-            ? Math.max(0.001, roundQty3(state.cart[i].quantity - 0.1))
+            ? Math.max(0.001, roundQty3(state.cart[i].quantity - 0.001))
             : Math.max(1, state.cart[i].quantity - 1);
         }
         if (act === "del") {
           state.cart.splice(i, 1);
+          if (!state.cart.length) clearBillDiscount();
           renderCartRows();
           updateCartTotals();
           return;
@@ -7449,7 +7478,7 @@
           ensureCartItemShape(c);
           const listed = Number(c.base_price ?? c.price) || 0;
           const entered = Number(c.quantity) || 0;
-          const baseW = Number(c.base_weight) > 0 ? Number(c.base_weight) : 1;
+          const baseW = productBaseWeight(c);
           const unitPrice = isWeightLine(c) ? listed / baseW : listed;
           return {
           product_id: c.product_id,
@@ -7457,6 +7486,8 @@
           price: unitPrice,
           base_price: unitPrice,
           quantity: entered,
+          unit_code: c.unit_code || "EA",
+          sold_by_weight: isWeightLine(c) ? 1 : 0,
           vat_norm: c.vat_norm,
           vat_letter: c.vat_letter,
           line_discount: c.line_discount ? { ...c.line_discount } : null,
@@ -9438,8 +9469,14 @@
     function applyBillDiscountModal() {
       const err = document.getElementById("bill-disc-err");
       const n = Number(String(document.getElementById("bill-disc-val")?.value || "").replace(",", "."));
-      if (!(n > 0)) {
+      if (!Number.isFinite(n) || n < 0) {
         if (err) err.textContent = "Shkruani shumën.";
+        return;
+      }
+      if (!(n > 0)) {
+        clearBillDiscount();
+        updateCartTotals();
+        document.getElementById("ov-bill-disc").hidden = true;
         return;
       }
       if (billDiscMode === "percent" && n > 100) {
@@ -9546,7 +9583,7 @@
       document.getElementById("ov-mixed").hidden = true;
     }
     function weightScaleProducts() {
-      return (state.allProducts || []).filter((p) => Number(p.sold_by_weight) === 1);
+      return (state.allProducts || []).filter((p) => Number(p.sold_by_weight) === 1 || isLiquidUnit(p));
     }
     function showScaleStep(step) {
       document.getElementById("scale-step-cats").hidden = step !== "cats";
@@ -9583,36 +9620,38 @@
         .map((p) => `<button type="button" data-scale-pid="${p.id}">${esc(p.name)}<br><span class="scale-sub">${esc(euro(p.price))}</span></button>`)
         .join("");
     }
-    function scaleKgNow() {
-      const raw = String(document.getElementById("scale-kg")?.value || "").trim().replace(",", ".");
-      if (!/^\d+(\.\d+)?$/.test(raw)) return 0;
+    function scaleGramsNow() {
+      const raw = String(document.getElementById("scale-kg")?.value || "").replace(/\D/g, "");
       const n = Number(raw);
-      if (!Number.isFinite(n)) return 0;
-      const kg = raw.includes(".") ? n : n / 1000;
-      return roundQty3(kg);
+      return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
     }
     function paintScaleTotal() {
       const el = document.getElementById("scale-total-live");
       const disp = document.getElementById("scale-disp");
-      const kg = Math.max(0, scaleKgNow());
-      if (disp) disp.textContent = `${kg.toFixed(3)} kg`;
       const p = findProduct(state.scaleProductId);
+      const grams = scaleGramsNow();
+      const word = scaleMeasureWord(p);
+      if (disp) disp.textContent = `${grams} ${word}`;
+      const minus = document.getElementById("scale-minus");
+      const plus = document.getElementById("scale-plus");
+      if (minus) minus.textContent = `−1 ${word}`;
+      if (plus) plus.textContent = `+1 ${word}`;
       if (!el) return;
       if (!p) {
         el.textContent = "";
         return;
       }
       const price = Number(p.price) || 0;
-      const base = Number(p.base_weight) > 0 ? Number(p.base_weight) : 1;
-      const total = price * (kg / base);
-      el.textContent = kg > 0
-        ? `${kg.toFixed(3)} / ${base.toFixed(3)} × ${euro(price)} = ${euro(total)}`
-        : `${euro(price)} — shkruaj peshën, p.sh. 1.400`;
+      const base = productBaseGrams(p);
+      const total = price * (grams / base);
+      el.textContent = grams > 0
+        ? `${grams} ${word} / ${base} ${word} × ${euro(price)} = ${euro(total)}`
+        : `${euro(price)} — shkruaj ${word === "ml" ? "mililitrat" : "peshën"}, p.sh. 1200`;
     }
-    function setScaleKg(kg) {
-      const n = Math.max(0, roundQty3(kg));
+    function setScaleGrams(grams) {
+      const n = Math.max(0, Math.round(Number(grams) || 0));
       const inp = document.getElementById("scale-kg");
-      if (inp) inp.value = n ? n.toFixed(3) : "";
+      if (inp) inp.value = n ? String(n) : "";
       paintScaleTotal();
     }
     function openScaleMeasure(p, direct) {
@@ -9622,7 +9661,7 @@
       if (title) title.textContent = p.name || "";
       const err = document.getElementById("scale-err");
       if (err) err.textContent = "";
-      setScaleKg(0);
+      setScaleGrams(0);
       showScaleStep("measure");
       document.getElementById("ov-scale").hidden = false;
       document.getElementById("scale-kg")?.focus();
@@ -9641,7 +9680,7 @@
       if (existing) {
         existing.quantity = roundQty3((Number(existing.quantity) || 0) + kg);
         existing.sold_by_weight = 1;
-        existing.base_weight = Number(p.base_weight) > 0 ? Number(p.base_weight) : 1;
+        existing.base_weight = productBaseWeight(p);
         return;
       }
       const L = String(p.vat_letter || "E").toUpperCase();
@@ -9659,7 +9698,7 @@
         vat_percent: pct,
         unit_code: p.unit_code || "EA",
         category_code: p.category_code || "TT",
-        base_weight: Number(p.base_weight) > 0 ? Number(p.base_weight) : 1,
+        base_weight: productBaseWeight(p),
         sold_by_weight: 1,
         line_discount: null,
         line_surcharge: null,
@@ -9668,16 +9707,16 @@
     function addScaleToCart() {
       const err = document.getElementById("scale-err");
       const p = findProduct(state.scaleProductId);
-      const kg = scaleKgNow();
+      const grams = scaleGramsNow();
       if (!p) {
         if (err) err.textContent = "Zgjidhni produktin.";
         return;
       }
-      if (!(kg > 0)) {
-        if (err) err.textContent = "Shkruani peshën, p.sh. 1.400";
+      if (!(grams > 0)) {
+        if (err) err.textContent = "Shkruani peshën, p.sh. 1200";
         return;
       }
-      pushWeighedLine(p, kg);
+      pushWeighedLine(p, grams / 1000);
       renderCart();
       document.getElementById("ov-scale").hidden = true;
       focusPosScan();
@@ -9810,8 +9849,8 @@
       }
       showScaleStep("prods");
     });
-    document.getElementById("scale-minus")?.addEventListener("click", () => setScaleKg(scaleKgNow() - 0.1));
-    document.getElementById("scale-plus")?.addEventListener("click", () => setScaleKg(scaleKgNow() + 0.1));
+    document.getElementById("scale-minus")?.addEventListener("click", () => setScaleGrams(scaleGramsNow() - 1));
+    document.getElementById("scale-plus")?.addEventListener("click", () => setScaleGrams(scaleGramsNow() + 1));
     document.getElementById("scale-kg")?.addEventListener("input", () => paintScaleTotal());
     document.addEventListener("keydown", (e) => {
       if (e.repeat) return;
@@ -11619,13 +11658,14 @@
       if (state.sessionRole === "worker") showTab("pos");
     }
 
-    async function finishSessionLogin(name, id, role) {
+    async function finishSessionLogin(name, id, role, dbId) {
       const data = await api("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ operator_name: name, operator_id: id }),
       });
       state.operator_name = data.operator_name;
       state.operator_id = data.operator_id;
+      state.operator_db_id = Number(dbId) || 0;
       applySessionRole(role);
       paintOperatorBadge();
       document.getElementById("login-overlay").classList.add("hidden");
@@ -11687,7 +11727,7 @@
         renderWorkerPinDots();
         return;
       }
-      await finishSessionLogin(data.name, data.pin_code, role);
+      await finishSessionLogin(data.name, data.pin_code, role, data.id);
     }
 
     function renderOperatorsList(rows) {
@@ -11976,6 +12016,7 @@
       state.sessionRole = "";
       state.operator_name = "";
       state.operator_id = "POS";
+      state.operator_db_id = 0;
       workerLoginPinBuf = "";
       renderWorkerPinDots();
       const ownerPin = document.getElementById("login-owner-pin");
@@ -12008,7 +12049,7 @@
         document.getElementById("overlay-first-owner")?.setAttribute("hidden", "");
         const reg = document.getElementById("btn-login-register-owner");
         if (reg) reg.hidden = true;
-        await finishSessionLogin(created.operator?.name || name, created.operator?.pin_code || pin, "owner");
+        await finishSessionLogin(created.operator?.name || name, created.operator?.pin_code || pin, "owner", created.operator?.id);
       } catch (e) {
         if (msg) {
           msg.hidden = false;
@@ -12262,7 +12303,6 @@
             operator_id: currentOperatorId(),
             operator_name: currentOperator(),
           });
-          if (operatorDbId()) q.set("operator_db_id", String(operatorDbId()));
           const s = await api(`/api/pos/shift?${q.toString()}`);
           if (s.operator_db_id) state.operator_db_id = s.operator_db_id;
           paintSummary(s);
@@ -12280,7 +12320,6 @@
             method: "POST",
             body: JSON.stringify({
               operator_id: currentOperatorId(),
-              operator_db_id: operatorDbId() || undefined,
               operator_name: currentOperator(),
               opening_cash: openPad.getValue(),
             }),
@@ -12312,7 +12351,6 @@
             method: "POST",
             body: JSON.stringify({
               operator_id: currentOperatorId(),
-              operator_db_id: operatorDbId() || undefined,
               operator_name: currentOperator(),
               closing_cash_actual: closePad.getValue(),
             }),

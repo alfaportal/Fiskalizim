@@ -64,12 +64,22 @@ function itemUnitPrice(item) {
   return Number(item.price ?? item.cmimi ?? item.unit_price ?? 0) || 0;
 }
 
+function measureQtyLabel(item) {
+  const qty = Number(item && item.quantity) || 0;
+  const unit = String((item && item.unit_code) || "").trim().toUpperCase();
+  if (Number(item && item.sold_by_weight) !== 1) return String(qty || 1);
+  const word = unit === "LTR" || unit === "MLT" ? "ml" : "g";
+  return `${Math.round(qty * 1000)} ${word}`;
+}
+
 function formatItemLine(item, width) {
   const qty = Number(item.quantity) || 1;
   const price = itemUnitPrice(item);
   const unit = formatMoney4(price);
   const lineTotal = formatMoney(price * qty);
-  const tail = `${qty}x  ${unit}  =  ${lineTotal}`;
+  const qtyText = measureQtyLabel(item);
+  const weighed = / (g|ml)$/.test(qtyText);
+  const tail = weighed ? `${qtyText}  =  ${lineTotal}` : `${qty}x  ${unit}  =  ${lineTotal}`;
   const nameMax = Math.max(6, width - tail.length - 1);
   let name = String(item.name || "").trim();
   if (name.length > nameMax) {
@@ -299,8 +309,10 @@ function buildCorrectionReceiptText({
     const lineTotal = Math.round(qty * price * 100) / 100;
     const sign = it.side === "in" ? "" : "-";
     const name = it.side === "in" ? `+ ${it.name || ""}` : String(it.name || "");
+    const qtyText = measureQtyLabel({ ...it, quantity: qty });
+    const weighed = / (g|ml)$/.test(qtyText);
     lines.push(name);
-    lines.push(labelValueLine(`${qty} x ${formatMoney(price)}`, `${sign}${formatMoney(lineTotal)} EUR`, w));
+    lines.push(labelValueLine(weighed ? qtyText : `${qty} x ${formatMoney(price)}`, `${sign}${formatMoney(lineTotal)} EUR`, w));
   }
   lines.push(divider(w));
   if (title === "NDERIM ARTIKULLI" && delta != null) {

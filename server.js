@@ -38,16 +38,9 @@ function resolveBodyOperatorId(req) {
 }
 
 function resolveOperatorDbId(req) {
-  const direct = Number(req.body?.operator_db_id || req.query?.operator_db_id);
-  if (direct > 0) return direct;
-  try {
-    return db.resolveShiftOperatorId(
-      req.body?.operator_id || req.query?.operator_id,
-      req.body?.operator_name || req.query?.operator_name
-    );
-  } catch {
-    return 0;
-  }
+  const pin = String(req.body?.operator_id || req.query?.operator_id || "").trim();
+  const name = String(req.body?.operator_name || req.query?.operator_name || "").trim();
+  return db.resolveShiftOperatorId(pin, name);
 }
 
 function shiftErrorPayload(e) {

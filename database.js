@@ -276,8 +276,8 @@ function insertProductsFromCatalogList(list) {
   const rows = Array.isArray(list) ? list : [];
   if (!rows.length) return 0;
   const ins = sqlite.prepare(
-    `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, pos_category)
-     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)`
+    `INSERT INTO products (name, price, vat_letter, vat_category, active, sort_order, unit_code, category_code, pos_category, base_weight)
+     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
   );
   let sort = 0;
   for (const p of rows) {
@@ -292,6 +292,7 @@ function insertProductsFromCatalogList(list) {
     const posCat = normalizePosCategoryLabel(
       p.pos_category || inferPosCategoryForProduct({ name, category_code: categoryCode })
     );
+    const parsedBase = parseBaseWeightFromName(name);
     ins.run(
       name,
       Number(p.price) || 0,
@@ -300,7 +301,8 @@ function insertProductsFromCatalogList(list) {
       Number(p.sort_order) || sort,
       unitCode,
       categoryCode,
-      posCat
+      posCat,
+      parsedBase == null ? 1 : parsedBase
     );
   }
   return sort;
@@ -981,6 +983,7 @@ function initSchema() {
     syncMenuItemsFromProducts();
     try {
       applyBaseWeightFromNamesOnce();
+      applyBaseWeightFromNamesV2();
     } catch (e) {
       console.warn("[fiskalizim] applyBaseWeightFromNamesOnce:", e.message);
     }
@@ -1785,17 +1788,30 @@ function resolveBaseWeightFromName(name, incoming, existing) {
   return 1;
 }
 
-function applyBaseWeightFromNamesOnce() {
-  if (String(getSetting("base_weight_from_name_v1") || "") === "1") return;
+function applyNamedBaseWeights() {
   const rows = sqlite.prepare("SELECT id, name, base_weight FROM products").all();
   const upd = sqlite.prepare("UPDATE products SET base_weight = ? WHERE id = ?");
+  let n = 0;
   for (const row of rows) {
     if (normalizeBaseWeight(row.base_weight) !== 1) continue;
     const parsed = parseBaseWeightFromName(row.name);
     if (parsed == null || parsed === 1) continue;
     upd.run(parsed, row.id);
+    n += 1;
   }
+  return n;
+}
+
+function applyBaseWeightFromNamesOnce() {
+  if (String(getSetting("base_weight_from_name_v1") || "") === "1") return;
+  applyNamedBaseWeights();
   setSetting("base_weight_from_name_v1", "1");
+}
+
+function applyBaseWeightFromNamesV2() {
+  if (String(getSetting("base_weight_from_name_v2") || "") === "1") return;
+  applyNamedBaseWeights();
+  setSetting("base_weight_from_name_v2", "1");
 }
 
 function normalizeBaseWeight(v) {
@@ -1899,6 +1915,7 @@ function buildSaleLines(items) {
       menu_item_id: product?.id ?? it.product_id ?? null,
       product_id: product?.id ?? it.product_id ?? null,
       unit_code: String(it.unit_code || product?.unit_code || "EA").trim() || "EA",
+      sold_by_weight: Number(it.sold_by_weight) === 1 ? 1 : 0,
       category_code: String(it.category_code || product?.category_code || "TT").trim() || "TT",
     };
     if (lineDiscountMeta) row.line_discount = lineDiscountMeta;
@@ -1930,18 +1947,17 @@ function resolveShiftOperatorId(operatorId, operatorName) {
   const pin = String(operatorId || "").trim();
   if (pin && pin !== "POS") {
     const op = getOperatorByPin(pin);
-    if (op?.id) return Number(op.id);
+    if (!op?.id) throw new Error("Kodi i hyrjes nuk u njoh.");
+    return Number(op.id);
   }
   const name = String(operatorName || "").trim();
-  if (name) {
-    const hit = getOperators({ includeInactive: false }).find(
+  if (name && name !== "Operator") {
+    const matches = getOperators({ includeInactive: false }).filter(
       (o) => String(o.name || "").trim() === name
     );
-    if (hit?.id) return Number(hit.id);
+    if (matches.length === 1) return Number(matches[0].id);
   }
-  const first = getOperators({ includeInactive: false })[0];
-  if (first?.id) return Number(first.id);
-  throw new Error("Shto një punonjës te Punonjësit para se të hapësh nderrimin.");
+  throw new Error("Hyni me kodin tuaj para se të hapni ndërrimin.");
 }
 
 function createSale({
@@ -3063,6 +3079,16 @@ function thermalCouponPreview(ref) {
   return { text, nuikf: `#${order.id}`, label: "shitje", mode: "thermal" };
 }
 
+function ditariQtyLabel(i) {
+  const qty = Number(i && (i.quantity ?? i.qty)) || 0;
+  const unit = String((i && i.unit_code) || "").trim().toUpperCase();
+  if (Number(i && i.sold_by_weight) === 1) {
+    const word = unit === "LTR" || unit === "MLT" ? "ml" : "g";
+    return `${Math.round(qty * 1000)} ${word}`;
+  }
+  return String(qty || 1);
+}
+
 function getDitari(opts = {}) {
   const periodRaw = String(opts.period || "").trim().toLowerCase();
   const period =
@@ -3113,7 +3139,7 @@ function getDitari(opts = {}) {
       waiter_name: e.waiter_name || "Operator",
       payment_method: e.payment_method || "cash",
       payment_label: paymentLabel(e.payment_method),
-      artikujt: items.map((i) => `${i.quantity || 1}× ${i.name}`).join(", "),
+      artikujt: items.map((i) => `${ditariQtyLabel(i)}× ${i.name}`).join(", "),
       items,
       total: Number(e.total) || 0,
       status: e.status || "completed",
@@ -3135,6 +3161,8 @@ function getDitari(opts = {}) {
           price: Number(it.price ?? it.unit_price) || 0,
           vat_letter: letter,
           vat_norm: letter,
+          unit_code: it.unit_code || "",
+          sold_by_weight: Number(it.sold_by_weight) === 1 ? 1 : 0,
         };
       });
       const total = round2(r.total_amount);
@@ -3151,7 +3179,7 @@ function getDitari(opts = {}) {
         waiter_name: r.operator_name || "Operator",
         payment_method: payRow.payment_method,
         payment_label: paymentLabel(payRow.payment_method),
-        artikujt: items.map((i) => `${i.quantity || 1}× ${i.name}`).join(", "),
+        artikujt: items.map((i) => `${ditariQtyLabel(i)}× ${i.name}`).join(", "),
         items,
         total,
         status: String(r.receipt_type || "").toLowerCase(),
