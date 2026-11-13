@@ -9078,8 +9078,7 @@
     function maskApplicationId(raw) {
       const v = normalizeApplicationIdValue(raw);
       if (!v) return "";
-      if (v.length <= 4) return "•".repeat(v.length);
-      return "•".repeat(v.length - 4) + v.slice(-4);
+      return "•".repeat(v.length);
     }
 
     function syncApplicationIdDomCache(value) {
@@ -9252,8 +9251,7 @@
     function maskFiscalizationNumber(raw) {
       const v = normalizeFiscalizationNumberValue(raw);
       if (!v) return "";
-      if (v.length <= 4) return "•".repeat(v.length);
-      return "•".repeat(v.length - 4) + v.slice(-4);
+      return "•".repeat(v.length);
     }
 
     function syncFiscalizationNumberDomCache(value) {
@@ -9703,8 +9701,26 @@
 
     let activeTabName = "pos";
 
+    function lockSensitiveTabsOnLeave(nextName) {
+      const gate = window.SensitiveTabGate;
+      if (!gate || typeof gate.lock !== "function") return;
+      if (activeTabName === "audit" && nextName !== "audit") {
+        gate.lock("audit");
+        document.getElementById("tab-audit")?.classList.add("hidden");
+      }
+      if (activeTabName === "settings" && nextName !== "settings") {
+        gate.lock("settings");
+        document.getElementById("tab-settings")?.classList.add("hidden");
+        if (typeof appIdRevealed !== "undefined") appIdRevealed = false;
+        if (typeof applyApplicationIdDisplay === "function") applyApplicationIdDisplay();
+        if (typeof fiscNoRevealed !== "undefined") fiscNoRevealed = false;
+        if (typeof applyFiscalizationNumberDisplay === "function") applyFiscalizationNumberDisplay();
+      }
+    }
+
     function showTab(name) {
       if (state.sessionRole === "worker" && name !== "pos") name = "pos";
+      lockSensitiveTabsOnLeave(name);
       activeTabName = name;
       document.querySelectorAll(".tabs button").forEach((b) => {
         b.classList.toggle("active", b.dataset.tab === name);
@@ -9775,6 +9791,7 @@
 
     async function requestTab(name) {
       if (state.sessionRole === "worker" && name !== "pos") return;
+      lockSensitiveTabsOnLeave(name);
       if (name === "audit") {
         const ok = await promptTabGate(
           "audit",
@@ -9821,6 +9838,7 @@
       let thermal = state.posCoupon !== "fiscal";
       if (opts.forceThermal) thermal = true;
       if (opts.forceFiscal) thermal = false;
+      if (opts.skipPrint === true && !opts.forceThermal) thermal = false;
       return checkout({ skipPrint: opts.skipPrint === true, thermal });
     }
     function posMsg(text, ok) {
@@ -10185,7 +10203,7 @@
       });
     }
     document.getElementById("btn-checkout").addEventListener("click", () => payFromArka({ forceFiscal: true }));
-    document.getElementById("btn-checkout-nopaper")?.addEventListener("click", () => payFromArka({ skipPrint: true }));
+    document.getElementById("btn-checkout-nopaper")?.addEventListener("click", () => payFromArka({ skipPrint: true, forceFiscal: true }));
     document.getElementById("btn-kupon-termik")?.addEventListener("click", () => {
       state.posCoupon = "thermal";
       paintCouponMode();

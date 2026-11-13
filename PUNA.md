@@ -1,4 +1,20 @@
-﻿## 2026-11-13 - Kupon fiskal njesoj si referenca
+﻿## 2026-11-13 - Build Setup 1.005
+
+Version `1.0.5` (etiketa 1.005). Komanda `npm run build:sef`. Instaluesit e vjetër mbeten. Paguaj pa leter hyn në Setup.
+
+## 2026-11-13 - Paguaj pa leter = kupon fiskal pa print
+
+Si BIZNES: butoni blu ben kupon fiskal (ruajtje), pa printer. Jo kupon termik.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | `btn-checkout-nopaper` + `payFromArka` me `forceFiscal` |
+
+## 2026-11-13 - Build Setup 1.004
+
+Version `1.0.4` (etiketa 1.004). Komanda `npm run build:sef`. Instaluesit 1.007–1.011 mbeten.
+
+## 2026-11-13 - Kupon fiskal njesoj si referenca
 
 Print, logo RKS/MF, kthim/anulim/kthim malli, kopje, email online/offline. Pa ATK. Nuk u be build.
 

@@ -8,7 +8,7 @@ const { isFiscalEnabled } = require("./fiscal-config");
 /**
  * Spec i strukturës ATK (radhitja + fusha të mbyllura).
  * Nëse e ndryshon → DUHET të ripërditësosh RECEIPT_FORMAT_HASH (pas aprovimit).
- * v3: unit_name, phone, mënyra pagesës, nr. total + nr. ditor (Neni 25 / Shtojca F).
+ * v3: unit_name, phone, mënyra pagesës, nr. total + nr. ditor, e-kuponi (Neni 25 / Shtojca F).
  */
 const STRUCTURE_SPEC = Object.freeze({
   version: 3,
@@ -41,6 +41,7 @@ const STRUCTURE_SPEC = Object.freeze({
     "SEF",
     "KUPON_FISKAL_NR",
     "KUPON_FISKAL_DITOR_NR",
+    "E_KUPONI",
     "QR",
     "LOGO_RKS_MF",
   ]),
@@ -62,7 +63,7 @@ const STRUCTURE_SPEC = Object.freeze({
 
 /** SHA256 i JSON.stringify(STRUCTURE_SPEC) — E MBROJTUR */
 const RECEIPT_FORMAT_HASH =
-  "87381fbe6b8d893273fca8279596d72871ef65fcb4ddbee505baefa8dc859446";
+  "20beb427946f844c61bef073c463e3258ce2e684d06e421a9c7ae76cec94a846";
 
 const LOCKED_FIELDS = STRUCTURE_SPEC.locked;
 
@@ -72,7 +73,7 @@ const RE_TOTAL =
 const RE_TOT_PA =
   /TOT\.\s*PA\s*TVSH|UKUP\.\s*BEZ\s*PDV|UKUPNO\s+BEZ\s+PDV|TOTALI PA TVSH/i;
 const RE_OPERATOR =
-  /Operator:|Operater:|OPERATORI:|EMRI I PUNETORIT:|IME RADNIKA:|PUNETORI:/i;
+  /OPERATORI:|PUNETORI:|Operator:|Operater:|EMRI I PUNETORIT:|IME RADNIKA:/i;
 const RE_DATA_ORA = /DATA DHE ORA:?|DATUM I VREME:?/i;
 const RE_DATA = /Data:|Datum:/i;
 const RE_ORA = /Ora:|Vreme:/i;
@@ -158,14 +159,12 @@ function indexOfRe(text, re) {
  */
 function findShtojcaFBareSerial(text) {
   const clean = stripEscPosMarkersFromText(text);
-  let idxStart = indexOfRe(clean, RE_TOT_PA);
-  if (idxStart < 0) idxStart = indexOfRe(clean, RE_PAY_METHOD);
-  if (idxStart < 0) idxStart = indexOfRe(clean, RE_TOTAL);
+  const idxTotPa = indexOfRe(clean, RE_TOT_PA);
   const idxDataOra = indexOfRe(clean, RE_DATA_ORA);
-  if (idxStart < 0 || idxDataOra < 0 || idxStart >= idxDataOra) {
+  if (idxTotPa < 0 || idxDataOra < 0 || idxTotPa >= idxDataOra) {
     return { found: false, index: -1, value: "" };
   }
-  const slice = clean.slice(idxStart, idxDataOra);
+  const slice = clean.slice(idxTotPa, idxDataOra);
   const reSerial = /(?:^|\n)\s*(\d{4,12})\s*(?=\n|$)/g;
   let match = null;
   let m;
@@ -177,7 +176,7 @@ function findShtojcaFBareSerial(text) {
   }
   const value = match[1];
   const lineOffset = match.index + match[0].indexOf(value);
-  return { found: true, index: idxStart + lineOffset, value };
+  return { found: true, index: idxTotPa + lineOffset, value };
 }
 
 /**
@@ -303,6 +302,7 @@ function validateReceiptBeforePrint(receiptText, opts = {}) {
     text,
     /KUPON FISKAL DITOR NR\.|FISKALNI KUPON DNEVNI BR\./i
   );
+  const idxEKuponi = indexOfRe(text, /\be-kuponi\b|\be-kupon\b/i);
   const idxNrFiskal = indexOfRe(text, RE_NR_FISKAL);
 
   if (idxNrFiskal >= 0 && idxTotal >= 0 && idxNrFiskal > idxTotal) {
@@ -395,6 +395,9 @@ function validateReceiptBeforePrint(receiptText, opts = {}) {
     }
   }
 
+  if (idxDailyNr >= 0 && idxEKuponi >= 0 && idxDailyNr > idxEKuponi) {
+    violations.push("radhitja: KUPON FISKAL DITOR NR. duhet para e-kuponi");
+  }
   if (opts.qrAttached && opts.logoAttached === false) {
     violations.push("logo RKS/MF mungon pas QR");
   }

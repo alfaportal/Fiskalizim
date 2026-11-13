@@ -30,6 +30,14 @@
     if (key) sessionStorage.setItem(key, "1");
   }
 
+  function lock(tab) {
+    const key = SESSION[tab];
+    if (!key) return;
+    try {
+      sessionStorage.removeItem(key);
+    } catch (e) {}
+  }
+
   async function verify(tab, password) {
     const want = GATES[tab];
     if (!want) return false;
@@ -46,5 +54,6 @@
     verify,
     isUnlocked,
     unlock,
+    lock,
   };
 })(typeof window !== "undefined" ? window : globalThis);
