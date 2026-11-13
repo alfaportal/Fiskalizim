@@ -4,13 +4,20 @@
  */
 const path = require("path");
 const protobuf = require("protobufjs");
-const { VAT_RATES, round4, lineTotalAmount, normalizeQty, normalizeUnitPrice } = require("./fiscal-vat");
+const {
+  VAT_RATES,
+  round4,
+  lineTotalAmount,
+  normalizeQty,
+  normalizeUnitPrice,
+  lineAmountAfterCart,
+  distributeCartAdjustment,
+} = require("./fiscal-vat");
 const {
   resolveLineDiscountAmount,
   netLineAmount,
   computeCouponTotalDiscount,
 } = require("./fiscal-line-discount");
-const { lineAmountAfterCart } = require("./fiscal-vat");
 
 const PROTO_PATH = path.join(__dirname, "atk-models.proto");
 
@@ -180,6 +187,18 @@ function resolveSettings(opts) {
 
 function couponLineNet(item) {
   return lineAmountAfterCart(item);
+}
+
+function itemsWithCartOnLines(receiptRow, items) {
+  const list = Array.isArray(items) ? items : [];
+  const hasFiscalTotal = list.some(
+    (it) => it && it.fiscal_line_total != null && Number.isFinite(Number(it.fiscal_line_total))
+  );
+  if (hasFiscalTotal) return list;
+  const disc = round4(Number(receiptRow?.discount_amount) || 0);
+  const sur = round4(Number(receiptRow?.surcharge_amount) || 0);
+  if (disc <= 0 && sur <= 0) return list;
+  return distributeCartAdjustment(list, disc, sur);
 }
 
 function buildCouponItems(items) {
@@ -375,7 +394,10 @@ function buildPosCoupon(receiptRow, opts = {}) {
   }
   const settings = resolveSettings(opts);
   const { enrichItemsUnitCategory } = require("./fiscal-item-meta");
-  const items = enrichItemsUnitCategory(parseJson(receiptRow.items_json, []));
+  const items = itemsWithCartOnLines(
+    receiptRow,
+    enrichItemsUnitCategory(parseJson(receiptRow.items_json, []))
+  );
   const vatBreakdown = parseJson(receiptRow.vat_breakdown_json, {});
   const ids = resolveIds(receiptRow, settings, opts);
   const taxGroups = buildTaxGroups(items, vatBreakdown);
@@ -446,7 +468,6 @@ function buildCitizenCoupon(receiptRow, opts = {}) {
 function encodePosCoupon(receiptRow, opts = {}) {
   const Type = getPosCouponType();
   const payload = buildPosCoupon(receiptRow, resolveAtkCouponBuildOpts(receiptRow, opts));
-  payload.items = stripDiscountFromCouponItems(payload.items);
   const message = Type.fromObject(payload);
   const err = Type.verify(message);
   if (err) throw new Error("PosCoupon invalid: " + err);

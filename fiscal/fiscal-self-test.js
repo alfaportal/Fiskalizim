@@ -593,7 +593,7 @@ function testCouponItemDiscountProto() {
   try {
     const { buildPosCoupon, encodePosCoupon, toCents, toPriceUnits } = require("./atk-model-builder");
     const { grossLineAmount, netLineAmount, resolveLineDiscountAmount } = require("./fiscal-line-discount");
-    const { round4 } = require("./fiscal-vat");
+    const { round4, distributeCartAdjustment } = require("./fiscal-vat");
 
     const items = [
       {
@@ -646,14 +646,15 @@ function testCouponItemDiscountProto() {
     }
     const i0 = pos.items[0];
     const expectedLine0Disc = toCents(0.1234);
-    const expectedLine0Total = toCents(netLineAmount(items[0]));
+    const afterCart = distributeCartAdjustment(items, cartDiscount, 0);
+    const expectedLine0Total = toCents(afterCart[0].fiscal_line_total);
     if (Number(i0.discount) !== expectedLine0Disc) {
       return fail(
         name,
         `discount rresht 1: ${i0.discount} ≠ ${expectedLine0Disc} (0.1234 EUR)`
       );
     }
-    const expectedNetUnit = round4(netLineAmount(items[0]) / items[0].qty);
+    const expectedNetUnit = round4(afterCart[0].fiscal_line_total / items[0].qty);
     if (Number(i0.price) !== toPriceUnits(expectedNetUnit)) {
       return fail(
         name,

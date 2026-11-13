@@ -1,4 +1,13 @@
-﻿## 2026-11-13 - Build Setup 1.005
+﻿## 2026-11-13 - Zbritje kupon dhe rresht si referenca
+
+Te ATK: çmimi i rreshtit pas zbritjes së rreshtit dhe 15% të kuponit. Discount i rreshtit mbetet në kupon. Vetëm Fiskalizim.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiscal/atk-model-builder.js` | zbritja e shportës hyn te rreshtat; pa heqje të discount |
+| `fiscal/fiscal-self-test.js` | testi 6c me total pas zbritjes së kuponit |
+
+## 2026-11-13 - Build Setup 1.005
 
 Version `1.0.5` (etiketa 1.005). Komanda `npm run build:sef`. Instaluesit e vjetër mbeten. Paguaj pa leter hyn në Setup.
 
