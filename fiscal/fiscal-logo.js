@@ -281,6 +281,9 @@ function rgbaToGsV0(img, opts = {}) {
     } else if (Number(opts.inkLevel) > 0) {
       ink = Math.min(1, Number(opts.inkLevel));
     }
+    if (Number(opts.minInk) > 0) {
+      ink = Math.max(ink, Math.min(1, Number(opts.minInk)));
+    }
     inkByte = Math.round(ink * 255);
   }
 
@@ -638,11 +641,11 @@ function getBusinessLogoForPrint(opts = {}) {
   const decoded = decodePngToRgba(getBusinessLogoPath());
   if (!decoded) return null;
   return buildCenteredRasterPrintBuffer(decoded, {
+    printDensity: opts.printDensity,
     printerName: opts.printerName || "",
     maxWidthDots: BUSINESS_LOGO_MAX_W,
     maxHeightDots: BUSINESS_LOGO_MAX_H,
     solidRaster: true,
-    blackLumMax: 78,
   });
 }
 

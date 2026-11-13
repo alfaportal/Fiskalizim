@@ -147,10 +147,15 @@ function computeAtkTestCouponTotals(items) {
   };
 }
 
-/** 2 presje — për të verifikuar tekstin e printuar (fiscal-print.js). */
 function formatUnitPricePrintCheck(price) {
-  const n = Math.round(round4(price) * 100) / 100;
-  return n.toFixed(2);
+  const n = round4(price);
+  if (!Number.isFinite(n)) return "0.00";
+  let s = n.toFixed(4);
+  s = s.replace(/0+$/, "").replace(/\.$/, "");
+  const i = s.indexOf(".");
+  if (i < 0) return s + ".00";
+  if (s.length - i - 1 === 1) return s + "0";
+  return s;
 }
 
 function buildAtkTestOrderData(opts = {}) {

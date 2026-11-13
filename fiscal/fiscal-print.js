@@ -177,7 +177,9 @@ function formatAtkItemPriceRow(qtyPriceMid, amount, letter, width = WIDTH, opts 
   return formatAtkItemTableColumns("", qtyPriceMid, sumText, width);
 }
 
+/** Markera — vetëm qendër (pa ^H/^B — print më i hollë në Tysso). */
 const ATK_TITLE_CENTER = "^C";
+/** TOTALI / theks — pa bold të rëndë. */
 const ATK_EMPHASIS = "";
 
 /** Hapësirë vertikale (frymë) si origjinali ATK. */
@@ -218,6 +220,7 @@ function appendAtkCenterLine(lines, text, width) {
   lines.push(pad(String(text ?? ""), width, "center"));
 }
 
+/** Çmimi njësi — si i ruajtur, deri në 4 presje + suffix EUR */
 function formatAtkUnitPrice(price) {
   return `${money4Print(price)}${ATK_EURO_SUFFIX}`;
 }
@@ -1149,6 +1152,7 @@ function appendAtkVatLines(lines, vatBreak, width, items) {
   }
 }
 
+/** Numri i Njësisë ARBK + POS ID — nga fiscal/order, pastaj cilësimet SEF aktuale. */
 function resolveSefUnitAndPos(fiscal, order) {
   let unitNumber = "";
   let posId = "";
@@ -1173,12 +1177,15 @@ function resolveSefUnitAndPos(fiscal, order) {
       if (!posId) {
         posId = String(s.pos_id || "").trim();
       }
-    } catch {}
+    } catch {
+      /* */
+    }
   }
   return { unitNumber, posId };
 }
 
 function appendAtkHeader(lines, width, ctx) {
+  // ^B mbetet në tekst për guard ATK; me lightPrint nuk shtohet ESC bold i rëndë.
   lines.push(`${ATK_TITLE_CENTER}^H^B${pad(String(ctx.brandName).toUpperCase(), width, "center")}`);
   atkGap(lines, 1);
   appendAtkCenterLine(lines, `${t("atk_taxpayer")}: ${legalNameDisplay(ctx.legalName)}`, width);
@@ -1198,6 +1205,7 @@ function appendAtkHeader(lines, width, ctx) {
   appendAtkRule(lines, width);
 }
 
+/** Punëtori, pastaj një rresht bosh, pastaj KUPON FISKAL (mos të ngjiten). */
 function appendAtkTitleAndOperator(lines, width, receiptType, operatorName, posId) {
   lines.push(formatAtkWorkerLine(operatorName, posId, width));
   atkGap(lines, 1);
@@ -1210,6 +1218,7 @@ function legalNameDisplay(name) {
   return String(name || "-").trim() || "-";
 }
 
+/** PUNETORI + POS ID — POS ID mbetet i plotë; emri shkurtohet nëse s'hyn në gjerësinë e letrës. */
 function formatAtkWorkerLine(operatorName, posId, width = WIDTH) {
   const name = legalNameDisplay(operatorName);
   const pos = String(posId || "-").trim() || "-";
@@ -1277,6 +1286,7 @@ function resolveAtkPaymentSplits(order, fiscal, paymentMethod, totalPay) {
   return splits;
 }
 
+/** Pagesë e vetme: MENYRA E PAGESES | KESH. E përzier: etiketë + një rresht për çdo mënyrë me shumën. */
 function appendAtkPaymentLines(lines, width, order, fiscal, paymentMethod, totalPay) {
   const splits = resolveAtkPaymentSplits(order, fiscal, paymentMethod, totalPay);
   lines.push(padLine(t("atk_payment_method"), "", width));

@@ -164,6 +164,7 @@ function buildFiscalReceiptTextFromRow(row) {
   }
 
   const fiscalData = {
+    fiscal_receipt_id: row.id,
     taxpayer_legal_name: row.taxpayer_name,
     taxpayer_name: row.taxpayer_name,
     taxpayer_address: row.taxpayer_address,
@@ -201,15 +202,35 @@ function buildFiscalReceiptTextFromRow(row) {
  * Nuk ndryshon NUIKF / përmbajtjen fiskale — vetëm shënimi i kopjes.
  */
 function markReceiptTextAsCopy(printText) {
-  const banner = "^B^CKOPJE E KUPONIT";
-  const rule = "^C==============================";
   const lines = String(printText || "").split(/\r?\n/);
-  let first = 0;
-  while (first < lines.length && !String(lines[first] || "").trim()) first += 1;
-  if (first < lines.length) {
-    lines.splice(first + 1, 0, banner, rule);
+  let title = -1;
+  for (let i = 0; i < lines.length; i += 1) {
+    const t = String(lines[i] || "").replace(/\^[A-Z]/g, "");
+    if (/KUPON FISKAL DITOR|FISKALNI KUPON DNEVNI/i.test(t)) continue;
+    if (/KUPON FISKAL|FISKALNI KUPON/i.test(t)) {
+      title = i;
+      break;
+    }
+  }
+  const width =
+    title >= 0
+      ? String(lines[title] || "").replace(/\^[A-Z]/g, "").length
+      : 42;
+  const label = "KOPJE E KUPONIT";
+  const left = Math.max(0, Math.floor((Math.max(width, label.length) - label.length) / 2));
+  const right = Math.max(0, Math.max(width, label.length) - label.length - left);
+  const banner = `^C^H^B${" ".repeat(left)}${label}${" ".repeat(right)}`;
+  const rule = "^C==============================";
+  if (title >= 0) {
+    lines.splice(title, 0, banner, rule);
   } else {
-    lines.unshift(banner, rule);
+    let first = 0;
+    while (first < lines.length && !String(lines[first] || "").trim()) first += 1;
+    if (first < lines.length) {
+      lines.splice(first + 1, 0, banner, rule);
+    } else {
+      lines.unshift(banner, rule);
+    }
   }
   while (lines.length && !String(lines[lines.length - 1] || "").trim()) {
     lines.pop();
@@ -245,6 +266,7 @@ function getFiscalReceiptPreview(id) {
   };
 }
 
+/** Preview + QR PNG (base64) për Print Preview në ekran — pa printim letre. */
 async function getFiscalReceiptPreviewWithQr(id) {
   const preview = getFiscalReceiptPreview(id);
   if (!preview) return null;

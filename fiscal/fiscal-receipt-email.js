@@ -68,6 +68,10 @@ async function postReceiptEmailPayload(payload) {
   }
 }
 
+/**
+ * Dërgon kuponin fiskal te email i konsumatorit.
+ * Kthen { ok, error?, nuikf?, email? } — nuk hedh gabim (mos blloko programin).
+ */
 async function emailFiscalReceiptToConsumer(opts = {}) {
   if (!isFiscalEnabled()) {
     return { ok: false, error: "Fiskalizimi nuk është aktiv" };

@@ -1,4 +1,29 @@
+﻿## 2026-11-13 - Kupon fiskal njesoj si referenca
+
+Print, logo RKS/MF, kthim/anulim/kthim malli, kopje, email online/offline. Pa ATK. Nuk u be build.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiscal/fiscal-print.js` | layout kupon |
+| `fiscal/fiscal-receipt-guard.js` | kontroll kupon |
+| `fiscal/fiscal-logo.js` + logo | logo RKS/MF |
+| `fiscal/fiscal-correction.js` | kthim/anulim |
+| `fiscal/fiscal-receipts-list.js` | kopje |
+| `fiscal/fiscal-receipt-email.js` | email + radhe |
 # PUNA.md
+
+## 2026-11-13 - Testo SEF-in si BIZNES (4 presje + katalog)
+
+Testi 6. KUPONI u barazua me BIZNES: 4 presje në letër lejohen (jo 2). Testi 6b përdor Miell 5kg / KGN të katalogut të Fiskalizimit (jo Miell 1kg). Pa dërgim ATK. Nuk u be build.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiscal/fiscal-self-test.js` | testi i kuponit si BIZNES; 6b me produkt KGN lokal |
+| `fiscal/fiscal-test-coupon-data.js` | kontroll çmimi print deri 4 presje |
+
+## 2026-11-13 - Setup 1.011
+
+Version `1.0.10` → `1.0.11`. Instaluesi: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.011-win-x64.exe`. Të vjetrat 1.007–1.010 mbeten. ATK i ndalur. Të dhënat e biznesit nuk fshihen.
 
 ## 2026-11-13 - Testo SEF-in i dukshëm
 
@@ -971,3 +996,4 @@ Skedarë:
 Provë: hash QR/Z/wizard = BIZNES; require i moduleve OK. Onboarding nuk u prek.
 
 Nuk u prek: BIZNES, build, çelësa, dërgim HTTP te ATK.
+
