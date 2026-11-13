@@ -2858,14 +2858,14 @@
           <input id="cart-sur-val" type="number" min="0" step="0.01" value="0" />
         </div>
         <div class="cart-actions">
-          <button type="button" class="cart-action-btn" id="btn-kasa-gift"><span class="cart-action-key">F10</span>Gift Card</button>
-          <button type="button" class="cart-action-btn" id="btn-scale-wizard"><span class="cart-action-key">F8</span>Vagë</button>
-          <button type="button" class="cart-action-btn" id="btn-kasa-cat"><span class="cart-action-key">ESC</span>Kategori</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-bill-disc"><span class="cart-action-key">F7</span>Zbritje në<br>Faturë</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-gift"><span class="cart-action-key">F5</span>Gift Card</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-nopaper"><span class="cart-action-key">F3</span>Paguaj pa<br>letër</button>
           <button type="button" class="cart-action-btn" id="btn-kasa-drawer"><span class="cart-action-key">F1</span>Hap Sirtarin</button>
-          <button type="button" class="cart-action-btn" id="btn-kasa-line-disc"><span class="cart-action-key">F3</span>Zbritje në rresht</button>
-          <button type="button" class="cart-action-btn" id="btn-kasa-f11"><span class="cart-action-key">F11</span>Paguaj</button>
-          <button type="button" class="cart-action-btn" id="btn-kasa-bill-disc"><span class="cart-action-key">F5</span>Zbritje në Faturë</button>
-          <button type="button" class="cart-action-btn" id="btn-kasa-pay"><span class="cart-action-key">F12</span>Paguaj</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-price"><span class="cart-action-key">F6</span>Ndërro<br>Çmimin</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-scale"><span class="cart-action-key">F4</span>Vagë</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-pay"><span class="cart-action-key">F2</span>Paguaj</button>
+          <button type="button" class="cart-action-btn" id="btn-kasa-cat"><span class="cart-action-key">ESC</span>Kategori</button>
         </div>
       </div>
     </section>
@@ -6264,7 +6264,14 @@
       if (!grid) return;
       const all = arkaProductsE();
       syncPosCatProdPanel();
-      renderPosCategoryList();
+      const q = normalizeProdName(state.posProdSearch || "");
+      if (!q) renderPosCategoryList();
+
+      const cat = state.posArkaCategory;
+      if (!q && (!cat || !state.posArkaProdOpen)) {
+        grid.innerHTML = "";
+        return;
+      }
 
       if (!all.length) {
         if (prodTitle) prodTitle.textContent = "Produktet";
@@ -6273,18 +6280,28 @@
         return;
       }
 
-      if (!state.posArkaCategory || !state.posArkaProdOpen) {
-        grid.innerHTML = "";
-        return;
-      }
-
-      const cat = state.posArkaCategory;
-      const q = String(state.posProdSearch || "").trim().toLowerCase();
-      let list = all.filter((p) => productPosCategory(p) === cat);
+      let list;
       if (q) {
-        list = list.filter((p) => String(p.name || "").toLowerCase().includes(q));
+        const pool = (state.allProducts && state.allProducts.length) ? state.allProducts : all;
+        list = pool.filter((p) => {
+          const name = normalizeProdName(p.name);
+          const bc = String(p.barcode || "").trim().toLowerCase().replace(/\s+/g, "");
+          const qn = q.replace(/\s+/g, "");
+          if (name.startsWith(q) || name.split(" ").some((w) => w.startsWith(q)) || name.includes(q)) return true;
+          return !!(bc && qn && bc.includes(qn));
+        });
+        list.sort((a, b) => {
+          const na = normalizeProdName(a.name);
+          const nb = normalizeProdName(b.name);
+          const ra = na.startsWith(q) ? 0 : na.split(" ").some((w) => w.startsWith(q)) ? 1 : 2;
+          const rb = nb.startsWith(q) ? 0 : nb.split(" ").some((w) => w.startsWith(q)) ? 1 : 2;
+          if (ra !== rb) return ra - rb;
+          return na.localeCompare(nb, "sq");
+        });
+      } else {
+        list = all.filter((p) => productPosCategory(p) === cat);
       }
-      if (prodTitle) prodTitle.textContent = posCategoryLabel(cat);
+      if (prodTitle) prodTitle.textContent = q ? "Kërkimi" : posCategoryLabel(cat);
       grid.className = "grid pos-arka-grid pos-arka-mode-prod";
       if (!list.length) {
         const emptyMsg = q
@@ -9802,9 +9819,8 @@
     document.getElementById("btn-kasa-pay")?.addEventListener("click", () => payFromArka({ forceThermal: true }));
     document.getElementById("btn-kasa-cat")?.addEventListener("click", () => togglePosCatalog());
     document.getElementById("pos-catalog-close")?.addEventListener("click", () => togglePosCatalog(false));
-    document.getElementById("btn-kasa-line-disc")?.addEventListener("click", openLineDiscount);
     document.getElementById("btn-kasa-bill-disc")?.addEventListener("click", openBillDiscount);
-    document.getElementById("btn-kasa-f11")?.addEventListener("click", () => {
+    document.getElementById("btn-kasa-nopaper")?.addEventListener("click", () => {
       if (!state.cart.length || anyPosOverlayOpen()) return;
       syncAllLineAdjustmentsFromDom();
       syncCartAdjustmentInputs();
@@ -9824,7 +9840,7 @@
       checkout({ thermal: true, skipPrint: true });
     });
     document.getElementById("btn-kasa-gift")?.addEventListener("click", openGift);
-    document.getElementById("btn-scale-wizard")?.addEventListener("click", openScale);
+    document.getElementById("btn-kasa-scale")?.addEventListener("click", openScale);
     document.getElementById("btn-kasa-drawer")?.addEventListener("click", () => { openDrawer(); });
     document.getElementById("btn-pay-mixed")?.addEventListener("click", openMixed);
     document.getElementById("line-disc-pct")?.addEventListener("click", () => {
@@ -9900,7 +9916,7 @@
       if (login && !login.classList.contains("hidden")) return;
       if (typeof activeTabName !== "undefined" && activeTabName !== "pos") return;
       const key = e.key;
-      if (key !== "Escape" && key !== "F12" && key !== "F11" && key !== "F10" && key !== "F8" && key !== "F5" && key !== "F3" && key !== "F1") return;
+      if (key !== "Escape" && !/^F\d{1,2}$/.test(key)) return;
       if (key === "Escape") {
         if (anyPosOverlayOpen()) {
           closePosOverlays();
@@ -9908,19 +9924,24 @@
           return;
         }
         if (e.target && e.target.isContentEditable) return;
-        togglePosCatalog();
+        document.getElementById("btn-kasa-cat")?.click();
         e.preventDefault();
         return;
       }
       if (anyPosOverlayOpen()) return;
+      const byKey = {
+        F1: "btn-kasa-drawer",
+        F2: "btn-kasa-pay",
+        F3: "btn-kasa-nopaper",
+        F4: "btn-kasa-scale",
+        F5: "btn-kasa-gift",
+        F6: "btn-kasa-price",
+        F7: "btn-kasa-bill-disc",
+      };
+      const id = byKey[key];
+      if (!id) return;
       e.preventDefault();
-      if (key === "F12") payFromArka({ forceThermal: true });
-      if (key === "F10") openGift();
-      if (key === "F8") openScale();
-      if (key === "F5") openBillDiscount();
-      if (key === "F11") document.getElementById("btn-kasa-f11")?.click();
-      if (key === "F3") openLineDiscount();
-      if (key === "F1") openDrawer();
+      document.getElementById(id)?.click();
     }, true);
     document.getElementById("pos-btn-shtyp-kupon-termik")?.addEventListener("click", () => {
       shtypPosKuponTermikPasPagese();
@@ -10014,6 +10035,7 @@
     });
     document.getElementById("pos-prod-search")?.addEventListener("input", (e) => {
       state.posProdSearch = String(e.target.value || "");
+      if (String(state.posProdSearch || "").trim()) state.posArkaProdOpen = true;
       renderProducts();
     });
     document.getElementById("pos-scan")?.addEventListener("keydown", async (e) => {

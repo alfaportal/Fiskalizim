@@ -1,5 +1,29 @@
 # PUNA.md
 
+## 2026-11-13 - Tastet e arkes F1-F7 si DYQANET
+
+F1 sirtar, F2 paguaj termik, F3 pa leter termik, F4 vage, F5 gift, F7 zbritje fature, ESC kategori. U hoq Zbritje ne rresht / F11 / F12.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | tabela F1–F7 |
+
+## 2026-11-13 - Kerko i shpejte me shkronja
+
+Sa shkruan, dalin artikujt nga te gjitha kategorite. Si DYQANET.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | kerko live ne te gjitha |
+
+## 2026-11-12 — Setup 1.008
+
+Versioni u rrit nga 1.007 në 1.008. Instaluesi i ri:
+
+`C:\Users\1\Desktop\firmat\FISKALIZIME\dist-atk-v2\Revolution-Fiskalizim-Setup-1.008-win-x64.exe`
+
+Përfshin syrin te arka: kutia e parave është e fshehur, punonjësi e hap me syrin. Përfshin edhe shitjen, zbritjen dhe pagesën veç e veç. Instaluesi 1.007 mbetet. Mbyll programin plotësisht, instaloje këtë, pastaj hape përsëri.
+
 ## 2026-11-12 — Syri te arka fsheh pazarin
 
 Krejt kutia «Monedha në arkë» (shuma, shitja, zbritja, cash) është e fshehur. Klienti nuk e sheh. Punonjësi shtyp syrin dhe e sheh. Shtypja e dytë e mbyll përsëri. Faqja e arkës mbetet hapur. Nuk u bë Setup. Në programin e instaluar ende nuk duket.
