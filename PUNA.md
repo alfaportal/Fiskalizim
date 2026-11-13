@@ -1,5 +1,109 @@
 # PUNA.md
 
+## 2026-11-13 - Testo SEF-in i dukshëm
+
+Butoni «Testo SEF-in» te cilësimet ATK (si BIZNES). 22 teste lokale, pa ATK. Nuk u be build.
+
+## 2026-11-13 - Instalim i ri pastër / update pa humbje
+
+DB te AppData Revolution Fiskalizim. Uninstall nuk fshin të dhënat. Rivendosja e vet.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `main.js` | `factory-reset-pending-fiskalizim` |
+| `package.json` | `deleteAppDataOnUninstall: false` |
+
+Nuk u be build.
+
+## 2026-11-13 - Fiskal dhe termik te ndare
+
+Lista e kuponëve fiskalë nuk i përzien me termik. Numri ditor 0001 rifillon çdo ditë. Numri serik 0000000084 nuk rifillon.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server.js` | `/api/fiscal/receipts` vetëm `fiscal_receipts` |
+
+Nuk u be build. Nuk u derguan kupone te ATK.
+
+## 2026-11-13 - Njësia dhe lloji ATK (AU/KGN/LTR)
+
+Katalogu kishte EA/TT për të gjithë. Tani njësia/lloji vendosen si te BIZNES (ushqim AU, kg/g KGN, litër LTR, pije PJA). Kuponët e dërguar te ATK nuk ndryshohen.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | `ensureFiskalAtkUnitTypeOnProducts` në init |
+| `data/default-products.json` | unit_code / category_code |
+
+Nuk u bë build. Kuponët 47/48 te ATK mbeten.
+
+## 2026-11-13 - Print kopje: OPERATORI:
+
+Kontrolli i printit kërkonte `Operator:` por kuponi ka `OPERATORI:` — prandaj «mungojnë: operator» dhe s’printonte. U pranua `OPERATORI:` / `PUNETORI:`. Kuponi 47 te ATK nuk u prek.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiscal/fiscal-receipt-guard.js` | `RE_OPERATOR` njeh OPERATORI: |
+
+Nuk u bë build. Nuk u ndryshua numri 5 te ATK.
+
+## 2026-11-13 - Setup 1.010
+
+Version 1.0.10 (instalues 1.010). Build `node scripts/build-sef.js`. Instaluesit 1.007–1.009 mbeten.
+
+Path: `dist-atk-v2\Revolution-Fiskalizim-Setup-1.010-win-x64.exe`
+
+## 2026-11-13 - Rivendos si të re (skedë)
+
+Skeda **Rivendos** — zona e rrezikshme si Market. Dy dritare + fjala RIVENDOS. Fshin DB, çelësat e enkriptimit, fiscal-keys, logo. Licenca mbetet. Nuk kthen backup automatikisht pas fshirjes.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `main.js` | wipe i të dhënave në boot (jo licencë) + rinisje |
+| `server.js` | `POST /api/admin/factory-reset` |
+| `public/index.html` | skeda Rivendos + modalet |
+
+Nuk u bë build. Nuk u prek ATK auto-send.
+
+## 2026-11-13 - Lokal & biznesi (si Market)
+
+Skeda e re **Lokal & biznesi** te Fiskalizimi: të dhënat e biznesit (emër, qytet, email, banka, SWIFT, IBAN, logo A4, operator) + backup USB dhe **Rikthe backup (Documents)** me listë zgjedhjeje.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | `getBusinessProfile` / `saveBusinessProfile` (settings + emër/NUI te fiscal_settings) |
+| `server.js` | `GET/PUT /api/business-profile` |
+| `public/index.html` | tab, forma, modal restore |
+
+Nuk u prek: ATK auto-send, çelësat, Cilësimet SEF (mbeten). Nuk u bë build.
+
+## 2026-11-13 - Audit / Cilësimet SEF mesazhi i gabuar
+
+Nëse kodi s'hap skedën, tani del «Fjalëkalimi i gabuar» te dritarja (jo te skeda e fshehur).
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | `promptTabGate` përsërit + z-index |
+
+## 2026-11-13 - Kategorite 6 katror ne rresht
+
+Katrorët e kategorive te arka u zvogeluan: 6 ne rresht, jo 2.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | `pos-arka-cat-list` 6 kolona |
+
+## 2026-11-13 - Setup 1.009
+
+Version 1.0.9 (instalues 1.009). Build `node scripts/build-sef.js`. Instaluesit 1.007 dhe 1.008 mbeten.
+
+## 2026-11-13 - Syri te arka hap dhe mbyll
+
+Syri te arka e Fiskalizimit: nje shtypje hap pazarin, shtypja e dyte e mbyll (si Market). Kutia fshihet me `display:none`.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | CSS hidden + klik si Market |
+
 ## 2026-11-13 - Tastet e arkes F1-F7 si DYQANET
 
 F1 sirtar, F2 paguaj termik, F3 pa leter termik, F4 vage, F5 gift, F7 zbritje fature, ESC kategori. U hoq Zbritje ne rresht / F11 / F12.

@@ -1,6 +1,6 @@
 {
     "name": "revolution-fiskalizim",
-    "version": "1.007",
+    "version": "1.0.10",
     "description": "Revolution Fiskalizim — modul fiskal ATK (TEST)",
     "main": "main.js",
     "author": "Revolution Invest SH.P.K.",
@@ -107,6 +107,7 @@
             "allowElevation": true,
             "runAfterFinish": true,
             "displayLanguageSelector": false,
+            "deleteAppDataOnUninstall": false,
             "createDesktopShortcut": "always",
             "createStartMenuShortcut": true,
             "shortcutName": "Revolution Fiskalizim",

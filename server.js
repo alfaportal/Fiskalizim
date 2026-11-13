@@ -488,6 +488,7 @@ async function boot() {
     "/api/backup/run",
     "/api/auto-backup/restore",
     "/api/auto-backup/run-now",
+    "/api/admin/factory-reset",
     "/api/auth/login",
     "/api/operators/verify-pin",
   ]);
@@ -811,6 +812,31 @@ async function boot() {
     } catch (e) {
       console.error("[backup-restore]", e);
       res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.post("/api/admin/factory-reset", (req, res) => {
+    try {
+      const confirm = String(req.body?.confirm || "").trim();
+      if (confirm !== "RIVENDOS") {
+        return res.status(400).json({ ok: false, error: "Duhet të shkruani saktë RIVENDOS." });
+      }
+      if (typeof global["__scheduleFactoryResetRelaunch"] !== "function") {
+        return res.status(500).json({
+          ok: false,
+          error: "Rivendosja është e disponueshme vetëm në aplikacionin desktop (Electron).",
+        });
+      }
+      res.json({ ok: true, message: "Programi po riniset si i ri..." });
+      setTimeout(() => {
+        try {
+          global["__scheduleFactoryResetRelaunch"]();
+        } catch (e) {
+          console.error("factory-reset relaunch:", e.message);
+        }
+      }, 250);
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
     }
   });
 
@@ -1239,6 +1265,24 @@ async function boot() {
     try {
       const { removeBusinessLogo } = require("./fiscal/fiscal-logo");
       res.json(removeBusinessLogo());
+    } catch (e) {
+      res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.get("/api/business-profile", (_req, res) => {
+    try {
+      res.json({ ok: true, profile: db.getBusinessProfile() });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  app.put("/api/business-profile", (req, res) => {
+    try {
+      const profile = db.saveBusinessProfile(req.body || {});
+      if (typeof db.flushDatabase === "function") db.flushDatabase();
+      res.json({ ok: true, profile });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
     }
@@ -2248,19 +2292,7 @@ async function boot() {
               : "Në pritje",
         atk_ok: Number(r.sent_to_atk) === 1,
       }));
-      let thermal = [];
-      try {
-        thermal = db.listThermalCoupons(100);
-      } catch (te) {
-        console.warn("[receipts] termik", te.message);
-      }
-      const receipts = rows.concat(thermal).sort((a, b) => {
-        const da = `${a.fiscal_date || ""} ${a.fiscal_time || ""}`;
-        const dbk = `${b.fiscal_date || ""} ${b.fiscal_time || ""}`;
-        if (da !== dbk) return dbk.localeCompare(da);
-        return String(b.id).localeCompare(String(a.id));
-      });
-      res.json({ ok: true, receipts });
+      res.json({ ok: true, receipts: rows });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }

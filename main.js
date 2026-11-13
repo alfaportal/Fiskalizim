@@ -612,11 +612,12 @@ app.whenReady().then(async () => {
   const portable = require("./portable-path");
   const userData = path.join(app.getPath("appData"), "Revolution Fiskalizim");
   const dbDir = portable.getDataDir();
+  const FACTORY_RESET_DONE_FLAG = ".factory-reset-done";
   const resetFlag = path.join(userData, ".factory-reset-pending");
   const resetFlagExternal = path.join(
     app.getPath("appData"),
     "RevolutionInvest",
-    "factory-reset-pending-biznes",
+    "factory-reset-pending-fiskalizim",
   );
   const clearFactoryResetFlags = () => {
     try {
@@ -630,22 +631,119 @@ app.whenReady().then(async () => {
       /* ignore */
     }
   };
-  const wipeLicenseOnlyForFactoryReset = () => {
+  const markFactoryResetSkipBackupRestore = () => {
     try {
-      const cloud = require("./protection/cloud-license");
-      cloud.registerInstallContext(app);
-      if (typeof cloud.wipeAllActivationData === "function") {
-        cloud.wipeAllActivationData(app);
-      }
+      fs.mkdirSync(dbDir, { recursive: true });
+      fs.writeFileSync(path.join(dbDir, FACTORY_RESET_DONE_FLAG), new Date().toISOString(), "utf8");
     } catch (e) {
-      console.warn("[factory-reset] vetëm licencë:", e.message || e);
+      console.warn("[factory-reset] skip-restore flag:", e.message || e);
     }
   };
-  if (fs.existsSync(resetFlag) || fs.existsSync(resetFlagExternal)) {
-    wipeLicenseOnlyForFactoryReset();
+  const wipeClientDataForFactoryReset = () => {
+    const deleted = [];
+    const unlinkIfExists = (full, label) => {
+      try {
+        if (full && fs.existsSync(full)) {
+          fs.unlinkSync(full);
+          if (!fs.existsSync(full)) deleted.push(label || path.basename(full));
+        }
+      } catch (e) {
+        console.warn("[factory-reset] file:", full, e.message || e);
+      }
+    };
+    const files = [
+      "biznes.db",
+      ".db-master.dpapi",
+      ".db-install-salt",
+      ".db-master.scrypt",
+      "business-logo.png",
+      "settings-backup.json",
+    ];
+    for (const name of files) unlinkIfExists(path.join(dbDir, name), name);
+    try {
+      for (const name of fs.readdirSync(dbDir)) {
+        if (name.startsWith("biznes.db.corrupt-") || name.startsWith("biznes.db.load-fail-")) {
+          unlinkIfExists(path.join(dbDir, name), name);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    const keysDir = path.join(dbDir, "fiscal-keys");
+    try {
+      if (fs.existsSync(keysDir)) {
+        fs.rmSync(keysDir, { recursive: true, force: true });
+        if (!fs.existsSync(keysDir)) deleted.push("fiscal-keys/");
+      }
+    } catch (e) {
+      console.warn("[factory-reset] fiscal-keys:", e.message || e);
+    }
+    return { ok: true, deleted };
+  };
+  const writeFactoryResetPendingFlags = () => {
+    const stamp = new Date().toISOString();
+    try {
+      fs.mkdirSync(path.dirname(resetFlagExternal), { recursive: true });
+      fs.writeFileSync(resetFlagExternal, stamp, "utf8");
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.mkdirSync(userData, { recursive: true });
+      fs.writeFileSync(resetFlag, stamp, "utf8");
+    } catch {
+      /* ignore */
+    }
+  };
+  const factoryResetRequested = fs.existsSync(resetFlag) || fs.existsSync(resetFlagExternal);
+  if (factoryResetRequested) {
+    markFactoryResetSkipBackupRestore();
+    const wiped = wipeClientDataForFactoryReset();
     clearFactoryResetFlags();
     fs.mkdirSync(userData, { recursive: true });
+    console.log(
+      "[factory-reset] startup wipe:",
+      wiped?.deleted?.length ? wiped.deleted.join(", ") : "asnjë skedar",
+    );
   }
+  global["__scheduleFactoryResetRelaunch"] = () => {
+    try {
+      dialog.showMessageBoxSync({
+        type: "warning",
+        title: "Revolution Fiskalizim",
+        message: "Rivendosje nga administratori",
+        detail:
+          "Të dhënat lokale (DB) fshihen pas mbylljes së programit. Licenca mbetet — programi riniset si i ri.",
+        buttons: ["OK"],
+      });
+    } catch {
+      /* ignore */
+    }
+    markFactoryResetSkipBackupRestore();
+    writeFactoryResetPendingFlags();
+    try {
+      const autoBackup = require("./auto-backup");
+      if (typeof autoBackup.stopAutoBackup === "function") autoBackup.stopAutoBackup();
+    } catch {
+      /* ignore */
+    }
+    try {
+      const db = require("./database");
+      if (typeof db.flushDatabase === "function") db.flushDatabase();
+    } catch {
+      /* ignore */
+    }
+    stopServer();
+    const execPath = String(process.execPath || "");
+    if (!/^[Z]:/i.test(execPath)) {
+      try {
+        app.relaunch();
+      } catch {
+        /* ignore */
+      }
+    }
+    app.exit(0);
+  };
   try {
     app.setPath("userData", userData);
   } catch {
@@ -664,6 +762,15 @@ app.whenReady().then(async () => {
   try {
     const autoBackup = require(path.join(__dirname, "auto-backup"));
     const fiscalKeysPath = path.join(dbDir, "fiscal-keys");
+    const doneFlagPath = path.join(dbDir, FACTORY_RESET_DONE_FLAG);
+    if (fs.existsSync(doneFlagPath)) {
+      try {
+        fs.unlinkSync(doneFlagPath);
+      } catch {
+        /* ignore */
+      }
+      console.log("[factory-reset] skip auto-restore pas rivendosjes");
+    } else {
     const restore = autoBackup.maybeRestoreOnStartup({
       targetDbPath: process.env.BIZNES_DB_PATH,
       targetKeysPath: fiscalKeysPath,
@@ -684,6 +791,7 @@ app.whenReady().then(async () => {
       } catch {
         /* ignore */
       }
+    }
     }
   } catch (e) {
     console.warn("[backup] startup restore:", e.message || e);

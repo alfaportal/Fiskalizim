@@ -215,6 +215,70 @@ function vatPercentForLetter(letter) {
   return Number(vatCategoryForLetter(letter)) || 0;
 }
 
+function normAtkName(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[ëé]/g, "e")
+    .replace(/[çč]/g, "c");
+}
+
+function inferFiskalAtkUnitAndType(name, posCategory) {
+  const n = normAtkName(name);
+  const c = normAtkName(posCategory);
+  let unit = "EA";
+  let type = "TT";
+  if (/sherbim/.test(n) || /sherbim/.test(c)) {
+    return { unit_code: "EA", category_code: "ST" };
+  }
+  if (/cigare|duhan|puro|tobak/.test(n)) {
+    return { unit_code: "PK", category_code: "DUH" };
+  }
+  if (/birra|vere|raki|vodk|uiski|xhin|konjak|prosecco|alkool/.test(n)) type = "PAL";
+  else if (
+    /coca|fanta|sprite|pepsi|leng|nektar|uje|red bull|hell|energj|limonad|pije/.test(n) ||
+    c === "pije"
+  ) {
+    type = "PJA";
+  } else if (/kafe|caj|kakao/.test(n) || /pije te nxehta/.test(c)) type = "UR";
+  else if (
+    /buke|miell|makaron|oriz|qumesht|kos|djath|gjalp|veze|mish|suxhuk|salam|fruta|perime|dredh|rush|pjeshk|gjez|embelsir|byrek|baget|jogurt/.test(
+      n
+    ) ||
+    /buke|bulmet|ushqim|perime|peme|mish|veze|embelsira/.test(c)
+  ) {
+    type = "AU";
+  }
+  if (/\d+(?:[.,]\d+)?\s*kg\b/.test(n) || /\b1kg\b/.test(n)) unit = "KGN";
+  else if (/\d+(?:[.,]\d+)?\s*(g|gr|gram)\b/.test(n)) unit = "KGN";
+  else if (/\d+(?:[.,]\d+)?\s*(ml|l)\b/.test(n) || /\b1l\b/.test(n) || /0\.5l|0\.75l/.test(n)) {
+    unit = "LTR";
+  }
+  return { unit_code: unit, category_code: type };
+}
+
+function ensureFiskalAtkUnitTypeOnProducts() {
+  const marker = "fiskal_atk_unit_type_v1";
+  if (getSetting(marker) === "1") return 0;
+  const rows = sqlite
+    .prepare("SELECT id, name, unit_code, category_code, pos_category FROM products")
+    .all();
+  const upd = sqlite.prepare(
+    `UPDATE products SET unit_code = ?, category_code = ? WHERE id = ?`
+  );
+  let n = 0;
+  for (const row of rows) {
+    const inferred = inferFiskalAtkUnitAndType(row.name, row.pos_category);
+    const unit = String(row.unit_code || "EA").trim().toUpperCase() || "EA";
+    const cat = String(row.category_code || "TT").trim().toUpperCase() || "TT";
+    if (unit === inferred.unit_code && cat === inferred.category_code) continue;
+    upd.run(inferred.unit_code, inferred.category_code, row.id);
+    n += 1;
+  }
+  if (n) syncMenuItemsFromProducts();
+  setSetting(marker, "1");
+  return n;
+}
+
 /** Siguro që çdo produkt ka vat_category = % sipas shkronjës (ligji 05/L-037). */
 function ensureProductVatCategories() {
   const rows = sqlite.prepare("SELECT id, vat_letter, vat_category FROM products").all();
@@ -1211,6 +1275,7 @@ function initSchema() {
   }
 
   ensureProductVatCategories();
+  ensureFiskalAtkUnitTypeOnProducts();
   clearKnownPaperBlockProbeRows();
   clearCirculationOnNewInstall();
 }
@@ -3286,6 +3351,74 @@ function getDitari(opts = {}) {
   };
 }
 
+const BUSINESS_PROFILE_EXTRA = [
+  "biz_city",
+  "biz_email",
+  "biz_arbk",
+  "biz_bank_name",
+  "biz_bank_swift",
+  "biz_bank_iban",
+  "biz_cashier_operator",
+  "biz_register_number",
+  "biz_footer",
+  "biz_logo",
+];
+
+function getBusinessProfile() {
+  let fiscal = {};
+  try {
+    fiscal = getFiscalSettingsRow() || {};
+  } catch {
+    fiscal = {};
+  }
+  return {
+    biz_logo: getSetting("biz_logo", "") || "",
+    biz_name: getSetting("biz_name", "") || fiscal.taxpayer_legal_name || "",
+    biz_address: getSetting("biz_address", "") || fiscal.taxpayer_address || "",
+    biz_city: getSetting("biz_city", "") || "",
+    biz_phone: getSetting("biz_phone", "") || fiscal.unit_phone || "",
+    biz_email: getSetting("biz_email", "") || "",
+    biz_nui: getSetting("biz_nui", "") || fiscal.taxpayer_nui || "",
+    biz_fiscal_number: getSetting("biz_fiscal_number", "") || fiscal.taxpayer_nf || "",
+    biz_arbk: getSetting("biz_arbk", "") || "",
+    biz_vat_number: getSetting("biz_vat_number", "") || fiscal.taxpayer_vat_number || "",
+    biz_bank_name: getSetting("biz_bank_name", "") || "",
+    biz_bank_swift: getSetting("biz_bank_swift", "") || "",
+    biz_bank_iban: getSetting("biz_bank_iban", "") || "",
+    biz_cashier_operator: getSetting("biz_cashier_operator", "") || "",
+    biz_register_number: getSetting("biz_register_number", "") || "",
+    biz_footer: getSetting("biz_footer", "") || "",
+  };
+}
+
+function saveBusinessProfile(data) {
+  const src = data && typeof data === "object" ? data : {};
+  const textKeys = [
+    "biz_name",
+    "biz_address",
+    "biz_phone",
+    "biz_nui",
+    "biz_fiscal_number",
+    "biz_vat_number",
+    ...BUSINESS_PROFILE_EXTRA,
+  ];
+  for (const key of textKeys) {
+    if (src[key] === undefined) continue;
+    setSetting(key, String(src[key] ?? "").trim());
+  }
+  const fiscalPatch = {};
+  if (src.biz_name !== undefined) fiscalPatch.taxpayer_legal_name = String(src.biz_name ?? "").trim();
+  if (src.biz_address !== undefined) fiscalPatch.taxpayer_address = String(src.biz_address ?? "").trim();
+  if (src.biz_phone !== undefined) fiscalPatch.unit_phone = String(src.biz_phone ?? "").trim();
+  if (src.biz_nui !== undefined) fiscalPatch.taxpayer_nui = String(src.biz_nui ?? "").trim();
+  if (src.biz_fiscal_number !== undefined) fiscalPatch.taxpayer_nf = String(src.biz_fiscal_number ?? "").trim();
+  if (src.biz_vat_number !== undefined) fiscalPatch.taxpayer_vat_number = String(src.biz_vat_number ?? "").trim();
+  if (Object.keys(fiscalPatch).length) {
+    saveFiscalSettings(fiscalPatch);
+  }
+  return getBusinessProfile();
+}
+
 module.exports = {
   initDatabase,
   reloadDatabaseFromDisk,
@@ -3322,6 +3455,8 @@ module.exports = {
   getOrder,
   listRecentOrders,
   getFiscalSettingsRow,
+  getBusinessProfile,
+  saveBusinessProfile,
   saveFiscalSettings,
   vatCategoryForLetter,
   vatPercentForLetter,

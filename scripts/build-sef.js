@@ -16,7 +16,12 @@ const ROOT = path.join(__dirname, "..");
 /** Gjithmonë dist-atk-v2 — mos krijo dist-atk-v309 etj. */
 const outDir = "dist-atk-v2";
 const pkg = require("../package.json");
-const version = String(pkg.version || "0.0.0").trim();
+function installerTag(v) {
+  const m = /^(\d+)\.0\.(\d+)$/.exec(String(v || "").trim());
+  if (m) return `${m[1]}.${String(m[2]).padStart(3, "0")}`;
+  return String(v || "").trim();
+}
+const version = installerTag(pkg.version);
 const exeName = `Revolution-Fiskalizim-Setup-${version}-win-x64.exe`;
 const exePath = path.join(ROOT, outDir, exeName);
 
@@ -97,6 +102,7 @@ run("npx", [
   "--win",
   "dir",
   `--config.directories.output=${stagingOut}`,
+  `--config.win.artifactName=Revolution-Fiskalizim-Setup-${version}-\${os}-\${arch}.\${ext}`,
   "--config.win.signAndEditExecutable=false",
 ]);
 
@@ -112,6 +118,7 @@ run("npx", [
   "nsis",
   `--config.directories.output=${outDir}`,
   `--prepackaged=${path.join(stagingOut, "win-unpacked")}`,
+  `--config.win.artifactName=Revolution-Fiskalizim-Setup-${version}-\${os}-\${arch}.\${ext}`,
   "--config.win.signAndEditExecutable=false",
 ]);
 

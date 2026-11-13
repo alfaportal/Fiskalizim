@@ -73,7 +73,7 @@ const RE_TOTAL =
 const RE_TOT_PA =
   /TOT\.\s*PA\s*TVSH|UKUP\.\s*BEZ\s*PDV|UKUPNO\s+BEZ\s+PDV|TOTALI PA TVSH/i;
 const RE_OPERATOR =
-  /Operator:|Operater:|EMRI I PUNETORIT:|IME RADNIKA:/i;
+  /OPERATORI:|PUNETORI:|Operator:|Operater:|EMRI I PUNETORIT:|IME RADNIKA:/i;
 const RE_DATA_ORA = /DATA DHE ORA:?|DATUM I VREME:?/i;
 const RE_DATA = /Data:|Datum:/i;
 const RE_ORA = /Ora:|Vreme:/i;

@@ -122,7 +122,12 @@
       line-height: 1.1;
       margin-right: 0.35rem;
     }
-    #pos-shift-pazar-box:not([hidden]) {
+    #pos-shift-pazar-box[hidden],
+    .pos-shift-pazar-box[hidden] {
+      display: none !important;
+    }
+    #pos-shift-pazar-box:not([hidden]),
+    .pos-shift-pazar-box:not([hidden]) {
       display: flex;
       flex-direction: column;
       align-items: flex-end;
@@ -154,6 +159,7 @@
       padding: 4px;
       line-height: 0;
       cursor: pointer;
+      flex-shrink: 0;
     }
     .shift-overlay {
       position: fixed;
@@ -609,8 +615,8 @@
     }
     .pos-arka-cat-list {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 4px;
       overflow-y: auto;
       flex: 1 1 auto;
       min-height: 0;
@@ -626,14 +632,14 @@
       aspect-ratio: 1 / 1;
       align-self: start;
       justify-self: stretch;
-      padding: 8px 6px;
-      border-radius: 10px;
+      padding: 3px 2px;
+      border-radius: 8px;
       border: 1px solid var(--line);
       background: #1e293b;
       color: #e2e8f0;
       font-weight: 650;
-      font-size: 0.7rem;
-      line-height: 1.15;
+      font-size: 0.55rem;
+      line-height: 1.1;
       cursor: pointer;
       text-align: center;
       box-shadow: 0 2px 0 #ffffff06 inset;
@@ -1585,6 +1591,7 @@
       padding: 16px;
     }
     .payment-overlay.hidden { display: none; }
+    #text-prompt-overlay { z-index: 2500; }
     .payment-box {
       width: min(400px, 100%);
       max-height: min(88vh, 620px);
@@ -1678,6 +1685,65 @@
     }
     .btn-warn { background: linear-gradient(180deg, #fbbf24, #d97706); color: #111; }
     .btn-danger { background: linear-gradient(180deg, #f87171, #dc2626); color: #fff; }
+    .btn-danger-reset {
+      background: #ffffff !important;
+      border: 1px solid #fecaca !important;
+      color: #111827 !important;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 10px 16px;
+      width: auto;
+    }
+    .settings-danger-zone {
+      margin-top: 8px;
+      padding: 1.25rem 1.35rem;
+      border: 1px solid #7f1d1d;
+      border-radius: 12px;
+      background: #3f1219;
+      max-width: 42rem;
+    }
+    .settings-danger-title { font-weight: 700; color: #fecaca; margin-bottom: 0.35rem; }
+    .settings-danger-desc {
+      margin: 0 0 1rem;
+      font-size: 0.9rem;
+      color: #fca5a5;
+      line-height: 1.45;
+    }
+    .factory-reset-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .factory-reset-modal[hidden] { display: none !important; }
+    .factory-reset-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    .factory-reset-modal-content {
+      position: relative;
+      width: min(440px, 100%);
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem;
+    }
+    .factory-reset-modal-content h3 { margin: 0 0 0.65rem; }
+    .factory-reset-modal-content p { margin: 0 0 1rem; opacity: 0.9; line-height: 1.45; }
+    .factory-reset-modal-content input {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    .factory-reset-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
     .btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .hidden { display: none !important; }
@@ -1979,6 +2045,64 @@
       margin-bottom: 8px;
     }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #tab-lokal .lokal-card {
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+    }
+    #tab-lokal .lokal-card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    #tab-lokal .lokal-card-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      background: #f97316;
+      color: #111;
+      font-size: 0.85rem;
+    }
+    #tab-lokal .lokal-card-title { font-weight: 700; font-size: 1.05rem; }
+    #tab-lokal .lokal-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 22px;
+    }
+    #tab-lokal .lokal-field label {
+      display: block;
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+    #tab-lokal .lokal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .table-modal[hidden] { display: none !important; }
+    .table-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2400;
+    }
+    .table-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+    }
+    .table-modal-content {
+      position: relative;
+      margin: 12vh auto 0;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      color: inherit;
+    }
     .app-id-toggle {
       display: inline-block;
       width: auto;
@@ -2762,6 +2886,8 @@
       <button type="button" data-tab="punonjes">Punonjësit</button>
       <button type="button" data-tab="paper-block">Blloku i letrës</button>
       <button type="button" data-tab="licenca">Licenca</button>
+      <button type="button" data-tab="lokal">Lokal &amp; biznesi</button>
+      <button type="button" data-tab="rivendos">Rivendos</button>
       <button type="button" data-tab="settings">Cilësimet SEF</button>
     </div>
     <span class="sr-only" id="header-env-badge">Revolution Invest SH.P.K. · v2.0.3</span>
@@ -2771,12 +2897,28 @@
         <button type="button" class="pos-pazar-eye" id="pos-shift-pazar-eye" aria-label="Shfaq pazarin">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <div id="pos-shift-pazar-box" hidden>
+        <div class="pos-shift-pazar-box" id="pos-shift-pazar-box" hidden>
           <span class="retail-pos-band-lbl">MONEDHA NË ARKË</span>
           <strong class="retail-pos-band-val pos-shift-drawer-cash-val" id="pos-shift-drawer-cash">0.00 €</strong>
           <span id="pos-shift-sale-bits" style="display:block;font-size:0.72rem;opacity:0.9"></span>
         </div>
       </div>
+      <script>
+      document.addEventListener("click", function (ev) {
+        var btn = ev.target.closest ? ev.target.closest(".pos-pazar-eye") : null;
+        if (!btn) return;
+        var wrap = btn.closest(".pos-dock-shift-cash") || btn.parentElement;
+        var box = wrap ? wrap.querySelector(".pos-shift-pazar-box") : null;
+        if (!box) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        var open = box.hasAttribute("hidden");
+        if (open) box.removeAttribute("hidden");
+        else box.setAttribute("hidden", "");
+        btn.setAttribute("aria-label", open ? "Fshih pazarin" : "Shfaq pazarin");
+        btn.classList.toggle("on", open);
+      }, true);
+      </script>
       <button type="button" class="btn btn-warn btn-sm js-pos-shift-close pos-dock-shift-close" id="btn-pos-mbyll-nderrimin-dock">
         Mbyll nderrimin
       </button>
@@ -3666,6 +3808,154 @@
       <div id="licenca-root"></div>
     </section>
 
+    <section class="panel hidden" id="tab-lokal" style="grid-column: 1 / -1">
+      <div class="lokal-card">
+        <div class="lokal-card-head">
+          <span class="lokal-card-icon">B</span>
+          <div class="lokal-card-title">Të dhënat e biznesit</div>
+        </div>
+        <div class="lokal-form-grid">
+          <div class="lokal-field">
+            <label>Logoja e biznesit (për faturë A4)</label>
+            <input type="file" id="lokal-biz-logo-file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" />
+            <input type="hidden" id="lokal-biz_logo" />
+            <div id="lokal-biz-logo-preview-wrap" class="hidden" style="margin-top:8px">
+              <img id="lokal-biz-logo-preview" alt="Logo" style="max-width:180px;max-height:80px;background:#fff;padding:4px;border-radius:4px" />
+            </div>
+            <button type="button" class="btn btn-ghost hidden" id="btn-lokal-logo-clear" style="width:auto;margin-top:8px">Hiq logon</button>
+          </div>
+          <div class="lokal-field">
+            <label>Emri i biznesit (zyrtar)</label>
+            <input id="lokal-biz_name" placeholder="p.sh. Market Drita SH.P.K." />
+          </div>
+          <div class="lokal-field">
+            <label>Adresa e biznesit</label>
+            <input id="lokal-biz_address" placeholder="p.sh. Rr. Nëna Terezë 12" />
+          </div>
+          <div class="lokal-field">
+            <label>Qyteti</label>
+            <input id="lokal-biz_city" placeholder="p.sh. Prishtinë" />
+          </div>
+          <div class="lokal-field">
+            <label>Telefoni</label>
+            <input id="lokal-biz_phone" placeholder="p.sh. +383 44 000 000" />
+          </div>
+          <div class="lokal-field">
+            <label>Email</label>
+            <input id="lokal-biz_email" placeholder="p.sh. info@market.com" />
+          </div>
+          <div class="lokal-field">
+            <label>NUI</label>
+            <input id="lokal-biz_nui" maxlength="9" placeholder="p.sh. 811157987" />
+          </div>
+          <div class="lokal-field">
+            <label>Nr. Fiskal</label>
+            <input id="lokal-biz_fiscal_number" placeholder="p.sh. 601617597" />
+          </div>
+          <div class="lokal-field">
+            <label>ARBK</label>
+            <input id="lokal-biz_arbk" placeholder="Nr. regjistrimit ARBK" />
+          </div>
+          <div class="lokal-field">
+            <label>Numri i TVSH-së (TVSh Nr.)</label>
+            <input id="lokal-biz_vat_number" placeholder="p.sh. 810123456" />
+          </div>
+          <div class="lokal-field">
+            <label>Banka</label>
+            <input id="lokal-biz_bank_name" placeholder="p.sh. NLB Prishtinë" />
+          </div>
+          <div class="lokal-field">
+            <label>Swift</label>
+            <input id="lokal-biz_bank_swift" placeholder="p.sh. NLBBXKPR" />
+          </div>
+          <div class="lokal-field">
+            <label>IBAN / Nr. llogarisë</label>
+            <input id="lokal-biz_bank_iban" placeholder="p.sh. XK05..." />
+          </div>
+          <div class="lokal-field">
+            <label>Operatori i arkës</label>
+            <input id="lokal-biz_cashier_operator" placeholder="Emri i personit përgjegjës" />
+          </div>
+          <div class="lokal-field">
+            <label>Numri i arkës</label>
+            <input id="lokal-biz_register_number" placeholder="p.sh. Arka-01" />
+          </div>
+          <div class="lokal-field">
+            <label>Footer teksti (kupon termik)</label>
+            <input id="lokal-biz_footer" placeholder="Ju faleminderit për vizitën!" />
+          </div>
+        </div>
+        <div class="lokal-actions">
+          <button type="button" class="btn btn-primary" id="btn-lokal-save" style="width:auto;min-width:220px">Ruaj të dhënat e biznesit</button>
+        </div>
+        <div class="msg" id="lokal-msg"></div>
+      </div>
+      <div class="lokal-card">
+        <div class="lokal-card-head">
+          <span class="lokal-card-icon" style="background:#22c55e;color:#052e16">S</span>
+          <div>
+            <div class="lokal-card-title">Siguri &amp; backup</div>
+            <p class="sub" style="margin:4px 0 0">Kopjim i plotë i të dhënave lokale (DB, fiskale, licencë) në USB ose folder</p>
+          </div>
+        </div>
+        <p id="lokal-auto-backup-status" class="sub" style="margin:0 0 10px;font-size:12px"></p>
+        <div class="lokal-actions">
+          <button type="button" class="btn btn-ghost" id="btn-lokal-backup" style="width:auto;min-width:220px">Backup në USB / Folder</button>
+          <button type="button" class="btn btn-ghost" id="btn-lokal-restore-docs" style="width:auto;min-width:220px">Rikthe backup (Documents)</button>
+          <button type="button" class="btn btn-warn" id="btn-lokal-restore-usb" style="width:auto;min-width:220px">Kthe nga backup-i</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="modal-restore-backup" class="table-modal" hidden>
+      <div class="table-modal-backdrop" id="restore-backup-backdrop"></div>
+      <div class="table-modal-content" style="max-width:32rem">
+        <h2>Rikthe backup</h2>
+        <p class="sub">Zgjidhni kopjen nga Documents / Revolution Backup / FISKALIZIMI</p>
+        <label for="restore-backup-select">Backup</label>
+        <select id="restore-backup-select" style="width:100%;margin:0.5rem 0 1rem"></select>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary" id="btn-restore-backup-confirm">Rikthe</button>
+          <button type="button" class="btn btn-ghost" id="btn-restore-backup-cancel">Anulo</button>
+        </div>
+        <p id="restore-backup-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <section class="panel hidden" id="tab-rivendos" style="grid-column: 1 / -1">
+      <div class="settings-danger-zone" id="settings-danger-zone">
+        <div class="settings-danger-title">Zona e rrezikshme</div>
+        <p class="settings-danger-desc">Fshin krejt të dhënat lokale dhe e kthen programin si instalim të ri. Ky veprim nuk kthehet mbrapa.</p>
+        <button type="button" class="btn btn-danger-reset" id="btn-factory-reset">
+          Rivendos si të re (fshin krejt të dhënat)
+        </button>
+      </div>
+    </section>
+
+    <div id="modal-factory-reset-1" class="factory-reset-modal" hidden>
+      <div class="factory-reset-modal-backdrop" data-factory-cancel></div>
+      <div class="factory-reset-modal-content" role="dialog" aria-modal="true">
+        <h3>Rivendos si të re</h3>
+        <p>A jeni i sigurt? Kjo fshin krejt të dhënat lokale (porositë, shitjet, menynë, cilësimet) dhe e rivendos programin si të ri. Licenca mbetet. Ky veprim nuk kthehet mbrapa.</p>
+        <div class="factory-reset-modal-actions">
+          <button type="button" class="btn btn-ghost" data-factory-cancel>Anulo</button>
+          <button type="button" class="btn btn-danger-reset" id="btn-factory-reset-continue">Vazhdo</button>
+        </div>
+      </div>
+    </div>
+    <div id="modal-factory-reset-2" class="factory-reset-modal" hidden>
+      <div class="factory-reset-modal-backdrop" data-factory-cancel></div>
+      <div class="factory-reset-modal-content" role="dialog" aria-modal="true">
+        <h3>Konfirmim final</h3>
+        <p>Shkruani <strong>RIVENDOS</strong> për me konfirmue</p>
+        <input type="text" id="factory-reset-confirm-input" autocomplete="off" spellcheck="false" placeholder="RIVENDOS">
+        <div class="factory-reset-modal-actions">
+          <button type="button" class="btn btn-ghost" data-factory-cancel>Anulo</button>
+          <button type="button" class="btn btn-danger-reset" id="btn-factory-reset-confirm">Rivendos tani</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings -->
     <section class="panel hidden" id="tab-settings" style="grid-column: 1 / -1">
       <h2 style="margin-top:8px">Biznesi</h2>
@@ -3767,7 +4057,7 @@
         <button type="button" class="btn btn-ghost" id="btn-backup" style="width:auto;min-width:220px">Backup në USB / Folder</button>
         <button type="button" class="btn btn-warn" id="btn-restore-backup" style="width:auto;min-width:220px">Kthe nga backup-i</button>
         <button type="button" class="btn btn-warn" id="btn-repair-wizard-open-settings" style="width:auto;min-width:220px">Riparim SEF (48h)</button>
-        <button type="button" class="btn btn-ghost settings-btn-hidden" id="btn-self-test" style="width:auto;min-width:200px">Testo SEF-in</button>
+        <button type="button" class="btn btn-ghost" id="btn-self-test" style="width:auto;min-width:200px">Testo SEF-in</button>
         <button type="button" class="btn btn-warn" id="btn-send-pending" style="display:none;width:auto;min-width:200px" aria-hidden="true">Dërgo kuponët në pritje</button>
       </div>
       <div class="msg" id="settings-msg"></div>
@@ -4412,11 +4702,23 @@
       const gate = window.SensitiveTabGate;
       if (!gate) return false;
       if (gate.isUnlocked(tab)) return true;
-      const pwd = await askText(message, "", { password: true });
-      if (!pwd) return false;
-      const ok = await gate.verify(tab, pwd);
-      if (ok) gate.unlock(tab);
-      return ok;
+      let hint = message;
+      while (true) {
+        const pwd = await askText(hint, "", { password: true });
+        if (!pwd) return false;
+        let ok = false;
+        try {
+          ok = await gate.verify(tab, pwd);
+        } catch {
+          hint = "Kontrolli dështoi. Shkruaj përsëri fjalëkalimin:";
+          continue;
+        }
+        if (ok) {
+          gate.unlock(tab);
+          return true;
+        }
+        hint = "Fjalëkalimi i gabuar. Shkruaj përsëri:";
+      }
     }
 
     /** Zëvendëson window.confirm — pas confirm() native, input në Electron shpesh nuk merr fokus. */
@@ -5942,6 +6244,7 @@
     }
 
     function setMsg(el, text, ok) {
+      if (!el) return;
       el.textContent = text || "";
       el.classList.toggle("err", ok === false);
       el.classList.toggle("ok", ok === true);
@@ -9218,6 +9521,81 @@
       await refreshBusinessLogoPreview();
     }
 
+    const LOKAL_PROFILE_KEYS = [
+      "biz_name",
+      "biz_address",
+      "biz_city",
+      "biz_phone",
+      "biz_email",
+      "biz_nui",
+      "biz_fiscal_number",
+      "biz_arbk",
+      "biz_vat_number",
+      "biz_bank_name",
+      "biz_bank_swift",
+      "biz_bank_iban",
+      "biz_cashier_operator",
+      "biz_register_number",
+      "biz_footer",
+    ];
+
+    function applyLokalLogoPreview(dataUrl) {
+      const hidden = document.getElementById("lokal-biz_logo");
+      const preview = document.getElementById("lokal-biz-logo-preview");
+      const wrap = document.getElementById("lokal-biz-logo-preview-wrap");
+      const clearBtn = document.getElementById("btn-lokal-logo-clear");
+      if (hidden) hidden.value = dataUrl || "";
+      const has = !!(dataUrl && String(dataUrl).startsWith("data:"));
+      if (preview) {
+        if (has) preview.src = dataUrl;
+        else preview.removeAttribute("src");
+      }
+      wrap?.classList.toggle("hidden", !has);
+      clearBtn?.classList.toggle("hidden", !has);
+    }
+
+    async function loadBusinessProfile() {
+      const data = await api("/api/business-profile");
+      const p = data.profile || {};
+      for (const key of LOKAL_PROFILE_KEYS) {
+        const el = document.getElementById("lokal-" + key);
+        if (el) el.value = p[key] || "";
+      }
+      applyLokalLogoPreview(p.biz_logo || "");
+    }
+
+    async function saveBusinessProfile() {
+      const msg = document.getElementById("lokal-msg");
+      const body = {};
+      for (const key of LOKAL_PROFILE_KEYS) {
+        body[key] = document.getElementById("lokal-" + key)?.value || "";
+      }
+      body.biz_logo = document.getElementById("lokal-biz_logo")?.value || "";
+      try {
+        await api("/api/business-profile", { method: "PUT", body: JSON.stringify(body) });
+        const logoData = body.biz_logo;
+        if (logoData && logoData.startsWith("data:")) {
+          const png = logoData.replace(/^data:image\/png;base64,/, "");
+          await api("/api/fiscal/business-logo", {
+            method: "POST",
+            body: JSON.stringify({ png_base64: png }),
+          });
+          setBusinessLogoPreview(true);
+        } else if (!logoData) {
+          try {
+            await api("/api/fiscal/business-logo", { method: "DELETE" });
+          } catch {
+            /* */
+          }
+          setBusinessLogoPreview(false);
+        }
+        setMsg(msg, "Të dhënat e biznesit u ruajtën.", true);
+        loadSettings().catch(() => {});
+      } catch (e) {
+        setMsg(msg, e.message, false);
+      }
+    }
+
     async function saveSettings() {
       const msg = document.getElementById("settings-msg");
       try {
@@ -9349,6 +9727,8 @@
       document.getElementById("tab-printer").classList.toggle("hidden", name !== "printer");
       document.getElementById("tab-punonjes").classList.toggle("hidden", name !== "punonjes");
       document.getElementById("tab-licenca").classList.toggle("hidden", name !== "licenca");
+      document.getElementById("tab-lokal")?.classList.toggle("hidden", name !== "lokal");
+      document.getElementById("tab-rivendos")?.classList.toggle("hidden", name !== "rivendos");
       document.getElementById("tab-settings").classList.toggle("hidden", name !== "settings");
       document.getElementById("tab-products").classList.toggle("hidden", name !== "products");
       if (name === "receipts") loadReceipts().catch(console.error);
@@ -9380,6 +9760,10 @@
       }
       if (name === "settings") {
         loadSettings().catch(console.error);
+      }
+      if (name === "lokal") {
+        loadBusinessProfile().catch(console.error);
+        ngarkoLokalBackupStatus().catch(() => {});
       }
       if (name === "punonjes") {
         loadOperatorsList().catch(console.error);
@@ -10839,41 +11223,183 @@
       }
     });
     async function ngarkoAutoBackupStatus() {
+      const text = await (async () => {
+        try {
+          const s = await api("/api/auto-backup/status");
+          const at = s.last_backup_at ? new Date(s.last_backup_at).toLocaleString("sq-AL") : "—";
+          return `Documents: ${s.backup_dir || "Revolution Backup/FISKALIZIMI"} · minutë: ${at} · ditorë: ${s.daily_count ?? "—"} · mujorë: ${s.monthly_count ?? "—"}`;
+        } catch {
+          return "Documents auto-backup: statusi nuk u lexua.";
+        }
+      })();
       const el = document.getElementById("auto-backup-status-line");
-      if (!el) return;
-      try {
-        const s = await api("/api/auto-backup/status");
-        const at = s.last_backup_at ? new Date(s.last_backup_at).toLocaleString("sq-AL") : "—";
-        el.textContent = `Documents: ${s.backup_dir || "Revolution Backup/FISKALIZIMI"} · minutë: ${at} · ditorë: ${s.daily_count ?? "—"} · mujorë: ${s.monthly_count ?? "—"}`;
-      } catch {
-        el.textContent = "Documents auto-backup: statusi nuk u lexua.";
-      }
+      const elLokal = document.getElementById("lokal-auto-backup-status");
+      if (el) el.textContent = text;
+      if (elLokal) elLokal.textContent = text;
+    }
+    async function ngarkoLokalBackupStatus() {
+      await ngarkoAutoBackupStatus();
     }
     ngarkoAutoBackupStatus().catch(() => {});
 
-    document.getElementById("btn-restore-auto-backup-docs")?.addEventListener("click", async () => {
-      const msg = document.getElementById("settings-msg");
+    let restoreBackupCatalog = [];
+    function mbyllModalRestoreBackup() {
+      const modal = document.getElementById("modal-restore-backup");
+      if (modal) modal.hidden = true;
+    }
+    async function hapModalRestoreBackup() {
+      const modal = document.getElementById("modal-restore-backup");
+      const sel = document.getElementById("restore-backup-select");
+      const msg = document.getElementById("restore-backup-msg");
+      if (!modal || !sel) return;
+      if (msg) {
+        msg.textContent = "";
+        msg.className = "msg";
+      }
       try {
         const cat = await api("/api/auto-backup/catalog");
-        const items = cat.items || [];
-        if (!items.length) {
-          setMsg(msg, "Nuk ka backup në Documents.", false);
-          return;
+        restoreBackupCatalog = cat.items || [];
+        sel.innerHTML = "";
+        if (!restoreBackupCatalog.length) {
+          sel.innerHTML = "<option value=\"\">Nuk ka backup</option>";
+        } else {
+          for (const it of restoreBackupCatalog) {
+            const opt = document.createElement("option");
+            opt.value = `${it.source_type}:${it.source_id}`;
+            opt.textContent = it.label || `${it.source_type} ${it.source_id}`;
+            sel.appendChild(opt);
+          }
         }
-        const it = items[0];
-        if (!confirm(`Riktheni nga ${it.label}? Mbyllni dhe rinisni programin.`)) return;
+        modal.hidden = false;
+      } catch (err) {
+        setMsg(document.getElementById("lokal-msg") || document.getElementById("settings-msg"), err.message, false);
+      }
+    }
+    document.getElementById("btn-restore-auto-backup-docs")?.addEventListener("click", () => {
+      void hapModalRestoreBackup();
+    });
+    document.getElementById("btn-lokal-restore-docs")?.addEventListener("click", () => {
+      void hapModalRestoreBackup();
+    });
+    document.getElementById("restore-backup-backdrop")?.addEventListener("click", mbyllModalRestoreBackup);
+    document.getElementById("btn-restore-backup-cancel")?.addEventListener("click", mbyllModalRestoreBackup);
+    document.getElementById("btn-restore-backup-confirm")?.addEventListener("click", async () => {
+      const sel = document.getElementById("restore-backup-select");
+      const msg = document.getElementById("restore-backup-msg");
+      const raw = sel?.value || "";
+      if (!raw) return;
+      const [source_type, ...rest] = raw.split(":");
+      const source_id = rest.join(":");
+      if (!confirm(`Riktheni nga ${source_type} / ${source_id}? Mbyllni dhe rinisni programin pas OK.`)) {
+        return;
+      }
+      try {
         const r = await api("/api/auto-backup/restore", {
           method: "POST",
-          body: JSON.stringify({ source_type: it.source_type, source_id: it.source_id }),
+          body: JSON.stringify({ source_type, source_id }),
         });
-        setMsg(msg, r.message || "U rikthye — rinisni programin.", true);
-      } catch (e) {
-        setMsg(msg, e.message, false);
+        mbyllModalRestoreBackup();
+        const panelMsg = document.getElementById("lokal-msg") || document.getElementById("settings-msg");
+        setMsg(panelMsg, r.message || "U rikthye — rinisni programin.", true);
+      } catch (err) {
+        if (msg) setMsg(msg, err.message || "Restore dështoi.", false);
       }
     });
+    document.getElementById("btn-lokal-save")?.addEventListener("click", () => {
+      saveBusinessProfile().catch(console.error);
+    });
+    document.getElementById("lokal-biz-logo-file")?.addEventListener("change", async () => {
+      const fileIn = document.getElementById("lokal-biz-logo-file");
+      const file = fileIn?.files && fileIn.files[0];
+      if (!file) return;
+      if (!/^image\//i.test(file.type)) {
+        setMsg(document.getElementById("lokal-msg"), "Zgjidhni një skedar imazhi (PNG, JPG).", false);
+        fileIn.value = "";
+        return;
+      }
+      if (file.size > 800000) {
+        setMsg(document.getElementById("lokal-msg"), "Imazhi është shumë i madh (max ~800 KB).", false);
+        fileIn.value = "";
+        return;
+      }
+      try {
+        const dataUrl = await fileToPngDataUrl(file);
+        applyLokalLogoPreview(dataUrl);
+      } catch (e) {
+        setMsg(document.getElementById("lokal-msg"), e.message, false);
+      }
+    });
+    document.getElementById("btn-lokal-logo-clear")?.addEventListener("click", () => {
+      const fileIn = document.getElementById("lokal-biz-logo-file");
+      if (fileIn) fileIn.value = "";
+      applyLokalLogoPreview("");
+    });
+    document.getElementById("btn-lokal-backup")?.addEventListener("click", () => {
+      document.getElementById("btn-backup")?.click();
+    });
+    document.getElementById("btn-lokal-restore-usb")?.addEventListener("click", () => {
+      runRestoreFromBackup(document.getElementById("btn-lokal-restore-usb"));
+    });
+
+    (function setupFactoryReset() {
+      const modal1 = document.getElementById("modal-factory-reset-1");
+      const modal2 = document.getElementById("modal-factory-reset-2");
+      const input = document.getElementById("factory-reset-confirm-input");
+      const btnOpen = document.getElementById("btn-factory-reset");
+      if (!btnOpen || !modal1 || !modal2) return;
+      function closeFactoryModals() {
+        modal1.hidden = true;
+        modal2.hidden = true;
+        if (input) input.value = "";
+      }
+      function openModal(el) {
+        closeFactoryModals();
+        el.hidden = false;
+      }
+      btnOpen.addEventListener("click", () => openModal(modal1));
+      document.getElementById("btn-factory-reset-continue")?.addEventListener("click", () => {
+        openModal(modal2);
+        setTimeout(() => input?.focus(), 50);
+      });
+      document.querySelectorAll("[data-factory-cancel]").forEach((el) => {
+        el.addEventListener("click", closeFactoryModals);
+      });
+      document.getElementById("btn-factory-reset-confirm")?.addEventListener("click", async () => {
+        const typed = String(input?.value || "").trim();
+        if (typed !== "RIVENDOS") {
+          alert("Duhet të shkruani saktë fjalën RIVENDOS.");
+          input?.focus();
+          return;
+        }
+        const confirmBtn = document.getElementById("btn-factory-reset-confirm");
+        if (confirmBtn) confirmBtn.disabled = true;
+        btnOpen.disabled = true;
+        try {
+          await api("/api/admin/factory-reset", {
+            method: "POST",
+            body: JSON.stringify({ confirm: "RIVENDOS" }),
+          });
+          closeFactoryModals();
+          alert("Të dhënat po fshihen. Programi po riniset...");
+        } catch (e) {
+          alert(e.message || "Rivendosja dështoi.");
+          if (confirmBtn) confirmBtn.disabled = false;
+          btnOpen.disabled = false;
+        }
+      });
+      input?.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          document.getElementById("btn-factory-reset-confirm")?.click();
+        }
+      });
+    })();
 
     document.getElementById("btn-backup").addEventListener("click", async () => {
-      const msg = document.getElementById("settings-msg");
+      const msg =
+        activeTabName === "lokal"
+          ? document.getElementById("lokal-msg")
+          : document.getElementById("settings-msg");
       const btn = document.getElementById("btn-backup");
       btn.disabled = true;
       try {
@@ -10897,7 +11423,10 @@
       }
     });
     async function runRestoreFromBackup(triggerBtn) {
-      const msg = document.getElementById("settings-msg");
+      const msg =
+        triggerBtn && String(triggerBtn.id || "").includes("lokal")
+          ? document.getElementById("lokal-msg")
+          : document.getElementById("settings-msg");
       const btn = triggerBtn || document.getElementById("btn-restore-backup");
       btn.disabled = true;
       setMsg(msg, "Zgjidhni folderin e backup-it…", null);
@@ -12262,15 +12791,6 @@
           bits.textContent = "";
         }
         syncMbyllButton(s);
-      }
-      const pazarEye = document.getElementById("pos-shift-pazar-eye");
-      const pazarBox = document.getElementById("pos-shift-pazar-box");
-      if (pazarEye && pazarBox) {
-        pazarEye.addEventListener("click", () => {
-          const show = pazarBox.hidden;
-          pazarBox.hidden = !show;
-          pazarEye.setAttribute("aria-label", show ? "Fshih pazarin" : "Shfaq pazarin");
-        });
       }
       function createCashKeypad(cfg) {
         let raw = String(cfg.initial ?? "0");
