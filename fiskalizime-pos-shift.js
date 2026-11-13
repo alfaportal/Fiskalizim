@@ -4,6 +4,11 @@ function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
+function signedReversalRow(row) {
+  const total = -round2(Math.abs(Number(row && row.total) || 0));
+  return { ...row, total };
+}
+
 function normalizeCashAmount(v) {
   const n = round2(v);
   if (n < 0) throw new Error("Shuma nuk mund të jetë negative.");
@@ -227,22 +232,25 @@ function computePosShiftTotals(shiftId) {
     card += cardFromOrderRow(row);
   }
   for (const row of correctionRowsForShift(sid)) {
-    sales += round2(row.total);
-    cash += cashFromOrderRow(row);
-    card += cardFromOrderRow(row);
+    const signed = signedReversalRow(row);
+    sales += round2(signed.total);
+    cash += cashFromOrderRow(signed);
+    card += cardFromOrderRow(signed);
   }
   for (const row of thermalCorrectionRows(sid)) {
-    sales += round2(row.total);
-    cash += cashFromOrderRow(row);
-    card += cardFromOrderRow(row);
+    const signed = signedReversalRow(row);
+    sales += round2(signed.total);
+    cash += cashFromOrderRow(signed);
+    card += cardFromOrderRow(signed);
   }
   const shiftRow = sqliteRef.prepare("SELECT operator_id, opened_at FROM pos_shifts WHERE id = ?").get(sid);
   const day = localDateKey(shiftRow && shiftRow.opened_at);
   if (day && shiftRow && shiftRow.operator_id != null) {
     for (const row of fiscalCorrectionsOnDayOutsideShift(sid, shiftRow.operator_id, day)) {
-      sales += round2(row.total);
-      cash += cashFromOrderRow(row);
-      card += cardFromOrderRow(row);
+      const signed = signedReversalRow(row);
+      sales += round2(signed.total);
+      cash += cashFromOrderRow(signed);
+      card += cardFromOrderRow(signed);
     }
   }
   const net = round2(sales);
@@ -289,14 +297,16 @@ function computePosShiftTotalsInRange(shiftId, from, to) {
     card += cardFromOrderRow(row);
   }
   for (const row of correctionRowsForShift(sid, f, t)) {
-    sales += round2(row.total);
-    cash += cashFromOrderRow(row);
-    card += cardFromOrderRow(row);
+    const signed = signedReversalRow(row);
+    sales += round2(signed.total);
+    cash += cashFromOrderRow(signed);
+    card += cardFromOrderRow(signed);
   }
   for (const row of thermalCorrectionRows(sid, f, t)) {
-    sales += round2(row.total);
-    cash += cashFromOrderRow(row);
-    card += cardFromOrderRow(row);
+    const signed = signedReversalRow(row);
+    sales += round2(signed.total);
+    cash += cashFromOrderRow(signed);
+    card += cardFromOrderRow(signed);
   }
   const net = round2(sales);
   const disc = round2(discount);
@@ -572,19 +582,6 @@ function defaultHandoverRecipientName() {
 }
 
 function shiftTotalsForListRow(row, from, to) {
-  if (row.closed_at != null && row.cash_sales_total != null && row.total_sales != null) {
-    const live = computePosShiftTotals(row.id);
-    const net = round2(row.total_sales);
-    const disc = live.discount_total;
-    return {
-      order_count: Number(row.order_count_total) || 0,
-      total_sales: net,
-      cash_total: round2(row.cash_sales_total),
-      card_total: round2(row.card_sales_total),
-      discount_total: disc,
-      gross_sales: round2(net + disc),
-    };
-  }
   if (row.closed_at == null) {
     return computePosShiftTotals(row.id);
   }

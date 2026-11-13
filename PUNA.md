@@ -1,4 +1,25 @@
-﻿## 2026-11-13 - Zbritje kupon dhe rresht si referenca
+﻿## 2026-11-13 - Raporti X: storno/kthim zbresin
+
+Totali i Raportit X (dhe Z/periodik) zbret kuponët cancel/storno/return. Nr. kuponësh mbetet i gjithë. Pa ATK. Pa build.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `fiscal/fiscal-numbering.js` | shenjë minus te `getDailyFiscalAccumulated` dhe `accumulateReceiptsInRange` |
+
+## 2026-11-13 - Ditari: storno/kthim zbresin
+
+Storno dhe kthimi te Ditari dhe ndërrimi zbriten, nuk shtohen si shitje. Pa ATK. Pa build.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | `getDitari` shenjë minus te kuponët korrigjues |
+| `fiskalizime-pos-shift.js` | totat e ndërrimit me minus te storno/kthim |
+
+## 2026-11-13 - Build Setup 1.006
+
+Version `1.0.6` (etiketa 1.006). Komanda `npm run build:sef`. Instaluesit 1.004, 1.005, 1.011 mbeten. Zbritja e karroces hyn në Setup.
+
+## 2026-11-13 - Zbritje kupon dhe rresht si referenca
 
 Te ATK: çmimi i rreshtit pas zbritjes së rreshtit dhe 15% të kuponit. Discount i rreshtit mbetet në kupon. Vetëm Fiskalizim.
 

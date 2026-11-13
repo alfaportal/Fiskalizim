@@ -2533,6 +2533,19 @@ function isDitariCorrectionType(receiptType) {
   return ["cancel", "storno", "return"].includes(String(receiptType || "").toLowerCase());
 }
 
+function signedReversalAmount(n) {
+  return -round2(Math.abs(Number(n) || 0));
+}
+
+function signedReversalLetters(letters) {
+  if (!letters) return null;
+  const out = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+  for (const L of ["A", "B", "C", "D", "E"]) {
+    out[L] = -round2(Math.abs(Number(letters[L]) || 0));
+  }
+  return out;
+}
+
 function vatPartsFromItems(items, total) {
   const list = Array.isArray(items) ? items : [];
   let base = 0;
@@ -3239,7 +3252,7 @@ function getDitari(opts = {}) {
           sold_by_weight: Number(it.sold_by_weight) === 1 ? 1 : 0,
         };
       });
-      const total = round2(r.total_amount);
+      const total = signedReversalAmount(r.total_amount);
       const payRow = {
         total,
         payment_method: r.payment_method || "cash",
@@ -3259,7 +3272,7 @@ function getDitari(opts = {}) {
         status: String(r.receipt_type || "").toLowerCase(),
         cash_amount: cashFromOrderRow(payRow),
         card_amount: cardFromOrderRow(payRow),
-        _letters: parseStoredVatLetters(r.vat_breakdown_json),
+        _letters: signedReversalLetters(parseStoredVatLetters(r.vat_breakdown_json)),
       };
     });
   const merged = [...parsed, ...corrections].sort((a, b) => {
