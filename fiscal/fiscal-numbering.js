@@ -304,6 +304,18 @@ function round2(n) {
   return round4(n);
 }
 
+function correctionSign(receiptType) {
+  const t = String(receiptType || "").toLowerCase();
+  if (t === "cancel" || t === "storno" || t === "return") return -1;
+  return 1;
+}
+
+function signedStored(n, sign) {
+  const v = Number(n) || 0;
+  if (sign >= 0) return v;
+  return -Math.abs(v);
+}
+
 /**
  * Akumulimi ditor i kuponëve fiskalë (lexim — pa reset, pa mbyllje).
  * TVSH = shuma e vat_breakdown të ruajtur (residual tashmë në çdo kupon).
@@ -317,7 +329,7 @@ function getDailyFiscalAccumulated(dateYmd) {
 
   const rows = sqlite
     .prepare(
-      `SELECT total_amount, total_without_tax, vat_breakdown_json, is_offline
+      `SELECT total_amount, total_without_tax, vat_breakdown_json, is_offline, receipt_type
        FROM fiscal_receipts
        WHERE date(created_at) = date(?)`
     )
@@ -330,9 +342,10 @@ function getDailyFiscalAccumulated(dateYmd) {
   let offline_count = 0;
 
   for (const r of rows) {
+    const sign = correctionSign(r.receipt_type);
     coupon_count += 1;
-    total_amount += Number(r.total_amount) || 0;
-    total_without_tax += Number(r.total_without_tax) || 0;
+    total_amount += signedStored(r.total_amount, sign);
+    total_without_tax += signedStored(r.total_without_tax, sign);
     if (Number(r.is_offline) === 1) offline_count += 1;
     let vb = {};
     try {
@@ -344,7 +357,7 @@ function getDailyFiscalAccumulated(dateYmd) {
       vb = {};
     }
     for (const L of ["A", "B", "C", "D", "E"]) {
-      vat_breakdown[L] += Number(vb[L] ?? vb[L.toLowerCase()] ?? 0) || 0;
+      vat_breakdown[L] += signedStored(vb[L] ?? vb[L.toLowerCase()] ?? 0, sign);
     }
   }
 
@@ -409,7 +422,7 @@ function accumulateReceiptsInRange(from, to) {
   const rows = sqlite
     .prepare(
       `SELECT total_amount, total_without_tax, vat_breakdown_json, items_json,
-              payment_method, is_offline, sent_to_atk, created_at
+              payment_method, is_offline, sent_to_atk, created_at, receipt_type
        FROM fiscal_receipts
        WHERE date(created_at) >= date(?) AND date(created_at) <= date(?)`
     )
@@ -426,14 +439,17 @@ function accumulateReceiptsInRange(from, to) {
   let unsent_count = 0;
 
   for (const r of rows) {
+    const sign = correctionSign(r.receipt_type);
+    const amt = signedStored(r.total_amount, sign);
+    const net = signedStored(r.total_without_tax, sign);
     coupon_count += 1;
-    total_amount += Number(r.total_amount) || 0;
-    total_without_tax += Number(r.total_without_tax) || 0;
+    total_amount += amt;
+    total_without_tax += net;
     if (Number(r.is_offline) === 1) offline_count += 1;
     if (Number(r.sent_to_atk) !== 1) unsent_count += 1;
 
     const pay = String(r.payment_method || "cash").toLowerCase();
-    payments[pay] = round2((payments[pay] || 0) + (Number(r.total_amount) || 0));
+    payments[pay] = round2((payments[pay] || 0) + amt);
 
     let vb = {};
     try {
@@ -445,7 +461,7 @@ function accumulateReceiptsInRange(from, to) {
       vb = {};
     }
     for (const L of ["A", "B", "C", "D", "E"]) {
-      vat_tax[L] += Number(vb[L] ?? vb[L.toLowerCase()] ?? 0) || 0;
+      vat_tax[L] += signedStored(vb[L] ?? vb[L.toLowerCase()] ?? 0, sign);
     }
 
     let items = [];
@@ -459,7 +475,7 @@ function accumulateReceiptsInRange(from, to) {
     }
     const turnover = calculateVatBreakdown(Array.isArray(items) ? items : []) || emptyVatMap();
     for (const L of ["A", "B", "C", "D", "E"]) {
-      vat_turnover[L] += Number(turnover[L]) || 0;
+      vat_turnover[L] += signedStored(turnover[L], sign);
     }
   }
 
