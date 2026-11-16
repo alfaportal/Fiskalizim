@@ -5956,6 +5956,7 @@
         return "Kartë";
       }
       if (p === "mixed" || p === "perzier" || p === "kombinuar") return "Përzier";
+      if (p === "sms" || p === "pagesë mobile / qr" || p === "pagese mobile / qr") return "Pagesë mobile / QR";
       if (p === "cash" || p === "para") return "Cash";
       return fallback || pm || "—";
     }
@@ -6498,8 +6499,12 @@
       return raw || "Të tjera";
     }
 
+    function arkaAllProducts() {
+      return ["A", "C", "D", "E"].flatMap((L) => state.byLetter[L] || []);
+    }
+
     function arkaProductsE() {
-      return [...(state.byLetter.D || []), ...(state.byLetter.E || [])];
+      return arkaAllProducts();
     }
 
     function posCategoryCounts() {

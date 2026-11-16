@@ -1,4 +1,36 @@
-﻿## 2026-11-13 - Raporti X: storno/kthim zbresin
+﻿## 2026-11-16 — Audit Test 2 (Alban): 37.10 përputhet
+
+DB e re, jo dyqani. Pa ATK, pa build, pa GIT. Neto 37.10, cash 12.67, kartë 24.43, zbritje 1.60, TVSH 4.53. Storno 28.00 dhe kthimi 3.60 zbriten. Ndërrimi i Albanit (PIN 5678) i njëjti. X, periodiku dhe audit = 0. Kuponi sms shkruante «sms» dhe Ditari e quante Cash; tani «Pagesë mobile / QR». Shuma e kartës ishte e saktë edhe para.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `database.js` | Emri i pagesës sms |
+| `receipt-text.js` | I njëjti emër te kuponi |
+| `public/index.html` | I njëjti emër te lista e kuponëve |
+
+## 2026-11-16 — Audit Test 1 (termik): para + kuponë + TVSH
+
+DB test e përkohshme, jo dyqani. Pa ATK, pa build, pa GIT. Shitja neto 35.70, cash 10.00, kartë 25.70, zbritje 2.80, TVSH 4.68. Storno i shitjes 1 (18.70) zbritet. Ndërrimi i Drenit (PIN 1234) i njëjti.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server.js` | Lista e kuponëve merr edhe termikët. Numri në print është T-1, T-2. |
+| `database.js` | TVSH e Ditarit mblidhet edhe për termik. Kategoria e shtuar (p.sh. Ushqim) ruhet. Shiko kuponin tregon T-n dhe zbritjen. |
+| `receipt-text.js` | T-1 nuk kthehet më në 000001. |
+
+## 2026-11-15 — Audit Arka + stok: 200/200, stok N/A
+
+Katalogu 200 (D=40 8%, E=160 18%). Arka tashmë tregonte D+E (jo vetëm E). U hap te A/C/D/E që 0% të mos fshihet nëse shtohet. `products` s’ka `stock_qty` — stoku N/A, nuk u shpik. Pa build. Pa GIT.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `public/index.html` | `arkaAllProducts()` A/C/D/E; `arkaProductsE` = të gjitha |
+
+## 2026-11-13 - Build Setup 1.007
+
+Version `1.0.7` (etiketa 1.007). Komanda `npm run build:sef`. Instaluesit 1.004, 1.005, 1.006 mbeten. Raporti X/Z zbret storno/kthim.
+
+## 2026-11-13 - Raporti X: storno/kthim zbresin
 
 Totali i Raportit X (dhe Z/periodik) zbret kuponët cancel/storno/return. Nr. kuponësh mbetet i gjithë. Pa ATK. Pa build.
 

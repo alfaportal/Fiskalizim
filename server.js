@@ -1920,6 +1920,7 @@ async function boot() {
       payment_method: order.payment_method,
       payment_splits: splits,
       operator_name: order.waiter_name || "Operator",
+      thermal_daily_no: Number(order.thermal_daily_no) || 0,
     };
   }
 
@@ -1932,7 +1933,8 @@ async function boot() {
     const printer = require("./printer");
     const paper = "80mm";
     const w = paperChars(paper);
-    const receiptNumber = String(Number(sale.thermal_daily_no) || sale.id);
+    const dailyNo = Number(sale.thermal_daily_no) || 0;
+    const receiptNumber = dailyNo > 0 ? `T-${dailyNo}` : String(sale.id);
     const nfHeader = pad(t("receipt_non_fiscal"), w, "center");
     const body = buildReceiptText({
       restaurantName: settings.taxpayer_legal_name || "Revolution Fiskalizim",
@@ -2047,7 +2049,9 @@ async function boot() {
           payment_splits: sale.payment_splits,
           coupon_type: "thermal",
           thermal,
-          receipt_number: thermal.receipt_number || String(Number(sale.thermal_daily_no) || sale.id),
+          receipt_number:
+            thermal.receipt_number ||
+            (Number(sale.thermal_daily_no) > 0 ? `T-${Number(sale.thermal_daily_no)}` : String(sale.id)),
         });
       }
 
@@ -2277,7 +2281,7 @@ async function boot() {
       const { listFiscalReceipts } = require("./fiscal/fiscal-receipts-list");
       const { isAtkTransmissionBlocked } = require("./fiscal/fiscal-test-mode-store");
       const atkBlocked = isAtkTransmissionBlocked();
-      const rows = (listFiscalReceipts(100) || []).map((r) => ({
+      const fiscal = (listFiscalReceipts(100) || []).map((r) => ({
         ...r,
         sent_to_atk: r.sent_to_atk ? 1 : 0,
         is_offline: r.is_offline ? 1 : 0,
@@ -2292,7 +2296,25 @@ async function boot() {
               : "Në pritje",
         atk_ok: Number(r.sent_to_atk) === 1,
       }));
-      res.json({ ok: true, receipts: rows });
+      let thermal = [];
+      try {
+        thermal = db.listThermalCoupons(500) || [];
+      } catch {
+        thermal = [];
+      }
+      const rows = fiscal.concat(thermal).sort((a, b) => {
+        const ka = `${a.fiscal_date || ""} ${a.fiscal_time || ""}`;
+        const kb = `${b.fiscal_date || ""} ${b.fiscal_time || ""}`;
+        if (ka !== kb) return kb.localeCompare(ka);
+        return String(b.id).localeCompare(String(a.id));
+      });
+      res.json({
+        ok: true,
+        receipts: rows,
+        count: rows.length,
+        thermal_count: thermal.length,
+        fiscal_count: fiscal.length,
+      });
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }

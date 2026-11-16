@@ -423,6 +423,14 @@ function normalizePosCategoryLabel(raw) {
   if (!s) return "Të tjera";
   if (s === "Embelsira" || s === "Ëmbëlsira") return "Ëmbëlsira";
   if (POS_CATEGORY_VALUES.includes(s)) return s;
+  try {
+    const row = sqlite
+      .prepare("SELECT name FROM pos_categories WHERE name = ? AND COALESCE(active, 1) = 1")
+      .get(s);
+    if (row && row.name) return String(row.name);
+  } catch {
+    /* */
+  }
   return "Të tjera";
 }
 
@@ -2399,6 +2407,7 @@ function paymentLabel(pm) {
   ) {
     return "Kartë";
   }
+  if (p === "sms") return "Pagesë mobile / QR";
   if (p === "mixed" || p === "perzier") return "Përzier";
   if (p === "bank_account") return "Bankë";
   return "Cash";
@@ -3149,16 +3158,19 @@ function thermalCouponPreview(ref) {
   const order = id ? sqlite.prepare("SELECT * FROM orders WHERE id = ?").get(id) : null;
   if (!order || !isThermalSaleOrder(order)) throw new Error("Kuponi nuk u gjet.");
   const items = parseOrderPayload(order).items;
+  const disc = orderShownDiscount(order, items);
   const text = buildReceiptText({
     restaurantName,
     items,
     total: Number(order.total) || 0,
-    receiptNumber: String(Number(order.thermal_daily_no) || ""),
+    receiptNumber: Number(order.thermal_daily_no) > 0 ? `T-${Number(order.thermal_daily_no)}` : "",
     cashierName: order.waiter_name,
     closedAt: String(order.created_at || "").replace(" ", "T"),
     paymentMethod: order.payment_method,
     slipKind: "final",
     markedTotal: false,
+    discountTotal: disc,
+    subtotalBeforeDiscount: round2((Number(order.total) || 0) + disc),
   });
   return { text, nuikf: `#${order.id}`, label: "shitje", mode: "thermal" };
 }
@@ -3342,6 +3354,7 @@ function getDitari(opts = {}) {
     }
     delete e._letters;
   }
+  totalTvsh = round2(completed.reduce((sum, e) => sum + (Number(e.tvsh) || 0), 0));
   return {
     periodLabel: range.label,
     dateFrom: range.from,

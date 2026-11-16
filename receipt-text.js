@@ -157,6 +157,7 @@ function displayReceiptNumber(receiptNumber, orderNumber, slipKind) {
     ? String(orderNumber || "").trim()
     : String(receiptNumber || orderNumber || "").trim();
   if (!raw) return "";
+  if (/^T-\d+$/i.test(raw)) return `T-${raw.replace(/\D/g, "")}`;
   const part = raw.includes("-") ? raw.split("-").pop() : raw;
   return String(part).replace(/\D/g, "").padStart(6, "0") || raw;
 }
@@ -186,6 +187,7 @@ function thermalPaymentDisplay(paymentMethod) {
   if (!p) return "";
   if (p === "debit_card" || p === "debit") return "Kartë Debit";
   if (p === "credit_card" || p === "credit" || p === "kredit") return "Kartë Kredit";
+  if (p === "sms") return "Pagesë mobile / QR";
   if (p === "karte" || p === "card" || p === "kartë" || p === "kartelë" || p === "pos") return "Kartë";
   if (p === "mixed" || p === "perzier" || p === "e përzier") return "Përzier";
   if (p === "bank_account" || p === "transfer bankar") return "Bankë";
