@@ -1,4 +1,15 @@
-﻿## 2026-11-16 — Audit Test 2 (Alban): 37.10 përputhet
+﻿## 2026-11-17 — Çelësi i licencës nga ID
+
+Admini shkruan ID, gjeneron çelësin dhe e ruan. Programi e merr çelësin si më parë. Pa build. Pa GIT. Live jo i provuar.
+
+| Skedar | Ndryshimi |
+|--------|-----------|
+| `server/hardwareLicense.js` | Çelësi SHA256 nga ID, kripë e Fiskalizimit |
+| `server/routes/admin.js` | POST /fiskalizim/api/admin/generate-license-key |
+| `server/index.js` | Faqja te /fiskalizim/admin |
+| `server/public/admin/index.html` | Licencat: ID, Gjenero Çelësin, Ruaj |
+
+## 2026-11-16 — Audit Test 2 (Alban): 37.10 përputhet
 
 DB e re, jo dyqani. Pa ATK, pa build, pa GIT. Neto 37.10, cash 12.67, kartë 24.43, zbritje 1.60, TVSH 4.53. Storno 28.00 dhe kthimi 3.60 zbriten. Ndërrimi i Albanit (PIN 5678) i njëjti. X, periodiku dhe audit = 0. Kuponi sms shkruante «sms» dhe Ditari e quante Cash; tani «Pagesë mobile / QR». Shuma e kartës ishte e saktë edhe para.
 

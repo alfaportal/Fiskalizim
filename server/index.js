@@ -53,6 +53,7 @@ app.use("/api/owner", ownerPreferencesRouter);
 app.use("/fiskalizim/api/owner", ownerPreferencesRouter);
 app.use("/fiskalizim/api/license", licenseRouter);
 app.use("/fiskalizim/api/admin", adminRouter);
+app.use("/fiskalizim/admin", express.static(path.join(__dirname, "public", "admin")));
 
 try {
   const { dedupeLicensesByHardware } = require("./adminService");

@@ -16,6 +16,7 @@ const {
   setOwnerPasswordForClient,
   setOwnerEmailForClient,
 } = require("../adminService");
+const { generateKeyFromId } = require("../hardwareLicense");
 
 const router = express.Router();
 
@@ -53,6 +54,22 @@ router.get("/licenses", async (_req, res) => {
   } catch (e) {
     console.error("[admin/licenses]", e.message || e);
     res.status(500).json({ ok: false, gabim: e.message });
+  }
+});
+
+router.post("/generate-license-key", async (req, res) => {
+  try {
+    const hardwareId = req.body?.hardware_id || req.body?.hardwareId || "";
+    const expiry = new Date();
+    expiry.setUTCHours(0, 0, 0, 0);
+    expiry.setUTCDate(expiry.getUTCDate() + 365);
+    const license_key = generateKeyFromId(hardwareId, expiry);
+    const y = expiry.getUTCFullYear();
+    const m = String(expiry.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(expiry.getUTCDate()).padStart(2, "0");
+    res.json({ license_key, expiry_date: `${y}-${m}-${d}` });
+  } catch (e) {
+    res.status(400).json({ ok: false, gabim: e.message || "ID e pavlefshme." });
   }
 });
 

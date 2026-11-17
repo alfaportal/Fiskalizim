@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fiskalizim — Licencat</title>
+  <style>
+    :root { --bg:#0f1419; --card:#1a2332; --line:#2a3848; --text:#e8eef4; --muted:#8aa0b5; --ok:#1f8a4c; --btn:#2563eb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:1rem 1.25rem; border-bottom:1px solid var(--line); }
+    header h1 { margin:0; font-size:1.25rem; }
+    header p { margin:0.35rem 0 0; color:var(--muted); }
+    main { padding:1rem 1.25rem 2rem; }
+    .bar, .actions { display:flex; gap:0.5rem; flex-wrap:wrap; }
+    .bar { margin-bottom:1rem; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1rem; margin-bottom:1rem; }
+    .card h2 { margin:0 0 0.75rem; font-size:1.05rem; }
+    label { display:block; margin-bottom:0.65rem; color:var(--muted); font-size:0.9rem; }
+    input, button { font:inherit; }
+    input[type="password"], input.mono { background:#0b1016; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:0.45rem 0.6rem; }
+    input.mono { width:100%; min-width:12rem; font-family:Consolas,monospace; letter-spacing:0.03em; }
+    input[readonly] { color:#c5d4e4; }
+    button { border:0; border-radius:8px; padding:0.45rem 0.75rem; cursor:pointer; color:#fff; background:var(--btn); }
+    button.ok { background:var(--ok); }
+    button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+    table { width:100%; border-collapse:collapse; background:var(--card); }
+    th, td { border-bottom:1px solid var(--line); padding:0.55rem; text-align:left; vertical-align:top; }
+    th { color:var(--muted); font-weight:600; font-size:0.85rem; }
+    .msg { min-height:1.2rem; margin:0.35rem 0 0; color:var(--muted); }
+    .msg.err { color:#f0a0a0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fiskalizim — Licencat</h1>
+    <p>Klienti dërgon vetëm ID. Këtu gjenerohet çelësi dhe ruhet.</p>
+  </header>
+  <main>
+    <div class="bar">
+      <input type="password" id="admin-secret" placeholder="Sekreti i adminit" autocomplete="current-password">
+      <button type="button" class="ghost" id="btn-load">Rifresko</button>
+    </div>
+    <p id="page-msg" class="msg"></p>
+    <form class="card" id="new-form">
+      <h2>Licencë e re</h2>
+      <label>Emri i biznesit
+        <input class="mono" id="new-name" autocomplete="off">
+      </label>
+      <label>Hardware ID
+        <input class="mono" id="new-hw" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Çelësi
+        <input class="mono" id="new-key" readonly placeholder="Gjenerohet nga ID">
+      </label>
+      <div class="actions">
+        <button type="button" id="new-gen">Gjenero Çelësin</button>
+        <button type="submit" class="ok">Ruaj</button>
+      </div>
+      <p id="new-msg" class="msg"></p>
+    </form>
+    <div style="overflow:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Klienti</th>
+            <th>Hardware ID</th>
+            <th>Çelësi</th>
+            <th>Statusi</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="licenses-body"></tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    const API = "/fiskalizim/api/admin";
+    const secretEl = document.getElementById("admin-secret");
+    const msgEl = document.getElementById("page-msg");
+    const bodyEl = document.getElementById("licenses-body");
+    const newHw = document.getElementById("new-hw");
+    const newKey = document.getElementById("new-key");
+    const newName = document.getElementById("new-name");
+    const newMsg = document.getElementById("new-msg");
+    let newExpiry = "";
+    const savedSecret = sessionStorage.getItem("fiskalizim_admin_secret") || "";
+    if (savedSecret) secretEl.value = savedSecret;
+
+    function secret() {
+      return String(secretEl.value || "").trim();
+    }
+
+    function setMsg(el, text, err) {
+      el.textContent = text || "";
+      el.classList.toggle("err", !!err);
+    }
+
+    function esc(s) {
+      return String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatHw(raw) {
+      const hex = String(raw || "").replace(/[^a-fA-F0-9]/g, "").toUpperCase().slice(0, 16);
+      if (hex.length > 12) return hex.slice(0, 4) + "-" + hex.slice(4, 8) + "-" + hex.slice(8, 12) + "-" + hex.slice(12);
+      if (hex.length > 8) return hex.slice(0, 4) + "-" + hex.slice(4, 8) + "-" + hex.slice(8);
+      if (hex.length > 4) return hex.slice(0, 4) + "-" + hex.slice(4);
+      return hex;
+    }
+
+    function hexLen(raw) {
+      return String(raw || "").replace(/[^a-fA-F0-9]/g, "").length;
+    }
+
+    async function api(path, options) {
+      const headers = { "Content-Type": "application/json", "x-admin-secret": secret() };
+      const res = await fetch(API + path, Object.assign({ headers }, options || {}));
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.gabim || data.message || "Gabim " + res.status);
+      return data;
+    }
+
+    newHw.addEventListener("input", function () {
+      const next = formatHw(newHw.value);
+      if (next !== newHw.value) newHw.value = next;
+    });
+
+    document.getElementById("new-gen").addEventListener("click", async function () {
+      if (!secret()) {
+        setMsg(newMsg, "Shkruaj sekretin e adminit.", true);
+        return;
+      }
+      if (hexLen(newHw.value) !== 16) {
+        setMsg(newMsg, "ID duhet 16 shenja.", true);
+        return;
+      }
+      const btn = document.getElementById("new-gen");
+      btn.disabled = true;
+      try {
+        const data = await api("/generate-license-key", {
+          method: "POST",
+          body: JSON.stringify({ hardware_id: newHw.value.trim() }),
+        });
+        newKey.value = data.license_key || "";
+        newExpiry = data.expiry_date || "";
+        setMsg(newMsg, "Çelësi u gjenerua. Shtyp Ruaj.", false);
+      } catch (e) {
+        setMsg(newMsg, e.message || "Gjenerimi dështoi.", true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("new-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      if (!secret()) {
+        setMsg(newMsg, "Shkruaj sekretin e adminit.", true);
+        return;
+      }
+      const emri = String(newName.value || "").trim();
+      const key = String(newKey.value || "").trim();
+      if (!emri) {
+        setMsg(newMsg, "Shkruaj emrin e biznesit.", true);
+        return;
+      }
+      if (hexLen(newHw.value) !== 16) {
+        setMsg(newMsg, "ID duhet 16 shenja.", true);
+        return;
+      }
+      if (!key) {
+        setMsg(newMsg, "Gjenero çelësin.", true);
+        return;
+      }
+      const btn = e.target.querySelector("button.ok");
+      btn.disabled = true;
+      try {
+        const data = await api("/clients/register-license", {
+          method: "POST",
+          body: JSON.stringify({
+            emri: emri,
+            hardware_id: newHw.value.trim(),
+            license_key: key,
+          }),
+        });
+        if (data.already_exists) {
+          setMsg(newMsg, "Tashmë ekziston.", true);
+          return;
+        }
+        const id = data.license && data.license.id;
+        if (id && newExpiry) {
+          await api("/licenses/" + encodeURIComponent(id), {
+            method: "PATCH",
+            body: JSON.stringify({ expires_at: newExpiry }),
+          });
+        }
+        newName.value = "";
+        newHw.value = "";
+        newKey.value = "";
+        newExpiry = "";
+        setMsg(newMsg, "U ruajt.", false);
+        await load();
+      } catch (err) {
+        setMsg(newMsg, err.message || "Ruajtja dështoi.", true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function bindRow(tr) {
+      const hw = tr.querySelector("[data-hw]");
+      hw.addEventListener("input", function () {
+        const next = formatHw(hw.value);
+        if (next !== hw.value) hw.value = next;
+      });
+      tr.querySelector("[data-gen]").addEventListener("click", async function () {
+        const btn = tr.querySelector("[data-gen]");
+        const rowMsg = tr.querySelector("[data-row-msg]");
+        if (hexLen(hw.value) !== 16) {
+          rowMsg.textContent = "ID duhet 16 shenja.";
+          rowMsg.classList.add("err");
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const data = await api("/generate-license-key", {
+            method: "POST",
+            body: JSON.stringify({ hardware_id: hw.value.trim() }),
+          });
+          tr.querySelector("[data-key]").value = data.license_key || "";
+          tr.setAttribute("data-expiry", data.expiry_date || "");
+          rowMsg.textContent = "Çelësi u gjenerua. Shtyp Ruaj.";
+          rowMsg.classList.remove("err");
+        } catch (e) {
+          rowMsg.textContent = e.message || "Gjenerimi dështoi.";
+          rowMsg.classList.add("err");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      tr.querySelector("[data-save]").addEventListener("click", async function () {
+        const btn = tr.querySelector("[data-save]");
+        const rowMsg = tr.querySelector("[data-row-msg]");
+        const id = tr.getAttribute("data-id");
+        const key = String(tr.querySelector("[data-key]").value || "").trim();
+        if (hexLen(hw.value) !== 16) {
+          rowMsg.textContent = "ID duhet 16 shenja.";
+          rowMsg.classList.add("err");
+          return;
+        }
+        if (!key) {
+          rowMsg.textContent = "Gjenero çelësin.";
+          rowMsg.classList.add("err");
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const body = { hardware_id: hw.value.trim(), license_key: key };
+          const expiry = tr.getAttribute("data-expiry") || "";
+          if (expiry) body.expires_at = expiry;
+          await api("/licenses/" + encodeURIComponent(id), {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+          rowMsg.textContent = "U ruajt.";
+          rowMsg.classList.remove("err");
+        } catch (e) {
+          rowMsg.textContent = e.message || "Ruajtja dështoi.";
+          rowMsg.classList.add("err");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+
+    function render(list) {
+      bodyEl.innerHTML = "";
+      if (!list.length) {
+        bodyEl.innerHTML = '<tr><td colspan="5">Nuk ka licenca.</td></tr>';
+        return;
+      }
+      list.forEach(function (l) {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-id", l.id);
+        const name = (l.clients && l.clients.emri) || "—";
+        tr.innerHTML =
+          "<td>" + esc(name) + "</td>" +
+          '<td><input class="mono" data-hw value="' + esc(formatHw(l.hardware_id)) + '" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false"></td>' +
+          '<td><input class="mono" data-key readonly value="' + esc(l.license_key) + '" autocomplete="off" spellcheck="false"></td>' +
+          "<td>" + esc(l.status) + "</td>" +
+          '<td><div class="actions">' +
+          '<button type="button" data-gen>Gjenero Çelësin</button>' +
+          '<button type="button" class="ok" data-save>Ruaj</button>' +
+          "</div><p class=\"msg\" data-row-msg></p></td>";
+        bodyEl.appendChild(tr);
+        bindRow(tr);
+      });
+    }
+
+    async function load() {
+      if (!secret()) {
+        setMsg(msgEl, "Shkruaj sekretin e adminit.", true);
+        return;
+      }
+      sessionStorage.setItem("fiskalizim_admin_secret", secret());
+      setMsg(msgEl, "Duke ngarkuar…", false);
+      try {
+        const data = await api("/licenses");
+        render(data.licenses || []);
+        setMsg(msgEl, "", false);
+      } catch (e) {
+        setMsg(msgEl, e.message || "Lista dështoi.", true);
+      }
+    }
+
+    document.getElementById("btn-load").addEventListener("click", load);
+  </script>
+</body>
+</html>
