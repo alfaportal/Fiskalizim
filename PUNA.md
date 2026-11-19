@@ -1,4 +1,8 @@
-﻿## 2026-11-17 — Çelësi i licencës nga ID
+﻿## 2026-11-17 — Setup 1.009
+
+Version `1.0.8` → `1.0.9`. Komanda `npm run build:sef`. Doli `dist-atk-v2\Revolution-Fiskalizim-Setup-1.009-win-x64.exe`. 1.006 dhe 1.007 mbeten.
+
+## 2026-11-17 — Çelësi i licencës nga ID
 
 Admini shkruan ID, gjeneron çelësin dhe e ruan. Programi e merr çelësin si më parë. Pa build. Pa GIT. Live jo i provuar.
 
